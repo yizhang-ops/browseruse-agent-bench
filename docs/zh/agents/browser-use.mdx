@@ -1,0 +1,178 @@
+---
+title: "browser-use"
+description: "基于 Python 的可编程浏览器代理"
+---
+
+browser-use 是一个基于 Python 的浏览器代理，提供可编程的浏览器自动化能力，支持本地 Chrome、Lexmount 云浏览器和 AgentBay 云浏览器。
+
+## 安装
+
+```bash
+# 创建并激活项目虚拟环境
+uv venv
+source .venv/bin/activate
+
+# 安装 browseruse-bench
+uv pip install -e .
+```
+
+`bubench run` 会在首次运行时创建 `config.yaml` 中指定的 venv（默认 `.venvs/browser_use`），并自动安装 `browser-use` extra 依赖。
+
+使用 `bubench` 前请先激活 `.venv`（或使用 `uv run bubench ...`）。
+
+## 配置
+
+在根目录 `config.yaml` 的 `agents.browser-use` 下配置：
+
+```yaml
+agents:
+  browser-use:
+    active_model: browser-use   # 当前使用的模型配置名
+    models:
+      browser-use:              # Browser Use 官方 API
+        model_type: BROWSER_USE
+        model_id: bu-2-0
+        api_key: $BROWSER_USE_API_KEY
+      gpt:                      # OpenAI 兼容模型
+        model_type: OPENAI
+        model_id: gpt-5.4
+        api_key: $OPENAI_API_KEY
+        base_url: $OPENAI_BASE_URL
+    browser:
+      browser_id: lexmount
+      lexmount_browser_mode: normal
+      lexmount_api_key: $LEXMOUNT_API_KEY
+      lexmount_project_id: $LEXMOUNT_PROJECT_ID
+    defaults:
+      use_vision: false
+      max_steps: 40
+      flash_mode: true
+      timeout: 600
+```
+
+将 `active_model` 设置为默认使用的模型配置名，也可在运行时通过 `--model <name>` 切换。
+
+### 支持的模型类型
+
+| `model_type` | 说明 | 额外配置项 |
+|-------------|------|------------|
+| `BROWSER_USE` | Browser Use 官方 API | `api_key`（`$BROWSER_USE_API_KEY`） |
+| `OPENAI` | OpenAI 兼容模型 | `api_key`, `base_url` |
+| `GEMINI` | Gemini 模型 | `api_key`, `base_url` |
+
+### 配置参数说明
+
+| 参数 | 说明 | 示例 |
+|------|------|------|
+| `active_model` | 默认模型配置名 | `browser-use`, `gpt` |
+| `model_type` | 模型提供商类型 | `BROWSER_USE`, `OPENAI`, `GEMINI` |
+| `model_id` | 模型 ID | `bu-2-0`, `gpt-4.1` |
+| `api_key` | API 密钥（推荐 `$ENV_VAR` 形式） | `$BROWSER_USE_API_KEY` |
+| `browser_id` | 浏览器后端 | `Chrome-Local`, `lexmount`, `agentbay` |
+| `use_vision` | 是否将截图随 DOM 状态一起传给 LLM | `true`, `false` |
+| `max_steps` | 最大任务步数 | `40` |
+| `timeout` | 任务超时时间（秒） | `600` |
+| `lexmount_browser_mode` | Lexmount 浏览器模式 | `normal`（默认）, `light` |
+| `agentbay_api_key` | AgentBay API Key（推荐 `$ENV_VAR` 形式） | `$AGENTBAY_API_KEY` |
+| `agentbay_image_id` | AgentBay 会话镜像 | 默认 `browser_latest` |
+| `agentbay_enable_browser_replay` | 是否开启 AgentBay 录制 | `true`（默认）, `false` |
+| `agentbay_browser_use_stealth` | 是否开启 AgentBay stealth | `false`（默认）, `true` |
+
+<Note>
+**为什么没有 `browser_control`？**
+
+browser-use 框架内部始终并行使用 DOM 和视觉两套机制，没有"纯 DOM"或"纯视觉"的切换选项。`use_vision` 只控制是否将截图包含在 LLM 上下文中，底层交互策略由框架本身决定，不对外暴露。
+</Note>
+
+## 浏览器模式
+
+**本地浏览器**：使用本地 Chrome，适合开发调试，无需额外参数。
+
+```yaml
+browser:
+  browser_id: Chrome-Local
+```
+
+**Lexmount 云浏览器**：适合大规模评测。先在 `.env` 中填好 `LEXMOUNT_API_KEY` / `LEXMOUNT_PROJECT_ID`，再在 `config.yaml` 的 `browser` 下引用：
+
+```yaml
+browser:
+  browser_id: lexmount
+  lexmount_browser_mode: normal           # normal | light
+  lexmount_api_key: $LEXMOUNT_API_KEY
+  lexmount_project_id: $LEXMOUNT_PROJECT_ID
+  # lexmount_base_url: $LEXMOUNT_BASE_URL  # 可选，按地区选择：
+                                          #   https://api.lexmount.cn            （生产 · 国内，默认）
+                                          #   https://api.lexmount.com           （生产 · 国外）
+```
+
+详细配置参考 [Lexmount 云浏览器](/zh/browser/lexmount)。
+
+**AgentBay 云浏览器**：适合大规模评测。先在 `.env` 中填好 `AGENTBAY_API_KEY`，再在 `config.yaml` 的 `browser` 下引用：
+
+```yaml
+browser:
+  browser_id: agentbay
+  agentbay_api_key: $AGENTBAY_API_KEY
+  # agentbay_image_id: browser_latest
+  # agentbay_enable_browser_replay: true
+  # agentbay_browser_use_stealth: false
+```
+
+运行说明：
+
+- AgentBay SDK 按可选依赖处理。包缺失或导出不兼容时，仅在 `browser_id: agentbay` 才会报错，其他浏览器模式不受影响。
+- AgentBay 后端会话清理失败只会记录日志，不会覆盖任务执行阶段的原始错误。
+
+## 使用示例
+
+### 基础运行
+
+```bash
+# 运行 LexBench-Browser 前 3 个任务
+bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+  --mode first_n \
+  --count 3
+
+# 运行全部任务（跳过已完成）
+bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+  --mode all \
+  --skip-completed
+```
+
+
+### 指定任务运行
+
+```bash
+# 运行指定 ID 的任务
+bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+  --mode specific \
+  --task-ids task_id_1 task_id_2
+```
+
+## 评估
+
+```bash
+# 评估结果（--model-id 填运行时使用的 model_id）
+bubench eval --agent browser-use --data LexBench-Browser --model-id bu-2-0
+
+# 自定义评分阈值
+bubench eval --agent browser-use --data LexBench-Browser --model-id bu-2-0 --score-threshold 70
+```
+
+## 支持的 Benchmarks
+
+- ✅ LexBench-Browser
+- ✅ Online-Mind2Web
+- ✅ BrowseComp
+
+## 相关链接
+
+- [browser-use 官方文档](https://docs.browser-use.com)
+- [GitHub 仓库](https://github.com/browser-use/browser-use)

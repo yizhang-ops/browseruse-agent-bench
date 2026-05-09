@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LexBench-Browser — A Real-World Browser Agent Benchmark</title>
+<meta name="description" content="LexBench-Browser: an open benchmark for browser agents on long-tail, multilingual web tasks. Evaluates browser-use, deepbrowse, Agent-TARS, skyvern across LexBench-Browser, Online-Mind2Web, and BrowseComp.">
+<link rel="icon" href="../docs/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a class="brand" href="#top">
+      <span class="brand-mark">●</span>
+      <span class="brand-name">LexBench-Browser</span>
+    </a>
+    <div class="topnav-links">
+      <a href="#tldr">Overview</a>
+      <a href="#tasks">Tasks</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#evaluation">Evaluation</a>
+      <a href="#agents">Agents</a>
+      <a href="#leaderboard">Leaderboard</a>
+      <a href="#citation">Cite</a>
+      <a class="topnav-cta" href="https://github.com/lexmount/browseruse-bench" target="_blank" rel="noopener">GitHub →</a>
+    </div>
+  </div>
+</nav>
+
+<header id="top" class="hero">
+  <div class="hero-inner">
+    <div class="hero-grid">
+      <div class="hero-text">
+        <div class="hero-eyebrow">Lexmount · Open Benchmark</div>
+        <h1 class="hero-title">LexBench-Browser</h1>
+        <p class="hero-subtitle">
+          A real-world browser-agent benchmark with
+          <span class="hl">long-tail</span>,
+          <span class="hl">multilingual</span> web tasks
+          and a deterministic stepwise judge.
+        </p>
+        <div class="hero-authors">
+          <span class="author-chip">Lexmount Research</span>
+          <span class="author-chip muted">+ Collaborators (TBD)</span>
+        </div>
+        <div class="hero-buttons">
+          <a class="btn btn-primary" href="#" aria-disabled="true" data-placeholder="paper">
+            <span class="btn-icon">📄</span> Paper <span class="btn-tag">soon</span>
+          </a>
+          <a class="btn btn-secondary" href="#" aria-disabled="true" data-placeholder="arxiv">
+            <span class="btn-icon">🗂</span> arXiv <span class="btn-tag">soon</span>
+          </a>
+          <a class="btn btn-secondary" href="https://github.com/lexmount/browseruse-bench/" target="_blank" rel="noopener">
+            <span class="btn-icon">⌨</span> Code
+          </a>
+        </div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <img src="assets/img/hero.png" alt="" loading="eager" class="hero-image">
+      </div>
+    </div>
+  </div>
+  <div class="hero-bg" aria-hidden="true"></div>
+</header>
+
+<section id="tldr" class="section">
+  <div class="container">
+    <h2 class="section-title">Overview</h2>
+    <p class="section-lede">
+      <strong>LexBench</strong> is not just another dataset — it is a benchmark series and
+      evaluation infrastructure for real-world Agents. The platform is built around four
+      orthogonal, pluggable axes, so that any layer can be swapped or replaced without
+      touching the rest. Results stay reproducible, comparable and ablation-friendly.
+    </p>
+
+    <div class="dim-grid">
+      <div class="dim-card">
+        <div class="dim-icon">🤖</div>
+        <div class="dim-name">Agent</div>
+        <div class="dim-desc">
+          Standardized <code>BaseAgent</code> contract. browser-use, skyvern, Agent-TARS,
+          deepbrowse, openai-cua, claude-code — same protocol, fair comparison.
+        </div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-icon">🧠</div>
+        <div class="dim-name">Model</div>
+        <div class="dim-desc">
+          Any LLM the agent can call. GPT, Claude, Gemini, Doubao, Kimi, Qwen, DeepSeek,
+          MiniMax — switch via config, no code change.
+        </div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-icon">🌐</div>
+        <div class="dim-name">Browser</div>
+        <div class="dim-desc">
+          Local Chrome, Lexmount cloud browser, AgentBay, CDP — pluggable execution
+          environment with per-task isolation and session-pool support.
+        </div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-icon">⚖️</div>
+        <div class="dim-name">Eval</div>
+        <div class="dim-desc">
+          Pluggable judge strategies — stepwise rubric (LexJudge), final-answer judge,
+          WebJudge, custom graders. Process-level scoring with structured failure attribution.
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Why an evaluation platform, not just a dataset?</strong>
+      Most benchmarks ship as "data + scripts" and decay as soon as the dataset is solved.
+      LexBench treats evaluation as <strong>shared infrastructure</strong>: every layer is
+      decoupled, every run is reproducible, and every result is comparable across
+      Agent × Model × Browser × Eval combinations.
+    </div>
+  </div>
+</section>
+
+<section id="tasks" class="section section-alt">
+  <div class="container">
+    <h2 class="section-title">Tasks</h2>
+    <p class="section-lede">
+      The first dataset, <strong>LexBench-Browser</strong>, focuses on browser-agent tasks
+      that resemble actual user workflows: search, e-commerce, video, social, academic and
+      tool-use across both English and Chinese websites, with varying difficulty tiers.
+    </p>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-num">210</div>
+        <div class="stat-label">Tasks total</div>
+        <div class="stat-sub">across 107 distinct websites</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">4</div>
+        <div class="stat-label">Reference agents</div>
+        <div class="stat-sub">browser-use · deepbrowse · Agent-TARS · skyvern</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">15</div>
+        <div class="stat-label">Models evaluated</div>
+        <div class="stat-sub">GPT · Claude · Gemini · Doubao · Kimi · Qwen · DeepSeek · MiniMax</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">3</div>
+        <div class="stat-label">Browser backends</div>
+        <div class="stat-sub">Chrome-Local · Lexmount Cloud · AgentBay</div>
+      </div>
+    </div>
+
+    <figure class="wide-fig">
+      <img src="assets/img/task-distribution.png" alt="Task distribution diagram showing the categorical and difficulty breakdown of LexBench-Browser tasks" loading="lazy">
+      <figcaption>Categorical and difficulty distribution across the LexBench-Browser task pool.</figcaption>
+    </figure>
+    <div class="muted-card">
+      <strong>Login-gated and operation-tier tasks are coming soon.</strong>
+      The next release adds tasks that require account context, multi-step transactions
+      and safety-sensitive flows — to evaluate Agents on the parts of the web that
+      English-only benchmarks miss.
+    </div>
+  </div>
+</section>
+
+<section id="architecture" class="section">
+  <div class="container">
+    <h2 class="section-title">Architecture</h2>
+    <p class="section-lede">
+      The system is organized as four layers — <strong>CLI</strong>, <strong>Execution</strong>,
+      <strong>Data &amp; Evaluation</strong>, and <strong>Output</strong> — with five pluggable
+      modules concentrated in the middle two layers. Agents, models, browsers, benchmarks and
+      judge strategies are all selected through configuration; the core flow is fixed.
+    </p>
+    <figure class="wide-fig">
+      <img src="assets/img/architecture-wide.png" alt="LexBench system architecture: four horizontal layers (CLI, Execution, Data and Evaluation, Output) with pluggable modules for LLM Models, Agents, Browsers, Benchmarks, and Eval LLM Judges" loading="lazy">
+      <figcaption>Four-layer architecture: CLI → Execution (Models · Agents · Browsers) → Data &amp; Evaluation (Benchmarks · LLM Judge) → Output (Leaderboard · API).</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="evaluation" class="section section-alt">
+  <div class="container">
+    <h2 class="section-title">Evaluation Methodology</h2>
+    <p class="section-lede">
+      Each trajectory is judged stepwise by a calibrated LLM judge. Final tasks pass when the
+      step-aligned score crosses a <strong>per-task threshold</strong> declared in the dataset.
+      All judge prompts, step screenshots and per-task scores are saved alongside the run for
+      full reproducibility.
+    </p>
+    <figure class="wide-fig">
+      <img src="assets/img/eval-pipeline-wide.png" alt="Evaluation pipeline diagram: trajectory captured, screenshots collected, stepwise judge model scores each step, final score gated against pass threshold of 60" loading="lazy">
+      <figcaption>Stepwise judge pipeline: trajectory → step alignment → judge model → threshold-gated final score.</figcaption>
+    </figure>
+    <div class="metric-row">
+      <div class="metric-card">
+        <div class="metric-key">Strategy</div>
+        <div class="metric-val">stepwise</div>
+        <div class="metric-sub">Per-step screenshot + intent alignment</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-key">Judge</div>
+        <div class="metric-val">gpt-5.4</div>
+        <div class="metric-sub">Calibrated LLM judge model</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-key">Pass threshold</div>
+        <div class="metric-val">per-task</div>
+        <div class="metric-sub">Declared in the dataset, scaled to task difficulty</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-key">Reported</div>
+        <div class="metric-val">success / total</div>
+        <div class="metric-sub">No silent task drops</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="agents" class="section">
+  <div class="container">
+    <h2 class="section-title">Reference Agents</h2>
+    <p class="section-lede">
+      Four open agent integrations ship in the runner today, each registered with a single
+      decorator on a <code>BaseAgent</code> subclass. Adding a new one is roughly ten lines.
+    </p>
+    <div class="agent-grid">
+      <div class="agent-card">
+        <div class="agent-name">browser-use</div>
+        <div class="agent-desc">DOM-action LLM agent driving Playwright with built-in tool primitives.</div>
+        <a class="agent-link" href="https://github.com/browser-use/browser-use" target="_blank" rel="noopener">repo →</a>
+      </div>
+      <div class="agent-card">
+        <div class="agent-name">deepbrowse</div>
+        <div class="agent-desc">Long-horizon planning + execution split, optimized for multi-step navigation.</div>
+        <a class="agent-link" href="#" aria-disabled="true">repo →</a>
+      </div>
+      <div class="agent-card">
+        <div class="agent-name">Agent-TARS</div>
+        <div class="agent-desc">Vision-grounded action policy with screenshot-first reasoning.</div>
+        <a class="agent-link" href="https://github.com/bytedance/UI-TARS" target="_blank" rel="noopener">repo →</a>
+      </div>
+      <div class="agent-card">
+        <div class="agent-name">skyvern</div>
+        <div class="agent-desc">Workflow-style orchestrated agent with explicit step contracts.</div>
+        <a class="agent-link" href="https://github.com/Skyvern-AI/skyvern" target="_blank" rel="noopener">repo →</a>
+      </div>
+    </div>
+    <div class="muted-card">
+      Implementing a new agent: subclass <code>BaseAgent</code>, register with
+      <code>@register_agent("name")</code>, and the runner will spawn it inside its own
+      <code>uv</code> environment via <code>--extra &lt;agent&gt;</code>.
+    </div>
+  </div>
+</section>
+
+<section id="leaderboard" class="section section-alt">
+  <div class="container">
+    <h2 class="section-title">Leaderboard</h2>
+    <p class="section-lede">
+      Live results across all reference agents and models. Click any header to sort. Showing the
+      top 15 entries by success rate.
+    </p>
+    <div class="lb-meta">
+      <span class="lb-pill">benchmark · LexBench-Browser</span>
+      <span class="lb-pill">judge · gpt-5.4 (per-task threshold)</span>
+      <span class="lb-pill">snapshot · 2026-04-29</span>
+    </div>
+    <div class="lb-wrap">
+      <table class="lb-table" id="lb-table">
+        <thead>
+          <tr>
+            <th data-key="rank">#</th>
+            <th data-key="agent">Agent</th>
+            <th data-key="model">Model</th>
+            <th data-key="browser">Browser</th>
+            <th data-key="success" class="num">Success&nbsp;%</th>
+            <th data-key="steps" class="num">Avg&nbsp;steps</th>
+            <th data-key="e2e" class="num">Avg&nbsp;e2e (s)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-rank="1" data-agent="browser-use" data-model="claude-opus-4-7" data-browser="Lexmount" data-success="58.0" data-steps="14.20" data-e2e="205.8">
+            <td class="num">1</td>
+            <td><span class="cell-strong">browser-use</span></td>
+            <td><code class="cell-mono">claude-opus-4-7</code></td>
+            <td><span class="browser-pill">Lexmount</span></td>
+            <td class="num"><strong>58.0</strong></td>
+            <td class="num">14.2</td>
+            <td class="num">205.8</td>
+          </tr>
+          <tr data-rank="2" data-agent="browser-use" data-model="kimi-k2.5" data-browser="Lexmount" data-success="58.0" data-steps="24.70" data-e2e="280.1">
+            <td class="num">2</td>
+            <td><span class="cell-strong">browser-use</span></td>
+            <td><code class="cell-mono">kimi-k2.5</code></td>
+            <td><span class="browser-pill">Lexmount</span></td>
+            <td class="num"><strong>58.0</strong></td>
+            <td class="num">24.7</td>
+            <td class="num">280.1</td>
+          </tr>
+          <tr data-rank="3" data-agent="browser-use" data-model="gemini-3.1-pro-preview" data-browser="Lexmount" data-success="56.0" data-steps="13.90" data-e2e="149.0">
+            <td class="num">3</td>
+            <td><span class="cell-strong">browser-use</span></td>
+            <td><code class="cell-mono">gemini-3.1-pro-preview</code></td>
+            <td><span class="browser-pill">Lexmount</span></td>
+            <td class="num"><strong>56.0</strong></td>
+            <td class="num">13.9</td>
+            <td class="num">149.0</td>
+          </tr>
+          <tr data-rank="4" data-agent="browser-use" data-model="gpt-5.5" data-browser="Lexmount" data-success="54.0" data-steps="14.10" data-e2e="273.0">
+            <td class="num">4</td>
+            <td><span class="cell-strong">browser-use</span></td>
+            <td><code class="cell-mono">gpt-5.5</code></td>
+            <td><span class="browser-pill">Lexmount</span></td>
+            <td class="num"><strong>54.0</strong></td>
+            <td class="num">14.1</td>
+            <td class="num">273.0</td>
+          </tr>
+          <tr data-rank="5" data-agent="browser-use" data-model="gemini-3.1-pro-preview" data-browser="Chrome-Local" data-success="54.0" data-steps="14.00" data-e2e="163.3">
+            <td class="num">5</td>
+            <td><span class="cell-strong">browser-use</span></td>
+            <td><code class="cell-mono">gemini-3.1-pro-preview</code></td>
+            <td><span class="browser-pill">Chrome-Local</span></td>
+            <td class="num"><strong>54.0</strong></td>
+            <td class="num">14.0</td>
+            <td class="num">163.3</td>
+          </tr>
+          <tr data-rank="6" data-agent="browser-use" data-model="kimi-k2.6" data-browser="Lexmount" data-success="52.0" data-steps="30.30" data-e2e="447.6">
+            <td class="num">6</td>
+            <td><span class="cell-strong">browser-use</span></td>
+            <td><code class="cell-mono">kimi-k2.6</code></td>
+            <td><span class="browser-pill">Lexmount</span></td>
+            <td class="num"><strong>52.0</strong></td>
+            <td class="num">30.3</td>
+            <td class="num">447.6</td>
+          </tr>
+          <tr data-rank="7" data-agent="browser-use" data-model="bu-2-0" data-browser="Chrome-Local" data-success="48.0" data-steps="20.80" data-e2e="136.5">
+            <td class="num">7</td>
+            <td><span class="cell-strong">browser-use</span></td>
+            <td><code class="cell-mono">bu-2-0</code></td>
+            <td><span class="browser-pill">Chrome-Local</span></td>
+            <td class="num"><strong>48.0</strong></td>
+            <td class="num">20.8</td>
+            <td class="num">136.5</td>
+          </tr>
+          <tr data-rank="8" data-agent="browser-use" data-model="MiniMax-M2.7" data-browser="Chrome-Local" data-success="42.0" data-steps="27.50" data-e2e="413.1">
+            <td class="num">8</td>
+            <td><span class="cell-strong">browser-use</span></td>
+            <td><code class="cell-mono">MiniMax-M2.7</code></td>
+            <td><span class="browser-pill">Chrome-Local</span></td>
+            <td class="num"><strong>42.0</strong></td>
+            <td class="num">27.5</td>
+            <td class="num">413.1</td>
+          </tr>
+          <tr data-rank="9" data-agent="Agent-TARS" data-model="gemini-3.1-pro-preview" data-browser="Lexmount" data-success="40.0" data-steps="18.40" data-e2e="121.1">
+            <td class="num">9</td>
+            <td><span class="cell-strong">Agent-TARS</span></td>
+            <td><code class="cell-mono">gemini-3.1-pro-preview</code></td>
+            <td><span class="browser-pill">Lexmount</span></td>
+            <td class="num"><strong>40.0</strong></td>
+            <td class="num">18.4</td>
+            <td class="num">121.1</td>
+          </tr>
+          <tr data-rank="10" data-agent="browser-use" data-model="bu-2-0" data-browser="Lexmount" data-success="40.0" data-steps="23.40" data-e2e="350.7">
+            <td class="num">10</td>
+            <td><span class="cell-strong">browser-use</span></td>
+            <td><code class="cell-mono">bu-2-0</code></td>
+            <td><span class="browser-pill">Lexmount</span></td>
+            <td class="num"><strong>40.0</strong></td>
+            <td class="num">23.4</td>
+            <td class="num">350.7</td>
+          </tr>
+          <tr data-rank="11" data-agent="browser-use" data-model="gemini-2.5-pro" data-browser="Lexmount" data-success="40.0" data-steps="18.70" data-e2e="279.2">
+            <td class="num">11</td>
+            <td><span class="cell-strong">browser-use</span></td>
+            <td><code class="cell-mono">gemini-2.5-pro</code></td>
+            <td><span class="browser-pill">Lexmount</span></td>
+            <td class="num"><strong>40.0</strong></td>
+            <td class="num">18.7</td>
+            <td class="num">279.2</td>
+          </tr>
+          <tr data-rank="12" data-agent="browser-use" data-model="qwen3.5-plus" data-browser="Lexmount" data-success="40.0" data-steps="23.70" data-e2e="326.7">
+            <td class="num">12</td>
+            <td><span class="cell-strong">browser-use</span></td>
+            <td><code class="cell-mono">qwen3.5-plus</code></td>
+            <td><span class="browser-pill">Lexmount</span></td>
+            <td class="num"><strong>40.0</strong></td>
+            <td class="num">23.7</td>
+            <td class="num">326.7</td>
+          </tr>
+          <tr data-rank="13" data-agent="browser-use" data-model="MiniMax-M2.5" data-browser="Lexmount" data-success="38.0" data-steps="27.40" data-e2e="354.3">
+            <td class="num">13</td>
+            <td><span class="cell-strong">browser-use</span></td>
+            <td><code class="cell-mono">MiniMax-M2.5</code></td>
+            <td><span class="browser-pill">Lexmount</span></td>
+            <td class="num"><strong>38.0</strong></td>
+            <td class="num">27.4</td>
+            <td class="num">354.3</td>
+          </tr>
+          <tr data-rank="14" data-agent="browser-use" data-model="MiniMax-M2.7" data-browser="Lexmount" data-success="36.0" data-steps="22.40" data-e2e="408.9">
+            <td class="num">14</td>
+            <td><span class="cell-strong">browser-use</span></td>
+            <td><code class="cell-mono">MiniMax-M2.7</code></td>
+            <td><span class="browser-pill">Lexmount</span></td>
+            <td class="num"><strong>36.0</strong></td>
+            <td class="num">22.4</td>
+            <td class="num">408.9</td>
+          </tr>
+          <tr data-rank="15" data-agent="browser-use" data-model="doubao-seed-2-0-pro" data-browser="Lexmount" data-success="36.0" data-steps="17.30" data-e2e="385.3">
+            <td class="num">15</td>
+            <td><span class="cell-strong">browser-use</span></td>
+            <td><code class="cell-mono">doubao-seed-2-0-pro</code></td>
+            <td><span class="browser-pill">Lexmount</span></td>
+            <td class="num"><strong>36.0</strong></td>
+            <td class="num">17.3</td>
+            <td class="num">385.3</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted small">
+      Live source: leaderboard server at the team intranet. Data is automatically pulled from
+      <code>experiments/{benchmark}/{split}/{agent}/{model_id}/{ts}/</code> run dirs.
+    </p>
+  </div>
+</section>
+
+<section id="citation" class="section section-alt">
+  <div class="container">
+    <h2 class="section-title">Cite</h2>
+    <p class="section-lede">If you use LexBench-Browser in your work, please cite:</p>
+    <div class="bibtex">
+      <button class="copy-btn" type="button" data-target="#bibtex-block">Copy</button>
+      <pre><code id="bibtex-block">@misc{lexbench_browser_2026,
+  title        = {LexBench-Browser: A Real-World Browser Agent Benchmark with Long-Tail and Multilingual Tasks},
+  author       = {Lexmount Research and Collaborators},
+  year         = {2026},
+  howpublished = {\url{https://lexmount.github.io/browseruse-bench/}},
+  note         = {Open benchmark; v1.0 reference release}
+}</code></pre>
+    </div>
+    <p class="muted small">
+      Acknowledgements: integration scaffolding adapted patterns from browser-use, skyvern,
+      Agent-TARS and deepbrowse upstream codebases.
+    </p>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div class="footer-col">
+      <div class="brand-line">
+        <span class="brand-mark">●</span>
+        <span class="brand-name">LexBench-Browser</span>
+      </div>
+      <p class="muted small">
+        An open benchmark by <a href="https://lexmount.cn" target="_blank" rel="noopener">Lexmount</a>.
+        Released under <a href="https://github.com/lexmount/browseruse-bench/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>;
+        site content under
+        <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC-BY 4.0</a>.
+      </p>
+    </div>
+    <div class="footer-col">
+      <h4>Project</h4>
+      <ul class="tight">
+        <li><a href="https://github.com/lexmount/browseruse-bench" target="_blank" rel="noopener">GitHub</a></li>
+        <li><a href="https://github.com/lexmount/browseruse-bench/issues" target="_blank" rel="noopener">Issue tracker</a></li>
+        <li><a href="https://github.com/lexmount/browseruse-bench/blob/main/README_ZH.md" target="_blank" rel="noopener">中文 README</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Resources</h4>
+      <ul class="tight">
+        <li><a href="#leaderboard">Leaderboard</a></li>
+        <li><a href="#evaluation">Evaluation methodology</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/script.js"></script>
+</body>
+</html>

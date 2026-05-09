@@ -1,0 +1,85 @@
+---
+title: "BrowseComp"
+description: "Browser operation competition benchmark"
+---
+
+BrowseComp is a benchmark for browser operation competition tasks, evaluating agents' comprehensive browser operation capabilities.
+
+## Overview
+
+| Attribute | Value |
+|-----------|-------|
+| Task Type | Browser operations |
+| Evaluation | Grader-based scoring |
+| Difficulty | Medium-High |
+
+## Features
+
+<CardGroup cols={2}>
+  <Card title="Competition-grade Tasks" icon="medal">
+    Tasks from browser operation competitions with high difficulty
+  </Card>
+  <Card title="Comprehensive Skills" icon="puzzle-piece">
+    Tests a wide range of browser operation capabilities
+  </Card>
+</CardGroup>
+
+## Quick Start
+
+### Run Tasks
+
+```bash
+# Run first 3 tasks
+bubench run \
+  --agent browser-use \
+  --data BrowseComp \
+  --mode first_n \
+  --count 3
+
+# Run with Agent-TARS
+bubench run \
+  --agent Agent-TARS \
+  --data BrowseComp \
+  --mode first_n \
+  --count 3
+```
+
+### Evaluate Results
+
+```bash
+bubench eval --agent browser-use --data BrowseComp --model-id bu-2-0
+```
+
+## Data Loading
+
+BrowseComp supports local JSONL files or HuggingFace downloads. To use HuggingFace:
+
+```bash
+bubench run --agent browser-use --data BrowseComp \
+  --data-source huggingface
+```
+
+The HuggingFace parquet file is converted to JSONL in the HF cache before use.
+
+## Evaluation Metrics
+
+| Metric | Description |
+|--------|-------------|
+| Task Completion | Percentage of tasks completed |
+| Accuracy | Result accuracy |
+
+## Data Format
+
+Task data is stored in `benchmarks/BrowseComp/data/`:
+
+```json
+{
+  "task_id": "browsecomp_001",
+  "task": "Navigate to the website and complete the registration form",
+  "expected_result": "Registration successful"
+}
+```
+
+## Related Links
+
+- [BrowseComp Official](https://openai.com/index/browsecomp/)

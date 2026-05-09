@@ -1,0 +1,16 @@
+<svg width="520" height="80" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <g>
+  <!-- Logo scaled and repositioned to fit -->
+  <g transform="translate(8, 10) scale(0.30)">
+   <path d="m123.40464,189.302l-49.017,-60.689l0,-0.213l-0.007,0.008l-0.08,0.098l-0.079,-0.098l-0.005,-0.008l0,0.213l-49.018,60.689" fill="#000000"/>
+   <path d="m213.00064,10.077l-30.627,40.029l106.262,139.196l61.223,0l-136.858,-179.225z" fill="#000000"/>
+   <path d="m122.84364,132.473l91.864,-120.061l-5.095,-6.673l-91.864,120.062l5.095,6.672z" fill="#000000"/>
+   <path d="m104.88464,30l-122.322,159.302l10.2,0l117.217,-152.629l-5.095,-6.673z" fill="#000000"/>
+   <path d="m179.44764,127.888l-61.211,0l47.967,61.414l61.223,0l-47.979,-61.414z" fill="#000000"/>
+   <path d="m104.84964,30.081l-30.686,39.957l47.349,62.023l28.015,-43.471l-44.678,-58.509z" fill="#000000"/>
+  </g>
+  
+  <!-- Project name text -->
+  <text x="125" y="55" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="42" font-weight="600" fill="#000000">Browseruse-Bench</text>
+ </g>
+</svg>

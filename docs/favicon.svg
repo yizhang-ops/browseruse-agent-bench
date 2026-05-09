@@ -1,0 +1,205 @@
+<svg width="431" height="429" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <defs>
+  <clipPath id="clip_0">
+   <path d="m1928.16003,569.61007l-0.08,0.09l-0.08,-0.09l-0.01,-0.01l0,0.21l-49.01,60.69l98.2,0l-49.02,-60.69l0.01,-0.21l-0.01,0.01z" id="svg_1"/>
+  </clipPath>
+  <clipPath id="clip_1">
+   <path d="m1928.16003,570.2397l-0.08,0.09l-0.08,-0.09l-0.01,-0.01l0,0.21l-49.01,60.69l98.2,0l-49.02,-60.69l0.01,-0.21" id="svg_2"/>
+  </clipPath>
+  <clipPath id="clip_2">
+   <path d="m2036.15003,491.30006l106.26,139.2l61.23,0l-136.86,-179.22l-30.63,40.02z" id="svg_3"/>
+  </clipPath>
+  <clipPath id="clip_3">
+   <path d="m2036.15003,491.92969l106.26,139.2l61.23,0l-136.86,-179.22l-30.63,40.02z" id="svg_4"/>
+  </clipPath>
+  <clipPath id="clip_4">
+   <path d="m1971.53003,567.00007l5.09,6.67l91.86,-120.06l-5.09,-6.67l-91.86,120.06z" id="svg_5"/>
+  </clipPath>
+  <clipPath id="clip_5">
+   <path d="m1971.53003,567.6297l5.09,6.67l91.86,-120.06l-5.09,-6.67l-91.86,120.06z" id="svg_6"/>
+  </clipPath>
+  <clipPath id="clip_6">
+   <path d="m1836.34003,630.50007l10.2,0l117.22,-152.63l-5.1,-6.67l-122.32,159.3z" id="svg_7"/>
+  </clipPath>
+  <clipPath id="clip_7">
+   <path d="m1836.34003,631.1297l10.2,0l117.22,-152.63l-5.1,-6.67l-122.32,159.3z" id="svg_8"/>
+  </clipPath>
+  <clipPath id="clip_8">
+   <path d="m1972.01003,569.09007l47.97,61.41l61.22,0l-47.98,-61.41l-61.21,0z" id="svg_9"/>
+  </clipPath>
+  <clipPath id="clip_9">
+   <path d="m1972.01003,569.7197l47.97,61.41l61.22,0l-47.98,-61.41l-61.21,0z" id="svg_10"/>
+  </clipPath>
+  <clipPath id="clip_10">
+   <path d="m1927.94003,511.24006l47.35,62.02l28.01,-43.47l-44.67,-58.51l-30.69,39.96z" id="svg_11"/>
+  </clipPath>
+  <clipPath id="clip_11">
+   <path d="m1927.94003,511.86969l47.35,62.02l28.01,-43.47l-44.67,-58.51l-30.69,39.96z" id="svg_12"/>
+  </clipPath>
+  <clipPath id="clip_12">
+   <path d="m2624.55004,569.61007l-0.08,0.09l-0.08,-0.09l-0.01,-0.01l0,0.21l-49.01,60.69l98.2,0l-49.02,-60.69l0,-0.21l0,0.01z" id="svg_13"/>
+  </clipPath>
+  <clipPath id="clip_13">
+   <path d="m2624.55004,570.2397l-0.08,0.09l-0.08,-0.09l-0.01,-0.01l0,0.21l-49.01,60.69l98.2,0l-49.02,-60.69l0,-0.21" id="svg_14"/>
+  </clipPath>
+  <clipPath id="clip_14">
+   <path d="m2732.54004,491.30006l106.26,139.2l61.22,0l-136.85,-179.22l-30.63,40.02z" id="svg_15"/>
+  </clipPath>
+  <clipPath id="clip_15">
+   <path d="m2732.54004,491.92969l106.26,139.2l61.22,0l-136.85,-179.22l-30.63,40.02z" id="svg_16"/>
+  </clipPath>
+  <clipPath id="clip_16">
+   <path d="m2667.91004,567.00007l5.1,6.67l91.86,-120.06l-5.09,-6.67l-91.87,120.06z" id="svg_17"/>
+  </clipPath>
+  <clipPath id="clip_17">
+   <path d="m2667.91004,567.6297l5.1,6.67l91.86,-120.06l-5.09,-6.67l-91.87,120.06z" id="svg_18"/>
+  </clipPath>
+  <clipPath id="clip_18">
+   <path d="m2532.73004,630.50007l10.2,0l117.21,-152.63l-5.09,-6.67l-122.32,159.3z" id="svg_19"/>
+  </clipPath>
+  <clipPath id="clip_19">
+   <path d="m2532.73004,631.1297l10.2,0l117.21,-152.63l-5.09,-6.67l-122.32,159.3z" id="svg_20"/>
+  </clipPath>
+  <clipPath id="clip_20">
+   <path d="m2668.40004,569.09007l47.97,61.41l61.22,0l-47.98,-61.41l-61.21,0z" id="svg_21"/>
+  </clipPath>
+  <clipPath id="clip_21">
+   <path d="m2668.40004,569.7197l47.97,61.41l61.22,0l-47.98,-61.41l-61.21,0z" id="svg_22"/>
+  </clipPath>
+  <clipPath id="clip_22">
+   <path d="m2624.33004,511.24006l47.35,62.02l28.01,-43.47l-44.68,-58.51l-30.68,39.96z" id="svg_23"/>
+  </clipPath>
+  <clipPath id="clip_23">
+   <path d="m2624.33004,511.86969l47.35,62.02l28.01,-43.47l-44.68,-58.51l-30.68,39.96z" id="svg_24"/>
+  </clipPath>
+  <clipPath id="clip_24">
+   <path d="m1885.77003,1147.44707c-43.62,0 -78.98,35.362 -78.98,78.984l0,270.877c0,43.621 35.36,78.983 78.98,78.983l270.88,0c43.62,0 78.98,-35.362 78.98,-78.983l0,-270.877c0,-43.622 -35.36,-78.984 -78.98,-78.984l-270.88,0z" id="svg_25"/>
+  </clipPath>
+  <clipPath id="clip_25">
+   <path d="m1885.77003,1148.0767c-43.62,0 -78.98,35.362 -78.98,78.984l0,270.877c0,43.621 35.36,78.983 78.98,78.983l270.88,0c43.62,0 78.98,-35.362 78.98,-78.983l0,-270.877c0,-43.622 -35.36,-78.984 -78.98,-78.984" id="svg_26"/>
+  </clipPath>
+  <clipPath id="clip_26">
+   <path d="m2572.14004,1147.44707c-43.63,0 -78.99,35.362 -78.99,78.984l0,270.877c0,43.621 35.36,78.983 78.99,78.983l270.87,0c43.63,0 78.99,-35.362 78.99,-78.983l0,-270.877c0,-43.622 -35.36,-78.984 -78.99,-78.984l-270.87,0z" id="svg_27"/>
+  </clipPath>
+  <clipPath id="clip_27">
+   <path d="m2572.14004,1148.0767c-43.63,0 -78.99,35.362 -78.99,78.984l0,270.877c0,43.621 35.36,78.983 78.99,78.983l270.87,0c43.63,0 78.99,-35.362 78.99,-78.983l0,-270.877c0,-43.622 -35.36,-78.984 -78.99,-78.984" id="svg_28"/>
+  </clipPath>
+  <clipPath id="clip_28">
+   <path d="m3284.31005,569.61007l-0.08,0.09l-0.08,-0.09l-0.01,-0.01l0,0.21l-49.01,60.69l98.2,0l-49.02,-60.69l0,-0.21l0,0.01z" id="svg_29"/>
+  </clipPath>
+  <clipPath id="clip_29">
+   <path d="m3284.31005,570.2397l-0.08,0.09l-0.08,-0.09l-0.01,-0.01l0,0.21l-49.01,60.69l98.2,0l-49.02,-60.69l0,-0.21" id="svg_30"/>
+  </clipPath>
+  <clipPath id="clip_30">
+   <path d="m3392.30005,491.30006l106.26,139.2l61.23,0l-136.86,-179.22l-30.63,40.02z" id="svg_31"/>
+  </clipPath>
+  <clipPath id="clip_31">
+   <path d="m3392.30005,491.92969l106.26,139.2l61.23,0l-136.86,-179.22l-30.63,40.02z" id="svg_32"/>
+  </clipPath>
+  <clipPath id="clip_32">
+   <path d="m3327.68005,567.00007l5.09,6.67l91.87,-120.06l-5.1,-6.67l-91.86,120.06z" id="svg_33"/>
+  </clipPath>
+  <clipPath id="clip_33">
+   <path d="m3327.68005,567.6297l5.09,6.67l91.87,-120.06l-5.1,-6.67l-91.86,120.06z" id="svg_34"/>
+  </clipPath>
+  <clipPath id="clip_34">
+   <path d="m3192.49005,630.50007l10.2,0l117.22,-152.63l-5.1,-6.67l-122.32,159.3z" id="svg_35"/>
+  </clipPath>
+  <clipPath id="clip_35">
+   <path d="m3192.49005,631.1297l10.2,0l117.22,-152.63l-5.1,-6.67l-122.32,159.3z" id="svg_36"/>
+  </clipPath>
+  <clipPath id="clip_36">
+   <path d="m3328.16005,569.09007l47.97,61.41l61.22,0l-47.97,-61.41l-61.22,0z" id="svg_37"/>
+  </clipPath>
+  <clipPath id="clip_37">
+   <path d="m3328.16005,569.7197l47.97,61.41l61.22,0l-47.97,-61.41l-61.22,0z" id="svg_38"/>
+  </clipPath>
+  <clipPath id="clip_38">
+   <path d="m3284.09005,511.24006l47.35,62.02l28.02,-43.47l-44.68,-58.51l-30.69,39.96z" id="svg_39"/>
+  </clipPath>
+  <clipPath id="clip_39">
+   <path d="m3284.09005,511.86969l47.35,62.02l28.02,-43.47l-44.68,-58.51l-30.69,39.96z" id="svg_40"/>
+  </clipPath>
+  <clipPath id="clip_40">
+   <path d="m3231.90005,1147.44707c-43.62,0 -78.99,35.362 -78.99,78.984l0,270.877c0,43.621 35.37,78.983 78.99,78.983l270.88,0c43.62,0 78.98,-35.362 78.98,-78.983l0,-270.877c0,-43.622 -35.36,-78.984 -78.98,-78.984l-270.88,0z" id="svg_41"/>
+  </clipPath>
+  <clipPath id="clip_41">
+   <path d="m3231.90005,1148.0767c-43.62,0 -78.99,35.362 -78.99,78.984l0,270.877c0,43.621 35.37,78.983 78.99,78.983l270.88,0c43.62,0 78.98,-35.362 78.98,-78.983l0,-270.877c0,-43.622 -35.36,-78.984 -78.98,-78.984" id="svg_42"/>
+  </clipPath>
+ </defs>
+ <g>
+  <title>Layer 1</title>
+  <g clip-path="url(#clip_0)" id="svg_59">
+   <g clip-path="url(#clip_1)" id="svg_60"/>
+  </g>
+  <g clip-path="url(#clip_2)" id="svg_61">
+   <g clip-path="url(#clip_3)" id="svg_62"/>
+  </g>
+  <g clip-path="url(#clip_4)" id="svg_63">
+   <g clip-path="url(#clip_5)" id="svg_64"/>
+  </g>
+  <g clip-path="url(#clip_6)" id="svg_65">
+   <g clip-path="url(#clip_7)" id="svg_66"/>
+  </g>
+  <g clip-path="url(#clip_8)" id="svg_67">
+   <g clip-path="url(#clip_9)" id="svg_68"/>
+  </g>
+  <g clip-path="url(#clip_10)" id="svg_69">
+   <g clip-path="url(#clip_11)" id="svg_70"/>
+  </g>
+  <g clip-path="url(#clip_12)" id="svg_71">
+   <g clip-path="url(#clip_13)" id="svg_72"/>
+  </g>
+  <g clip-path="url(#clip_14)" id="svg_73">
+   <g clip-path="url(#clip_15)" id="svg_74"/>
+  </g>
+  <g clip-path="url(#clip_16)" id="svg_75">
+   <g clip-path="url(#clip_17)" id="svg_76"/>
+  </g>
+  <g clip-path="url(#clip_18)" id="svg_77">
+   <g clip-path="url(#clip_19)" id="svg_78"/>
+  </g>
+  <g clip-path="url(#clip_20)" id="svg_79">
+   <g clip-path="url(#clip_21)" id="svg_80"/>
+  </g>
+  <g clip-path="url(#clip_22)" id="svg_81">
+   <g clip-path="url(#clip_23)" id="svg_82"/>
+  </g>
+  <g clip-path="url(#clip_24)" id="svg_85">
+   <g clip-path="url(#clip_25)" id="svg_86"/>
+  </g>
+  <g clip-path="url(#clip_26)" id="svg_87">
+   <g clip-path="url(#clip_27)" id="svg_88"/>
+  </g>
+  <g clip-path="url(#clip_28)" id="svg_114">
+   <g clip-path="url(#clip_29)" id="svg_115"/>
+  </g>
+  <g clip-path="url(#clip_30)" id="svg_116">
+   <g clip-path="url(#clip_31)" id="svg_117"/>
+  </g>
+  <g clip-path="url(#clip_32)" id="svg_118">
+   <g clip-path="url(#clip_33)" id="svg_119"/>
+  </g>
+  <g clip-path="url(#clip_34)" id="svg_120">
+   <g clip-path="url(#clip_35)" id="svg_121"/>
+  </g>
+  <g clip-path="url(#clip_36)" id="svg_122">
+   <g clip-path="url(#clip_37)" id="svg_123"/>
+  </g>
+  <g clip-path="url(#clip_38)" id="svg_124">
+   <g clip-path="url(#clip_39)" id="svg_125"/>
+  </g>
+  <g clip-path="url(#clip_40)" id="svg_126">
+   <g clip-path="url(#clip_41)" id="svg_127"/>
+  </g>
+  <g id="svg_137">
+   <path d="m352.15564,428.846l-270.877,0c-43.622,0 -78.984,-35.363 -78.984,-78.984l0,-270.878c0,-43.62 35.362,-78.984 78.984,-78.984l270.877,0c43.622,0 78.984,35.364 78.984,78.984l0,270.878c0,43.621 -35.362,78.984 -78.984,78.984" fill="#1d2b5e" id="svg_83"/>
+   <path d="m172.59164,289.133l-49.017,-60.689l0,-0.213l-0.007,0.008l-0.08,0.098l-0.079,-0.098l-0.005,-0.008l0,0.213l-49.018,60.689" fill="#ffffff" id="svg_89"/>
+   <path d="m262.18764,109.908l-30.627,40.029l106.262,139.196l61.223,0l-136.858,-179.225z" fill="#ffffff" id="svg_90"/>
+   <path d="m172.03064,232.304l91.864,-120.061l-5.095,-6.673l-91.864,120.062l5.095,6.672z" fill="#ffffff" id="svg_91"/>
+   <path d="m154.07164,129.831l-122.322,159.302l10.2,0l117.217,-152.629l-5.095,-6.673z" fill="#ffffff" id="svg_92"/>
+   <path d="m228.63464,227.719l-61.211,0l47.967,61.414l61.223,0l-47.979,-61.414z" fill="#ffffff" id="svg_93"/>
+   <path d="m154.03664,129.912l-30.686,39.957l47.349,62.023l28.015,-43.471l-44.678,-58.509z" fill="#ffffff" id="svg_94"/>
+  </g>
+ </g>
+</svg>

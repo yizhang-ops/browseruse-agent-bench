@@ -1,0 +1,125 @@
+---
+title: "Cost Accounting"
+description: "How browseruse-bench derives token and cost metrics"
+---
+
+This page documents how `metrics.usage` cost fields are generated in browseruse-bench.
+
+## Where Cost Is Computed
+
+Cost enrichment happens in the shared task runner before writing `result.json`:
+
+- Runner: `browseruse_bench/runners/agent_runner.py`
+- Function: `enrich_result_usage_cost_if_needed(...)`
+
+If the incoming result already has complete cost fields and `total_cost > 0`, the runner keeps them. Otherwise it recomputes from usage + pricing.
+
+## How Token Usage Is Obtained
+
+Token numbers come from the agent's returned `metrics.usage` object (typically propagated from provider response `usage`), with this priority:
+
+- `prompt_tokens`: `total_prompt_tokens` -> `prompt_tokens`
+- `completion_tokens`: `total_completion_tokens` -> `completion_tokens`
+- `total_tokens`: `total_tokens` -> `prompt_tokens + completion_tokens`
+- `cached_tokens`:
+  - `total_prompt_cached_tokens` -> `cached_tokens`
+  - if still `0`, fallback to `prompt_tokens_details.cached_tokens`
+
+Special handling:
+
+- If `prompt_tokens == 0` and `completion_tokens == 0` but `total_tokens > 0`, the framework treats all tokens as prompt tokens.
+- If all token counters are `0`, enrichment is skipped.
+
+## How Pricing Is Obtained
+
+Pricing is loaded by `load_litellm_price_table()` and merged with optional custom pricing.
+
+### LiteLLM pricing source
+
+- Canonical URL:
+  - `https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json`
+- In-memory cache:
+  - `_PRICE_CACHE` keyed by URL, TTL 24h
+- Local file cache:
+  - `~/.cache/browseruse_bench/token_cost/pricing_bubench_*.json`
+  - valid cache entries are reused before network fetch
+
+### Custom pricing source
+
+- Optional file:
+  - `configs/pricing/model_pricing.yaml`
+- Supported keys (per-token or per-million):
+  - `input_cost_per_token`, `output_cost_per_token`, `cache_read_input_token_cost`
+  - `input_cost_per_million_tokens`, `output_cost_per_million_tokens`, `cache_read_input_cost_per_million_tokens`
+- Matching:
+  - case-insensitive exact model key match
+- Precedence:
+  - custom pricing entry overrides LiteLLM pricing for the same model key
+
+If pricing is still missing, cost rates default to `0.0` and total cost becomes `0.0` (with warning logs).
+
+## Cost Formula
+
+All rates are normalized to USD per token.
+
+```text
+non_cached_prompt_tokens = max(0, prompt_tokens - cached_tokens)
+prompt_non_cached_cost   = non_cached_prompt_tokens * input_rate
+prompt_cached_cost       = cached_tokens * cached_rate
+prompt_cost              = prompt_non_cached_cost + prompt_cached_cost
+completion_cost          = completion_tokens * output_rate
+total_cost               = prompt_cost + completion_cost
+```
+
+Notes:
+
+- `cached_rate` defaults to `input_rate` when cache-specific rate is unavailable.
+- `cached_tokens` is clamped to `[0, prompt_tokens]`.
+
+## Output Fields
+
+After enrichment, `metrics.usage` includes:
+
+- `total_prompt_tokens`
+- `total_prompt_cost`
+- `total_prompt_cached_tokens`
+- `total_prompt_cached_cost`
+- `total_completion_tokens`
+- `total_completion_cost`
+- `total_tokens`
+- `total_cost`
+- `entry_count`
+- `by_model` (single-model summary with `invocations` and `average_tokens_per_invocation`)
+
+Leaderboard aggregation reads `usage.total_cost` and `usage.total_tokens` from each task result.
+
+## Minimal Example
+
+Input usage:
+
+```json
+{
+  "prompt_tokens": 1000,
+  "completion_tokens": 100,
+  "prompt_tokens_details": {
+    "cached_tokens": 400
+  }
+}
+```
+
+Pricing:
+
+```json
+{
+  "input_cost_per_token": 0.000002,
+  "output_cost_per_token": 0.000008,
+  "cache_read_input_token_cost": 0.0000005
+}
+```
+
+Computed:
+
+- non-cached prompt: `600 * 0.000002 = 0.0012`
+- cached prompt: `400 * 0.0000005 = 0.0002`
+- completion: `100 * 0.000008 = 0.0008`
+- total: `0.0022`

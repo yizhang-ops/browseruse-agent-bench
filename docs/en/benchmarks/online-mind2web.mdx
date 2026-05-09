@@ -1,0 +1,85 @@
+---
+title: "Online-Mind2Web"
+description: "Web interaction benchmark on real websites"
+---
+
+Online-Mind2Web is an online evaluation benchmark based on the Mind2Web dataset, testing agents' navigation and interaction capabilities on real websites.
+
+## Overview
+
+| Attribute | Value |
+|-----------|-------|
+| Source | Mind2Web dataset |
+| Task Type | Web navigation and interaction |
+| Target Websites | Real-world English websites |
+| Evaluation | WebJudge semantic matching |
+
+## Features
+
+<CardGroup cols={2}>
+  <Card title="Real Websites" icon="globe">
+    Tests operation on real websites, not simulated environments
+  </Card>
+  <Card title="Multi-step Tasks" icon="route">
+    Requires multiple sequential steps to complete complex goals
+  </Card>
+  <Card title="Semantic Evaluation" icon="comments">
+    Uses WebJudge for semantic matching evaluation
+  </Card>
+  <Card title="No Login Required" icon="unlock">
+    All tasks can be executed without login
+  </Card>
+</CardGroup>
+
+## Quick Start
+
+### Run Tasks
+
+```bash
+# Run first 3 tasks
+bubench run \
+  --agent browser-use \
+  --data Online-Mind2Web \
+  --mode first_n \
+  --count 3
+
+# Run all tasks
+bubench run \
+  --agent Agent-TARS \
+  --data Online-Mind2Web \
+  --mode all \
+  --skip-completed
+```
+
+### Evaluate Results
+
+```bash
+bubench eval --agent browser-use --data Online-Mind2Web --model-id bu-2-0
+```
+
+## Evaluation Metrics
+
+| Metric | Description |
+|--------|-------------|
+| Task Success Rate | Percentage of tasks completed |
+| Action Accuracy | Accuracy of individual actions |
+| Element Accuracy | Accuracy of element targeting |
+
+## Data Format
+
+Task data is stored in `benchmarks/Online-Mind2Web/data/`:
+
+```json
+{
+  "task_id": "b7258ee05d75e6c50673a59914db412e_110325",
+  "confirmed_task": "Find the store location and hours of the closest Trader Joe's to zip code 90028 and set it as my home store.",
+  "website": "https://www.traderjoes.com/",
+  "reference_length": 6,
+  "level": "medium"
+}
+```
+
+## Related Links
+
+- [Online-Mind2Web Paper](https://arxiv.org/abs/2504.01382)
+- [Online-Mind2Web GitHub](https://github.com/OSU-NLP-Group/Online-Mind2Web)

@@ -1,0 +1,504 @@
+"""
+BrowserUseAgent - Browser automation using the browser-use library.
+
+This agent uses the browser-use SDK to execute browser automation tasks.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import os
+import tempfile
+import time
+from collections.abc import Callable
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from browser_use import Agent as BrowserUseSDKAgent
+from browser_use import Browser as BrowserUseSDKBrowser
+from browser_use.browser.profile import ProxySettings as BrowserUseProxySettings
+from browser_use import ChatAnthropic as BrowserUseSDKChatAnthropic
+from browser_use import ChatAzureOpenAI as BrowserUseSDKChatAzureOpenAI
+from browser_use import ChatBrowserUse as BrowserUseSDKChatBrowserUse
+from browser_use import ChatGoogle as BrowserUseSDKChatGoogle
+from browser_use import ChatOpenAI as BrowserUseSDKChatOpenAI
+
+from browseruse_bench.agents.base import BaseAgent
+from browseruse_bench.agents.registry import register_agent
+from browseruse_bench.browsers import BrowserSessionContext, open_browser_session
+from browseruse_bench.schemas import AgentMetrics, AgentResult, AgentUsage
+from browseruse_bench.utils.api_logger import APICallLogger
+
+Agent: type[Any] = BrowserUseSDKAgent
+Browser: type[Any] = BrowserUseSDKBrowser
+ChatBrowserUse: type[Any] = BrowserUseSDKChatBrowserUse
+ChatAnthropic: type[Any] = BrowserUseSDKChatAnthropic
+ChatGoogle: type[Any] = BrowserUseSDKChatGoogle
+ChatAzureOpenAI: type[Any] = BrowserUseSDKChatAzureOpenAI
+ChatOpenAI: type[Any] = BrowserUseSDKChatOpenAI
+
+logger = logging.getLogger(__name__)
+
+
+def _get_config_value(agent_config: dict[str, Any], *keys: str, default: Any = None) -> Any:
+    for key in keys:
+        if key in agent_config and agent_config[key] is not None:
+            return agent_config[key]
+    return default
+
+
+@register_agent
+class BrowserUseAgent(BaseAgent):
+    """
+    Browser automation agent using the browser-use library.
+
+    Supports multiple LLM providers (OpenAI, Gemini, Browser-Use)
+    and browser backends (local Chrome, Lexmount cloud, browser-use cloud, AgentBay cloud).
+    """
+
+    name = "browser-use"
+
+    def run_task(
+        self,
+        task_info: dict[str, Any],
+        agent_config: dict[str, Any],
+        task_workspace: Path,
+    ) -> AgentResult | dict[str, Any]:
+        """Execute a browser automation task using browser-use."""
+        timeout = self.get_timeout(agent_config, 300)
+        flash_mode = _get_config_value(agent_config, "flash_mode", "FLASH_MODE", default=True)
+        browser_id = _get_config_value(agent_config, "browser_id", "BROWSER_ID", default="Chrome-Local")
+
+        with open_browser_session(
+            browser_id=browser_id,
+            agent_name=self.name,
+            agent_config=agent_config,
+        ) as session_context:
+            return asyncio.run(
+                self._run_task_async(
+                    task_info=task_info,
+                    task_workspace=task_workspace,
+                    timeout=timeout,
+                    flash_mode=flash_mode,
+                    agent_config=agent_config,
+                    session_context=session_context,
+                )
+            )
+
+    @staticmethod
+    def _create_browser_instance(
+        session_context: BrowserSessionContext,
+    ) -> tuple[Any, tempfile.TemporaryDirectory[str] | None]:
+        """
+        Build browser runtime from unified backend session context.
+
+        Browser backend ownership/lifecycle stays outside agent business logic.
+        """
+        browser_id = session_context.backend_id
+        transport = session_context.transport
+        cdp_url = session_context.cdp_url
+        temp_dir_obj: tempfile.TemporaryDirectory[str] | None = None
+        if transport == "cdp":
+            if not cdp_url:
+                raise ValueError(f"CDP URL is required for browser id: {browser_id}")
+            browser = Browser(
+                viewport={"width": 1920, "height": 1080},
+                headless=False,
+                cdp_url=cdp_url,
+            )
+        elif transport == "cloud_native" and browser_id == "browser-use-cloud":
+            browser = Browser(use_cloud=True)
+        elif transport == "local":
+            temp_dir_obj = tempfile.TemporaryDirectory(prefix="browseruse-tmp-user-data-")
+            user_data_dir = Path(temp_dir_obj.name)
+            local_browser_kwargs: dict[str, Any] = {
+                "headless": False,
+                "user_data_dir": user_data_dir,
+            }
+            proxy_meta = session_context.metadata.get("local_proxy")
+            if proxy_meta:
+                local_browser_kwargs["proxy"] = BrowserUseProxySettings(
+                    server=proxy_meta.get("server"),
+                    username=proxy_meta.get("username"),
+                    password=proxy_meta.get("password"),
+                    bypass=proxy_meta.get("bypass"),
+                )
+            browser = Browser(**local_browser_kwargs)
+        else:
+            raise ValueError(
+                f"Unsupported browser backend for browser-use agent: "
+                f"backend_id={browser_id}, transport={transport}"
+            )
+        return browser, temp_dir_obj
+
+    @staticmethod
+    async def _close_browser_runtime(browser: Any, task_id: str) -> None:
+        """Close browser-use runtime object; backend session is closed by manager."""
+        try:
+            await browser.stop()
+        except (
+            OSError,
+            RuntimeError,
+            TimeoutError,
+        ) as exc:
+            logger.error(f"Failed to close browser runtime for task {task_id}: {exc}")
+
+    async def _run_task_async(
+        self,
+        task_info: dict[str, Any],
+        task_workspace: Path,
+        timeout: int,
+        flash_mode: bool,
+        agent_config: dict[str, Any],
+        session_context: BrowserSessionContext,
+    ) -> AgentResult:
+        """Async implementation of task execution."""
+        task_id = task_info["task_id"]
+
+        trajectory_dir = task_workspace / "trajectory"
+        trajectory_dir.mkdir(parents=True, exist_ok=True)
+        # TODO No action list
+        task_prompt = self.build_task_prompt(task_info)
+
+        # Read parameters from configuration dictionary
+        model_type: str = _get_config_value(agent_config, "model_type", "MODEL_TYPE", default="")
+        model_id: str = _get_config_value(agent_config, "model_id", "MODEL_ID", default="")
+        browser_id = _get_config_value(agent_config, "browser_id", "BROWSER_ID", default="Chrome-Local")
+        use_vision = _get_config_value(agent_config, "use_vision", "USE_VISION", default=False)
+        max_steps = self.get_max_steps(agent_config, 40)
+        save_api_logs = _get_config_value(agent_config, "save_api_logs", "SAVE_API_LOGS", default=True)
+
+        config_info = {
+            "timeout_seconds": timeout,
+            "flash_mode": flash_mode,
+            "use_vision": use_vision,
+            "max_steps": max_steps,
+            "save_api_logs": save_api_logs,
+        }
+
+        # Initialize LLM based on model type, this is a BU specific implementation, and different
+        # models have different SDK preferences for utilizing the inference feature in agent scene.
+        llm = self._create_llm(model_type, model_id, agent_config, config_info)
+
+        # Initialize Browser
+        agent = None
+        history = None
+        browser, temp_dir_obj = self._create_browser_instance(session_context=session_context)
+
+        start_time = time.time()
+        error_msg = None
+
+        try:
+            agent = Agent(
+                browser=browser,
+                task=task_prompt,
+                llm=llm,
+                calculate_cost=True,
+                flash_mode=flash_mode,
+                use_vision=use_vision,
+                use_judge=_get_config_value(agent_config, "use_judge", "USE_JUDGE", default=False),
+            )
+
+            history = await asyncio.wait_for(agent.run(max_steps=max_steps), timeout=timeout)
+        except TimeoutError:
+            error_msg = f"Timeout after {timeout} seconds"
+            logger.error(f"Task {task_id} timed out after {timeout} seconds")
+        except (RuntimeError, OSError, TypeError, ValueError) as e:
+            error_msg = str(e)
+            logger.error(f"Task {task_id} execution error: {e}")
+        finally:
+            # Backend session cleanup is handled by open_browser_session(...).
+            await self._close_browser_runtime(browser=browser, task_id=task_id)
+
+            if temp_dir_obj:
+                try:
+                    temp_dir_obj.cleanup()
+                except (OSError, RuntimeError) as exc:
+                    logger.warning(
+                        "Failed to cleanup temporary directory for task %s: %s",
+                        task_id,
+                        exc,
+                    )
+
+        end_time = time.time()
+        end_to_end_ms = int((end_time - start_time) * 1000)
+
+        # Process History and return result
+        screenshot_count = 0
+        usage_data = {}
+        action_history = []
+        steps_count = 0
+
+        if agent:
+            # Attempt to get usage data even if history is partial
+            try:
+                if hasattr(agent, "token_cost_service"):
+                    usage_summary = await agent.token_cost_service.get_usage_summary()
+                    if usage_summary:
+                        usage_data = json.loads(usage_summary.model_dump_json())
+            except (AttributeError, TypeError, ValueError, json.JSONDecodeError) as exc:
+                logger.error(f"Failed to parse usage summary for task {task_id}: {exc}")
+
+            if hasattr(agent, "history"):
+                history = agent.history
+                action_history = history.extracted_content() or []
+                steps_count = history.number_of_steps()
+
+                # Save screenshots
+                for i, b64_data in enumerate(history.screenshots() or [], 1):
+                    if self.save_screenshot(b64_data, i, trajectory_dir):
+                        screenshot_count += 1
+                    elif b64_data:
+                        logger.error(f"Failed to save screenshot {i} for task {task_id}")
+
+                # Generate API logs (system_prompt.txt + step_XXX.json + summary.md)
+                if save_api_logs:
+                    api_logs_dir = task_workspace / "api_logs"
+                    api_logs_dir.mkdir(parents=True, exist_ok=True)
+
+                    # Extract system prompt from agent
+                    system_prompt = None
+                    try:
+                        if hasattr(agent, "message_manager") and hasattr(
+                            agent.message_manager, "system_prompt"
+                        ):
+                            sp = agent.message_manager.system_prompt
+                            system_prompt = (
+                                sp.text if hasattr(sp, "text") else (str(sp) if sp else None)
+                            )
+                    except (AttributeError, TypeError, ValueError) as exc:
+                        logger.debug("Could not extract system_prompt: %s", exc)
+
+                    try:
+                        api_logger = APICallLogger(api_logs_dir, task_id, model_id, system_prompt)
+                        for i, hist_item in enumerate(history.history, 1):
+                            api_logger.log_step(
+                                step_number=i,
+                                model_output=hist_item.model_output,
+                                action_results=hist_item.result,
+                                state=hist_item.state,
+                                state_message=getattr(hist_item, "state_message", None),
+                            )
+                        api_logger.finalize(usage_data)
+                    except Exception as exc:
+                        logger.warning(f"Failed to generate API logs for task {task_id}: {exc}")
+
+        final_answer = ""
+        if not error_msg and history:
+            final_answer = history.final_result() or ""
+        elif error_msg:
+            final_answer = f"[Task Failed: {error_msg}]"
+
+        # Determine env_status, agent_done, and agent_success
+        agent_success: bool | None = None
+        if error_msg and "Timeout" in error_msg:
+            # Timeout: environment is fine, agent was killed by timeout
+            env_status = "success"
+            agent_done = "timeout"
+        elif error_msg:
+            # Other errors: environment failed
+            env_status = "failed"
+            agent_done = "error"
+        elif history and history.is_done():
+            # Agent self-reported completion — check success parameter
+            env_status = "success"
+            agent_done = "done"
+            agent_success = history.is_successful()
+        else:
+            # No error but agent didn't self-report done → max_steps
+            env_status = "success"
+            agent_done = "max_steps"
+
+        return AgentResult(
+            task_id=task_id,
+            task=task_prompt,
+            timestamp=datetime.now(UTC),
+            env_status=env_status,  # type: ignore[arg-type]
+            agent_done=agent_done,  # type: ignore[arg-type]
+            agent_success=agent_success,
+            answer=final_answer,
+            model_id=model_id or "",
+            browser_id=browser_id,
+            action_history=action_history,
+            metrics=AgentMetrics(
+                ttft_ms=int(end_to_end_ms * 0.1) if steps_count > 0 else 0,
+                end_to_end_ms=end_to_end_ms,
+                steps=steps_count,
+                usage=AgentUsage(**usage_data) if usage_data else None,
+            ),
+            config=config_info,
+            error=error_msg if error_msg else None,
+        )
+
+    def _create_llm(
+        self,
+        model_type: str,
+        model_id: str,
+        agent_config: dict[str, Any],
+        config_info: dict[str, Any],
+    ) -> Any:
+        # TODO Why not Claude?
+        """Create LLM instance based on model type."""
+        provider_builders: dict[str, Callable[[str, dict[str, Any], dict[str, Any]], dict[str, Any]]] = {
+            "BROWSER_USE": self._build_browser_use_kwargs,
+            "OPENAI": self._build_openai_kwargs,
+            "AZURE": self._build_azure_kwargs,
+            "GEMINI": self._build_gemini_kwargs,
+            "ANTHROPIC": self._build_anthropic_kwargs,
+        }
+        provider_classes: dict[str, type[Any]] = {
+            "BROWSER_USE": ChatBrowserUse,
+            "OPENAI": ChatOpenAI,
+            "AZURE": ChatAzureOpenAI,
+            "GEMINI": ChatGoogle,
+            "ANTHROPIC": ChatAnthropic,
+        }
+
+        if model_type not in provider_classes:
+            raise ValueError(f"Invalid model type: {model_type}")
+
+        llm_class = provider_classes[model_type]
+        kwargs = provider_builders[model_type](model_id, agent_config, config_info)
+        return llm_class(**kwargs)
+
+    @staticmethod
+    def _build_browser_use_kwargs(
+        model_id: str,
+        agent_config: dict[str, Any],
+        config_info: dict[str, Any],
+    ) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {"model": model_id}
+        if "timeout" in agent_config:
+            kwargs["timeout"] = agent_config["timeout"]
+        if "max_retries" in agent_config:
+            kwargs["max_retries"] = agent_config["max_retries"]
+        if agent_config.get("api_key"):
+            kwargs["api_key"] = agent_config["api_key"]
+        return kwargs
+
+    @staticmethod
+    def _build_openai_kwargs(
+        model_id: str,
+        agent_config: dict[str, Any],
+        config_info: dict[str, Any],
+    ) -> dict[str, Any]:
+        dont_force_structured_output = agent_config.get("dont_force_structured_output", False)
+        add_schema_to_system_prompt = agent_config.get("add_schema_to_system_prompt", False)
+        config_info["dont_force_structured_output"] = dont_force_structured_output
+        config_info["add_schema_prompt"] = add_schema_to_system_prompt
+
+        openai_kwargs: dict[str, Any] = {
+            "model": model_id,
+            "api_key": agent_config.get("api_key") or os.getenv("OPENAI_API_KEY"),
+            "base_url": agent_config.get("base_url") or os.getenv("OPENAI_BASE_URL"),
+            "dont_force_structured_output": dont_force_structured_output,
+            "add_schema_to_system_prompt": add_schema_to_system_prompt,
+        }
+        if "temperature" in agent_config:
+            temperature = agent_config["temperature"]
+            openai_kwargs["temperature"] = temperature
+            config_info["temperature"] = temperature
+        if "frequency_penalty" in agent_config:
+            frequency_penalty = agent_config["frequency_penalty"]
+            openai_kwargs["frequency_penalty"] = frequency_penalty
+            config_info["frequency_penalty"] = frequency_penalty
+        if agent_config.get("max_tokens") is not None:
+            openai_kwargs["max_completion_tokens"] = agent_config["max_tokens"]
+            config_info["max_tokens"] = agent_config["max_tokens"]
+        elif agent_config.get("max_completion_tokens") is not None:
+            openai_kwargs["max_completion_tokens"] = agent_config["max_completion_tokens"]
+            config_info["max_completion_tokens"] = agent_config["max_completion_tokens"]
+        if agent_config.get("remove_min_items_from_schema"):
+            openai_kwargs["remove_min_items_from_schema"] = True
+        if agent_config.get("remove_defaults_from_schema"):
+            openai_kwargs["remove_defaults_from_schema"] = True
+        return openai_kwargs
+
+    @staticmethod
+    def _build_azure_kwargs(
+        model_id: str,
+        agent_config: dict[str, Any],
+        config_info: dict[str, Any],
+    ) -> dict[str, Any]:
+        dont_force_structured_output = agent_config.get("dont_force_structured_output", False)
+        add_schema_to_system_prompt = agent_config.get("add_schema_to_system_prompt", False)
+        use_responses_api = agent_config.get("use_responses_api", True)
+        config_info["dont_force_structured_output"] = dont_force_structured_output
+        config_info["add_schema_prompt"] = add_schema_to_system_prompt
+
+        azure_kwargs: dict[str, Any] = {
+            "model": model_id,
+            "api_key": agent_config.get("api_key") or os.getenv("OPENAI_API_KEY"),
+            "base_url": agent_config.get("base_url") or os.getenv("OPENAI_BASE_URL"),
+            "use_responses_api": use_responses_api,
+            "dont_force_structured_output": dont_force_structured_output,
+            "add_schema_to_system_prompt": add_schema_to_system_prompt,
+        }
+        if "temperature" in agent_config:
+            temperature = agent_config["temperature"]
+            azure_kwargs["temperature"] = temperature
+            config_info["temperature"] = temperature
+        if "frequency_penalty" in agent_config:
+            frequency_penalty = agent_config["frequency_penalty"]
+            azure_kwargs["frequency_penalty"] = frequency_penalty
+            config_info["frequency_penalty"] = frequency_penalty
+        if agent_config.get("max_tokens") is not None:
+            azure_kwargs["max_completion_tokens"] = agent_config["max_tokens"]
+            config_info["max_tokens"] = agent_config["max_tokens"]
+        elif agent_config.get("max_completion_tokens") is not None:
+            azure_kwargs["max_completion_tokens"] = agent_config["max_completion_tokens"]
+            config_info["max_completion_tokens"] = agent_config["max_completion_tokens"]
+        if agent_config.get("remove_min_items_from_schema"):
+            azure_kwargs["remove_min_items_from_schema"] = True
+        if agent_config.get("remove_defaults_from_schema"):
+            azure_kwargs["remove_defaults_from_schema"] = True
+        return azure_kwargs
+
+    @staticmethod
+    def _build_gemini_kwargs(
+        model_id: str,
+        agent_config: dict[str, Any],
+        config_info: dict[str, Any],
+    ) -> dict[str, Any]:
+        google_config: dict[str, Any] = {}
+        gemini_thinking_models = {"gemini-3-flash-preview", "gemini-3-pro-preview", "gemini-3.1-pro-preview"}
+
+        if model_id in gemini_thinking_models:
+            thinking_level = agent_config.get("gemini3_thinking_level")
+            if thinking_level:
+                google_config["thinking_config"] = {"thinking_level": thinking_level}
+                config_info["thinking_level"] = thinking_level
+
+        gemini_base_url = agent_config.get("base_url") or os.getenv("GEMINI_BASE_URL")
+        http_opts: dict[str, Any] = {}
+        if gemini_base_url:
+            http_opts["base_url"] = gemini_base_url.rstrip("/")
+            http_opts["api_version"] = ""
+
+        return {
+            "model": model_id,
+            "api_key": agent_config.get("api_key") or os.getenv("GEMINI_API_KEY"),
+            "http_options": http_opts,
+            "config": google_config,
+        }
+
+    @staticmethod
+    def _build_anthropic_kwargs(
+        model_id: str,
+        agent_config: dict[str, Any],
+        config_info: dict[str, Any],
+    ) -> dict[str, Any]:
+        max_tokens = agent_config.get("anthropic_max_tokens", 8192)
+        max_retries = agent_config.get("anthropic_max_retries", 10)
+        config_info["max_tokens"] = max_tokens
+        config_info["max_retries"] = max_retries
+        return {
+            "model": model_id,
+            "api_key": agent_config.get("api_key") or os.getenv("ANTHROPIC_API_KEY"),
+            "base_url": agent_config.get("base_url") or os.getenv("ANTHROPIC_BASE_URL"),
+            "max_tokens": max_tokens,
+            "max_retries": max_retries,
+        }

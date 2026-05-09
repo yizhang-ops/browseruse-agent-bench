@@ -1,0 +1,67 @@
+---
+title: "Local Chromium Browser"
+description: "Run agents in a locally launched headed/headless Chromium, with optional HTTP/SOCKS proxy"
+---
+
+The `local` (alias `Chrome-Local`) backend launches a Chromium controlled by Playwright on the same machine running `bubench`. It's the default for development, low-volume runs, and any case where you don't need a cloud session.
+
+<Warning>
+**The local browser does NOT inherit your operating-system or shell proxy.** If you have clash/v2ray/Surge running and you can browse `bloomberg.com` in your everyday Chrome, the bench's launched Chromium **still bypasses the tunnel by default** — until you set `local_proxy_server` below. Failing to do so silently produces `net::ERR_CONNECTION_RESET` / `ERR_CONNECTION_TIMED_OUT` on sites that need a tunnel, and the agent will look like it failed for "model" reasons.
+</Warning>
+
+## Configuration
+
+Under any agent that supports `browser_id: local`, add the proxy fields:
+
+```yaml
+# config.yaml
+agents:
+  skyvern:
+    browser:
+      browser_id: local
+      headless: false
+      # Optional proxy. Empty server == no proxy (direct connection).
+      local_proxy_server: "http://127.0.0.1:7890"   # clash default; v2ray often 1087/10809; SOCKS scheme socks5://...
+      # local_proxy_username: ""                    # optional auth
+      # local_proxy_password: ""
+      # local_proxy_bypass: "127.0.0.1,localhost,*.local"
+```
+
+| Field | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `local_proxy_server` | string | `""` (no proxy) | Full URL: `http(s)://host:port` or `socks5://host:port` |
+| `local_proxy_username` | string | — | Optional auth username |
+| `local_proxy_password` | string | — | Optional auth password |
+| `local_proxy_bypass` | string | — | Comma-separated hosts/patterns to bypass the proxy |
+
+## Agent Support Matrix
+
+| Agent | `local_proxy_*` honoured? | How |
+| --- | --- | --- |
+| `skyvern` | ✅ Yes | Passes `--proxy-server=...` (and `--proxy-bypass-list=...` if set) directly via `args` to `Skyvern.launch_local_browser()`. Note: bench uses Skyvern's library-mode launch which bypasses Skyvern's own `setup_proxy()` / `HOSTED_PROXY_POOL` env vars, so the Chrome flag is the working path |
+| `browser-use` | ✅ Yes | Constructs `browser_use.browser.profile.ProxySettings` and passes it to the SDK's `Browser(...)` |
+| `Agent-TARS` | ❌ No (warns) | The `agent-tars` CLI launches Chromium itself and exposes no proxy flag. Bench logs a one-time WARNING when configured |
+| `claude-code` | ❌ No (warns) | Delegates to `@playwright/mcp`; no proxy passthrough today. Same WARNING |
+| `openai-cua` | ❌ No (warns) | Same WARNING |
+| `deepbrowse` | ❌ No (warns) | Same WARNING |
+
+For the unsupported agents, the recommendation is to switch to the cloud backend — see [Lexmount Cloud Browser](./lexmount). Lexmount sessions egress from outside mainland China (international region) so most "GFW-blocked" sites are reachable without any local proxy on your side.
+
+## Security Note: Credentials in Chrome Process Args
+
+For the `skyvern` agent, `local_proxy_username` / `local_proxy_password` are URL-encoded into the proxy URL and passed to Chrome via `--proxy-server=http://user:pass@host:port`. Chrome process args are visible to anyone running `ps -ef` (Linux) or `ps auxe` (macOS) on the box.
+
+If your proxy password is sensitive (e.g. shared corporate credentials), prefer one of:
+
+- **Run a local unauthenticated forwarder** — most clash / v2ray clients can listen on `127.0.0.1:7890` and handle upstream auth themselves. Then leave `local_proxy_username` / `_password` unset; only `local_proxy_server: http://127.0.0.1:7890` reaches Chrome.
+- **Use the `browser-use` agent** — credentials go directly to Playwright via in-process `ProxySettings(...)` and never appear in the Chrome command line.
+
+## Verifying the Proxy Is Active
+
+Run a single task that needs the tunnel and inspect `runtime.log`:
+
+```bash
+bubench run --agent skyvern --data LexBench-Browser --mode by_id --id 89
+```
+
+If `local_proxy_server` is set, you should see Skyvern log `Connected to proxy http://...` and the navigation succeed. If you see `net::ERR_CONNECTION_RESET` or `ERR_CONNECTION_TIMED_OUT` on a site you can otherwise reach in your daily browser, the proxy is **not** wired — double-check the config block and that your tunnel client is actually listening on the configured port.

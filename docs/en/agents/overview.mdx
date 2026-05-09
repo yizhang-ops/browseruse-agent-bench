@@ -1,0 +1,82 @@
+---
+title: "Agents Overview"
+description: "List of browser agents supported by browseruse-bench"
+---
+
+browseruse-bench provides a unified interface to run and evaluate different browser agents.
+
+## Supported Agents
+
+<CardGroup cols={2}>
+  <Card title="browser-use" icon="python" href="browser-use">
+    Python-based browser agent with programmable browser automation capabilities. Supports both local browsers and Lexmount cloud browsers.
+  </Card>
+  <Card title="Agent-TARS" icon="terminal" href="agent-tars">
+    Browser agent developed by the TARS team, distributed as an npm CLI package.
+  </Card>
+  <Card title="Skyvern" icon="cloud" href="skyvern">
+    Browser automation agent powered by the Skyvern SDK with multiple engines and browser backends.
+  </Card>
+  <Card title="Claude Code" icon="code" href="claude-code">
+    Anthropic's official Claude CLI, driving a real browser through Playwright MCP in non-interactive mode.
+  </Card>
+</CardGroup>
+
+## Feature Comparison
+
+| Feature | browser-use | Agent-TARS | Skyvern | Claude Code |
+|---------|-------------|------------|---------|-------------|
+| Language | Python | Node.js | Python | Node.js CLI |
+| Installation | uv/pip | npm | uv/pip | npm |
+| Local Browser | ✅ | ✅ | ✅ | ✅ (via MCP) |
+| Cloud Browser | ✅ | ✅ | ✅ | — |
+
+## Quick Start
+
+<CodeGroup>
+```bash browser-use
+# Install
+uv sync
+
+# Run
+bubench run --agent browser-use --data LexBench-Browser --mode first_n --count 3
+```
+
+```bash Agent-TARS
+# Install
+uv sync
+npm install -g @agent-tars/cli@0.3.0
+
+# Run
+bubench run --agent Agent-TARS --data LexBench-Browser --mode first_n --count 3
+```
+
+```bash Skyvern
+# Install
+uv sync
+
+# Run
+bubench run --agent skyvern --data LexBench-Browser --mode first_n --count 3
+```
+
+```bash Claude Code
+# Install
+npm install -g @anthropic-ai/claude-code
+claude mcp add playwright --scope user -- npx @playwright/mcp@latest
+
+# Run
+bubench run --agent claude-code --data LexBench-Browser --mode first_n --count 3
+```
+</CodeGroup>
+
+<Note>
+If `bubench` is not found, activate `.venv` or run commands via `uv run bubench ...`.
+</Note>
+
+## Planned Support
+
+- [ ] More open-source agents
+
+<Note>
+If you'd like to integrate your own agent into browseruse-bench, please refer to the [Contributing Guide](/en/development/contributing).
+</Note>

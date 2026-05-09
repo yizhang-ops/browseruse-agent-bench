@@ -1,0 +1,866 @@
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import signal
+import subprocess
+import sys
+import tempfile
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from browseruse_bench.browsers.login_contexts import (
+    get_by_site_profile as login_get_by_site_profile,
+)
+from browseruse_bench.browsers.login_contexts import (
+    resolve_site_for_url,
+)
+from browseruse_bench.browsers.providers.lexmount import (
+    LEXMOUNT_PROFILE_ENV_KEY,
+    LOGIN_CONTEXT_ID_ENV_KEY,
+    normalize_profile_keys,
+)
+from browseruse_bench.browsers.session_state import SESSION_STATE_ENV_KEY
+from browseruse_bench.utils import (
+    IS_WINDOWS,
+    REPO_ROOT,
+    DataSource,
+    add_common_task_args,
+    apply_skyvern_env,
+    check_uv_available,
+    ensure_venv,
+    filter_completed_tasks,
+    filter_tasks,
+    filter_tasks_by_region,
+    get_default_split,
+    get_default_version,
+    handle_cli_errors,
+    install_agent_dependencies,
+    is_task_completed_by_result_json,
+    load_config_file,
+    load_data_info,
+    load_dataset_file,
+    load_env_file,
+    load_tasks_with_benchmark_support,
+    resolve_agent_entry,
+    resolve_agent_inline_config,
+    resolve_agent_venv_path,
+    setup_logger,
+)
+
+CONFIG_PATH = REPO_ROOT / "config.yaml"
+
+# Preload .env from root directory for unified configuration reading
+load_env_file(REPO_ROOT / ".env")
+
+# Setup logger
+logger = setup_logger("run", log_dir="output/logs")
+
+
+def resolve_lexmount_routing_for_task(
+    task_inline_cfg: dict[str, Any] | None,
+    task_info: dict[str, Any],
+) -> tuple[str | None, str | None]:
+    """Decide which lexmount profile and login context apply to one task.
+
+    Returns ``(profile_key, login_context_id)``, both possibly None. Profile is
+    set when the task's ``website_region`` matches a configured profile under
+    ``lexmount_profiles``. Login context is looked up per (site, profile) and
+    soft-fails to None when no saved context exists — the agent is then
+    expected to attempt the task without login state.
+    """
+    if task_inline_cfg is None or str(task_inline_cfg.get("browser_id") or "") != "lexmount":
+        return None, None
+
+    profile_candidate = str(task_info.get("website_region") or "").strip().lower()
+    profiles = normalize_profile_keys(task_inline_cfg.get("lexmount_profiles"))
+    profile_key = profile_candidate if profile_candidate and profile_candidate in profiles else None
+
+    if not task_info.get("login_required"):
+        return profile_key, None
+
+    site = resolve_site_for_url(
+        task_info.get("target_website")
+        or task_info.get("task_start_url")
+        or task_info.get("url")
+    )
+    if not site:
+        return profile_key, None
+    entry = login_get_by_site_profile(site, profile_key)
+    context_id = str(entry["context_id"]) if entry and entry.get("context_id") else None
+    return profile_key, context_id
+
+
+def _resolve_split_entry(splits: dict[str, Any], split: str) -> str:
+    """Resolve split entry into a data file path."""
+    if split not in splits:
+        available = ", ".join(sorted(splits.keys()))
+        raise SystemExit(f"[FAILED] Unknown split: {split}. Available: {available}")
+    splits_conf = splits[split]
+    if isinstance(splits_conf, str):
+        return splits_conf
+    if isinstance(splits_conf, dict):
+        for key in ("path", "file", "filename"):
+            candidate = splits_conf.get(key)
+            if isinstance(candidate, str) and candidate:
+                return candidate
+        raise SystemExit(
+            "[FAILED] Split config must be a string or include a valid path key "
+            "('path', 'file', or 'filename')"
+        )
+    raise SystemExit(f"[FAILED] Invalid split config type: {type(splits_conf).__name__}")
+
+
+def resolve_data_file(benchmark_path: Path, split: str | None) -> str:
+    """Resolve data file based on split.
+
+    benchmark_path is the dataset root containing data_info.json.
+    """
+    data_info = load_data_info(benchmark_path)
+
+    if not data_info:
+        raise SystemExit("[FAILED] data_info.json not found or empty")
+
+    if not split:
+        split = get_default_split(data_info)
+
+    if "split" in data_info:
+        return _resolve_split_entry(data_info["split"], split)
+
+    if "version_split" in data_info:
+        version = get_default_version(data_info)
+        if not version:
+            raise SystemExit("[FAILED] data_info.json missing default_version for legacy version_split")
+        logger.info("Using default version: %s", version)
+        splits = data_info["version_split"].get(version, {})
+        return _resolve_split_entry(splits, split)
+
+    raise SystemExit("[FAILED] data_info.json format is incorrect, must include split")
+
+
+# Running subprocesses (keyed by pid) — accessed by signal handler.
+_processes: dict[int, subprocess.Popen] = {}
+
+
+def _resolve_output_model_id(agent_name: str, agent_cfg: dict[str, Any]) -> str | None:
+    if agent_name == "skyvern":
+        return (
+            agent_cfg.get("model_id")
+            or agent_cfg.get("MODEL_ID")
+            or agent_cfg.get("openai_compatible_model_name")
+            or agent_cfg.get("OPENAI_COMPATIBLE_MODEL_NAME")
+            or agent_cfg.get("engine")
+            or agent_cfg.get("ENGINE")
+        )
+    return agent_cfg.get("model_id") or agent_cfg.get("MODEL_ID")
+
+
+# ---------------------------------------------------------------------------
+# task_brief.log: lightweight per-task digest (step numbers + action names)
+# Parsed out of the subprocess stdout stream as it is teed to runtime.log.
+# ---------------------------------------------------------------------------
+_RE_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+_RE_STEP = re.compile(r"\U0001f4cd Step (\d+)")
+_RE_ACTION_NAME = re.compile(r"\u25b6\ufe0f\s+(?:\[\d+/\d+\]\s+)?([\w-]+)")
+_RE_STATUS = re.compile(r"^\[(RUNNING|SUCCESS|FAILED|TIMING)\]")
+_RE_FINAL = re.compile(r"Final Result:")
+
+
+class _TaskBriefWriter:
+    """Extract key event lines from subprocess output into task_brief.log."""
+
+    def __init__(self, path: Path):
+        self._fh = open(path, "w", encoding="utf-8")
+        self._cur_step: str | None = None
+        self._cur_actions: list[str] = []
+
+    def _flush_step(self) -> None:
+        if self._cur_step is None:
+            return
+        actions = ", ".join(self._cur_actions) if self._cur_actions else ""
+        try:
+            self._fh.write(f"Step {self._cur_step}: {actions}\n")
+        finally:
+            self._cur_step = None
+            self._cur_actions = []
+
+    def feed(self, line: str) -> None:
+        clean = _RE_ANSI.sub("", line.rstrip("\n"))
+
+        step_m = _RE_STEP.search(clean)
+        if step_m:
+            self._flush_step()
+            self._cur_step = step_m.group(1)
+            return
+
+        if self._cur_step is not None:
+            act_m = _RE_ACTION_NAME.search(clean)
+            if act_m:
+                self._cur_actions.append(act_m.group(1))
+                return
+
+        if _RE_STATUS.match(clean):
+            self._flush_step()
+            self._fh.write(f"{clean}\n")
+            return
+
+        if _RE_FINAL.search(clean):
+            self._flush_step()
+            self._fh.write(f"{clean}\n")
+
+    def close(self) -> None:
+        self._flush_step()
+        try:
+            self._fh.close()
+        except OSError:
+            pass
+
+
+def _write_run_manifest(
+    output_dir: Path,
+    *,
+    agent_config: dict[str, Any],
+) -> None:
+    """Write config_snapshot.json for backward compatibility."""
+    try:
+        config_snapshot_path = output_dir / "config_snapshot.json"
+        with open(config_snapshot_path, "w", encoding="utf-8") as fh:
+            json.dump(agent_config, fh, indent=2, ensure_ascii=False)
+        logger.info("Config snapshot written to %s", config_snapshot_path)
+    except OSError as exc:
+        logger.warning("Failed to write config_snapshot.json: %s", exc)
+_processes_lock = __import__("threading").Lock()
+
+
+def _read_positive_int_from_env(env_key: str, default: int) -> int:
+    raw_value = os.getenv(env_key)
+    if not raw_value:
+        return default
+    try:
+        parsed = int(raw_value)
+    except ValueError:
+        logger.warning(
+            "Invalid %s value %r, falling back to %s",
+            env_key,
+            raw_value,
+            default,
+        )
+        return default
+    if parsed <= 0:
+        logger.warning(
+            "Invalid %s value %r, expected a positive integer; falling back to %s",
+            env_key,
+            raw_value,
+            default,
+        )
+        return default
+    return parsed
+
+
+_SIGINT_GRACE_SECONDS = _read_positive_int_from_env("BUBENCH_SIGINT_GRACE_SECONDS", 20)
+_SIGTERM_GRACE_SECONDS = _read_positive_int_from_env("BUBENCH_SIGTERM_GRACE_SECONDS", 8)
+_SESSION_CLEANUP_TIMEOUT_SECONDS = _read_positive_int_from_env(
+    "BUBENCH_SESSION_CLEANUP_TIMEOUT_SECONDS",
+    30,
+)
+
+
+def _cleanup_orphaned_browser_session(
+    session_state_file: Path,
+    env: dict[str, str],
+    venv_path: Path,
+) -> None:
+    if not session_state_file.exists():
+        return
+
+    logger.warning("Detected stale browser session state, running parent-side cleanup...")
+
+    python_bin = "Scripts\\python.exe" if IS_WINDOWS else "bin/python"
+    cleanup_cmd = [
+        str(venv_path / python_bin),
+        "-m",
+        "browseruse_bench.browsers.orphan_cleanup",
+        "--state-file",
+        str(session_state_file),
+    ]
+    cleanup_env = env.copy()
+    cleanup_env.setdefault("AGENTBAY_LOG_LEVEL", "WARNING")
+    cleanup_env.setdefault("AGENTBAY_LOG_FORMAT", "compact")
+
+    try:
+        result = subprocess.run(
+            cleanup_cmd,
+            env=cleanup_env,
+            cwd=str(REPO_ROOT),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=_SESSION_CLEANUP_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError, RuntimeError, TimeoutError, ValueError) as exc:
+        logger.error("Parent-side browser session cleanup failed to execute: %s", exc)
+        return
+
+    if result.stdout:
+        for line in result.stdout.splitlines():
+            logger.info(line)
+
+    if result.returncode == 0:
+        logger.info("Parent-side browser session cleanup finished")
+    else:
+        logger.error("Parent-side browser session cleanup failed (exit code=%s)", result.returncode)
+
+
+def _terminate_one(proc: subprocess.Popen) -> None:
+    """Gracefully terminate one subprocess (SIGINT → SIGTERM → SIGKILL)."""
+    if proc.pid is None:
+        return
+    try:
+        if IS_WINDOWS:
+            proc.terminate()
+        else:
+            os.killpg(os.getpgid(proc.pid), signal.SIGINT)
+    except (ProcessLookupError, OSError) as exc:
+        logger.error("Failed to send SIGINT to process group (pid=%s): %s", proc.pid, exc)
+        try:
+            proc.terminate()
+        except ProcessLookupError:
+            pass
+    try:
+        proc.wait(timeout=_SIGINT_GRACE_SECONDS)
+        return
+    except subprocess.TimeoutExpired:
+        pass
+    try:
+        if IS_WINDOWS:
+            proc.terminate()
+        else:
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+    except (ProcessLookupError, OSError):
+        try:
+            proc.terminate()
+        except ProcessLookupError:
+            pass
+    try:
+        proc.wait(timeout=_SIGTERM_GRACE_SECONDS)
+        return
+    except subprocess.TimeoutExpired:
+        pass
+    try:
+        if IS_WINDOWS:
+            proc.kill()
+        else:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except (ProcessLookupError, OSError):
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+
+
+def _signal_handler(signum: int, frame: Any) -> None:
+    """Handle exit signals — terminate all running subprocesses."""
+    with _processes_lock:
+        procs = list(_processes.values())
+    if procs:
+        logger.warning("Received exit signal, terminating %d subprocess(es)...", len(procs))
+        for proc in procs:
+            try:
+                _terminate_one(proc)
+            except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
+                logger.error("Error terminating subprocess (pid=%s): %s", proc.pid, exc)
+    sys.exit(130)
+
+
+def configure_run_parser(parser: argparse.ArgumentParser, config: dict[str, Any]) -> None:
+    """Configure arguments for the run command."""
+    add_common_task_args(parser)
+    parser.add_argument("--agent", default=config.get("default", {}).get("agent", "Agent-TARS"))
+    parser.add_argument("--data", default=config.get("default", {}).get("data") or config.get("default", {}).get("benchmark", "Online-Mind2Web"))
+    parser.add_argument(
+        "--split",
+        default=None,
+        help="Dataset split (defaults to data_info.json's default_split, falling back to 'All'). Options depend on benchmark data_info.json.",
+    )
+    parser.add_argument(
+        "--data-source",
+        default=DataSource.LOCAL,
+        choices=DataSource.tolist(),
+        help="Data source: local (default) or huggingface (download to HF cache)",
+    )
+    parser.add_argument(
+        "--timestamp",
+        default=None,
+        help="Specify timestamp directory to resume or run (format: YYYYMMDD_HHmmss)",
+    )
+    parser.add_argument(
+        "--agent-config",
+        type=Path,
+        default=None,
+        help=(
+            "Optional path to an alternate root-config YAML (same shape as the repo "
+            "config.yaml). The runtime config for --agent is resolved from that file "
+            "via agents.<agent>.models. By default the repo root config.yaml is used."
+        ),
+    )
+    parser.add_argument(
+        "--model-name",
+        "--model",
+        dest="model_name",
+        default=None,
+        help="Optional model config name under config.yaml agents.<agent>.models to override active_model for this run.",
+    )
+    parser.add_argument(
+        "--force-download",
+        action="store_true",
+        help="Force re-download from HuggingFace cache (only applies to huggingface mode)",
+    )
+    parser.add_argument(
+        "--group-by-site",
+        dest="group_by_site",
+        action="store_true",
+        default=True,
+        help=(
+            "Run tasks grouped by target_website (stable sort). "
+            "Keeps same-site tasks contiguous so login-gated evals sweep a site together. "
+            "Default: on."
+        ),
+    )
+    parser.add_argument(
+        "--no-group-by-site",
+        dest="group_by_site",
+        action="store_false",
+        help="Disable site grouping; preserve dataset order.",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Number of tasks to run in parallel (default: 1 = sequential).",
+    )
+
+
+def run_agent(agent_name: str, benchmark_name: str, config: dict[str, Any], args: argparse.Namespace) -> int:
+    """
+    Run agent using subprocess with process isolation per task.
+    Uses the unified agent_runner.py to call modular browseruse_bench.agents code.
+    """
+    agent_config_dict = resolve_agent_entry(agent_name, config)
+
+    supported = agent_config_dict.get("supported_benchmarks", [])
+    if supported and benchmark_name not in supported:
+        raise SystemExit(
+            f"[FAILED] Agent '{agent_name}' does not support Benchmark '{benchmark_name}'\n"
+            f"Supported: {', '.join(supported)}"
+        )
+
+    # Dataset root is conventional: REPO_ROOT/browseruse_bench/data/<benchmark_name>/
+    benchmark_path = REPO_ROOT / "browseruse_bench" / "data" / benchmark_name
+    data_info = load_data_info(benchmark_path)
+
+    if not args.split:
+        args.split = get_default_split(data_info) or "All"
+
+    # Resolve data file
+    data_file = resolve_data_file(benchmark_path, args.split)
+    local_data_path = benchmark_path / data_file
+    benchmark_data = load_dataset_file(
+        local_path=local_data_path,
+        data_info=data_info,
+        data_source=args.data_source,
+        force_download=args.force_download,
+        split=args.split,
+        benchmark_name=benchmark_name,
+    )
+
+    # Create output directory
+    # Include MODEL_ID from agent config as a subfolder under the agent name
+    agent_cfg = args._inline_agent_config
+    model_id = _resolve_output_model_id(agent_name, agent_cfg)
+    if not model_id:
+        raise SystemExit(
+            "[FAILED] model_id is required in agent config but not found. "
+            "Please specify model_id in your agent config YAML file."
+        )
+    output_base = REPO_ROOT / "experiments" / benchmark_name / args.split / agent_name / model_id
+
+    if args.timestamp:
+        timestamp = args.timestamp.strip()
+        if not re.match(r"^\d{8}_\d{6}$", timestamp):
+            raise SystemExit("[FAILED] --timestamp format must be YYYYMMDD_HHmmss")
+        output_dir = output_base / timestamp
+        if not output_dir.exists():
+            raise SystemExit(f"[FAILED] Specified timestamp directory does not exist: {output_dir}")
+        logger.info("Resuming/Running in existing timestamp directory: %s", timestamp)
+    else:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_dir = output_base / timestamp
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.info("Running %s on %s", agent_name, benchmark_name)
+    logger.info("   Output: %s", output_dir)
+
+    # Load tasks
+    default_task_url = config.get("default", {}).get("task_start_url")
+    prompt_fmt = (
+        "{task}\n"
+        "Only use {url} to achieve the task. Don't go to any other site. Starting URL: {url}\n"
+        "Avoid action loops: do not repeatedly switch between the same tabs or click the same filter "
+        "more than twice. If a filter has no data after 1 retry, fallback to available results, "
+        "return the best-effort answer with clear uncertainty, and finish."
+    )
+    tasks = load_tasks_with_benchmark_support(
+        benchmark_data,
+        prompt_fmt=prompt_fmt,
+        default_url=default_task_url,
+    )
+    if not tasks:
+        raise SystemExit(f"No tasks found in {benchmark_data}")
+
+    logger.info("[SUCCESS] Loaded %s tasks", len(tasks))
+
+    # Filter tasks
+    region = getattr(args, "region", None)
+    tasks = filter_tasks_by_region(tasks, region)
+    task_id = getattr(args, "id", None)
+    tasks_to_run = filter_tasks(tasks, args.mode, args.count, args.task_ids, task_id)
+
+    if args.skip_completed:
+        tasks_to_run, skipped = filter_completed_tasks(
+            tasks_to_run,
+            output_dir,
+            is_task_completed_by_result_json,
+        )
+        if skipped == 0:
+            logger.info("[INFO] Resume: No completed tasks found")
+
+    if not tasks_to_run:
+        raise SystemExit("[FAILED] No tasks selected to run")
+
+    # Group by site for contiguous sweeps of login-gated sites. Stable sort
+    # preserves the dataset order within each group.
+    if getattr(args, "group_by_site", False):
+        tasks_to_run = sorted(
+            tasks_to_run,
+            key=lambda t: (
+                resolve_site_for_url(
+                    t.get("target_website") or t.get("task_start_url") or t.get("url")
+                ) or "~",
+            ),
+        )
+
+    if args.dry_run:
+        logger.info("   [DRY RUN] Would run %s tasks using agent_runner.py", len(tasks_to_run))
+        return 0
+
+    # Determine extra flag for uv
+    if agent_name == "skyvern":
+        extra_name: str | None = "skyvern"
+    elif agent_name == "browser-use":
+        extra_name = "browser-use"
+    elif agent_name == "openai-cua":
+        extra_name = "openai-cua"
+    else:
+        extra_name = None
+
+    install_targets = agent_config_dict.get("install_targets")
+    if not isinstance(install_targets, list):
+        install_targets = None
+    elif not all(isinstance(target, str) and target.strip() for target in install_targets):
+        raise SystemExit("[FAILED] Agent install_targets must be a list of non-empty strings")
+
+    venv_path = resolve_agent_venv_path(agent_config_dict)
+    use_uv = check_uv_available()
+    ensure_venv(venv_path, use_uv)
+    if not args.dry_run:
+        install_agent_dependencies(venv_path, extra_name, use_uv, install_targets)
+
+    # Prepare environment
+    env = os.environ.copy()
+    env["PYTHONUNBUFFERED"] = "1"
+    env["BROWSERUSE_BENCH_LOG_FORMAT"] = "plain"
+    repo_root_str = str(REPO_ROOT)
+    old_pythonpath = env.get("PYTHONPATH", "")
+    if old_pythonpath:
+        if repo_root_str not in old_pythonpath.split(os.pathsep):
+            env["PYTHONPATH"] = os.pathsep.join([repo_root_str, old_pythonpath])
+    else:
+        env["PYTHONPATH"] = repo_root_str
+
+    if agent_name == "skyvern":
+        skyvern_config = args._inline_agent_config
+        apply_skyvern_env(skyvern_config, env)
+
+    # ------------------------------------------------------------------ #
+    # Per-task runner (called sequentially or from a thread pool)         #
+    # ------------------------------------------------------------------ #
+
+    concurrency = max(1, getattr(args, "concurrency", 1))
+    inline_cfg = getattr(args, "_inline_agent_config", None)
+    python_bin = "Scripts\\python.exe" if IS_WINDOWS else "bin/python"
+
+    def _run_one_task(task_info: dict[str, Any], idx: int) -> bool:
+        """Run a single task in a subprocess. Returns True on success."""
+        current_task_id = task_info["task_id"]
+        task_text = task_info.get("task_text", task_info.get("task", ""))[:50]
+        prefix = f"[{idx}/{len(tasks_to_run)}][{current_task_id}]"
+        logger.info("\n%s\n%s %s…\n%s", "=" * 80, prefix, task_text, "=" * 80)
+
+        task_workspace = output_dir / "tasks" / current_task_id
+        task_workspace.mkdir(parents=True, exist_ok=True)
+        session_state_file = task_workspace / ".browser_session_state.json"
+        session_state_file.unlink(missing_ok=True)
+
+        task_info_path: Path | None = None
+        tmp_cfg_path: Path | None = None
+        proc: subprocess.Popen | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False, encoding="utf-8"
+            ) as tf:
+                json.dump(task_info, tf, ensure_ascii=False)
+                task_info_path = Path(tf.name)
+
+            cmd = [
+                str(venv_path / python_bin),
+                str(REPO_ROOT / "browseruse_bench/runner/agent_runner.py"),
+                "--agent", agent_name,
+                "--task-info", str(task_info_path),
+                "--workspace", str(task_workspace),
+            ]
+
+            # Per-task runtime state for the lexmount backend. Passed via env
+            # vars rather than agent_config because agent_config is for
+            # user-authored agent/model choices — runtime-injected state
+            # belongs on the subprocess env.
+            task_inline_cfg = dict(inline_cfg) if inline_cfg else None
+            lexmount_profile_key, login_context_id = resolve_lexmount_routing_for_task(
+                task_inline_cfg, task_info
+            )
+            if task_inline_cfg is not None and str(task_inline_cfg.get("browser_id") or "") == "lexmount" \
+                    and task_info.get("login_required"):
+                site_for_log = resolve_site_for_url(
+                    task_info.get("target_website")
+                    or task_info.get("task_start_url")
+                    or task_info.get("url")
+                )
+                if login_context_id:
+                    logger.info(
+                        "[LOGIN-CTX] %s site=%s profile=%s context=%s…",
+                        prefix, site_for_log, lexmount_profile_key or "(default)",
+                        login_context_id[:12],
+                    )
+                else:
+                    # Soft-fail: don't short-circuit. Let the agent attempt the
+                    # task without login state and surface the real "couldn't
+                    # access" outcome as the case result.
+                    logger.info(
+                        "[LOGIN-CTX] %s site=%s profile=%s — no saved context, "
+                        "running without login state",
+                        prefix, site_for_log, lexmount_profile_key or "(default)",
+                    )
+
+            if task_inline_cfg is not None:
+                with tempfile.NamedTemporaryFile(
+                    mode="w", suffix=".json", delete=False, encoding="utf-8"
+                ) as tc:
+                    json.dump(task_inline_cfg, tc, ensure_ascii=False)
+                    tmp_cfg_path = Path(tc.name)
+                cmd.extend(["--agent-config", str(tmp_cfg_path)])
+            if args.timeout:
+                cmd.extend(["--timeout", str(args.timeout)])
+
+            task_env = env.copy()
+            task_env[SESSION_STATE_ENV_KEY] = str(session_state_file)
+            # Always pop before conditional set so a stale parent-shell value
+            # never bleeds into tasks that don't need this injection.
+            task_env.pop(LOGIN_CONTEXT_ID_ENV_KEY, None)
+            task_env.pop(LEXMOUNT_PROFILE_ENV_KEY, None)
+            if login_context_id:
+                task_env[LOGIN_CONTEXT_ID_ENV_KEY] = login_context_id
+            if lexmount_profile_key:
+                task_env[LEXMOUNT_PROFILE_ENV_KEY] = lexmount_profile_key
+
+            popen_kwargs: dict[str, Any] = {
+                "env": task_env,
+                "cwd": str(REPO_ROOT),
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.STDOUT,
+                "text": True,
+                "bufsize": 1,
+            }
+            if IS_WINDOWS:
+                popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+            else:
+                popen_kwargs["preexec_fn"] = os.setsid
+
+            proc = subprocess.Popen(cmd, **popen_kwargs)
+            with _processes_lock:
+                _processes[proc.pid] = proc
+
+            if proc.stdout:
+                for line in iter(proc.stdout.readline, ""):
+                    if line:
+                        # Prefix each output line with task id when concurrent.
+                        if concurrency > 1:
+                            logger.info("[%s] %s", current_task_id, line.rstrip("\n"))
+                        else:
+                            logger.info(line.rstrip("\n"))
+
+            returncode = proc.wait()
+
+            if returncode == 0:
+                logger.info("[SUCCESS] %s completed", prefix)
+                return True
+            logger.info("[FAILED] %s exit code %s", prefix, returncode)
+            return False
+
+        finally:
+            if proc is not None:
+                with _processes_lock:
+                    _processes.pop(proc.pid, None)
+            for _tmp in [task_info_path, tmp_cfg_path]:
+                if _tmp is None:
+                    continue
+                try:
+                    _tmp.unlink()
+                except (FileNotFoundError, OSError):
+                    pass
+            _cleanup_orphaned_browser_session(
+                session_state_file=session_state_file,
+                env=env,
+                venv_path=venv_path,
+            )
+
+    # ------------------------------------------------------------------ #
+    # Execute tasks                                                        #
+    # ------------------------------------------------------------------ #
+    import threading
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    success_count = 0
+    failed_count = 0
+
+    original_sigint = signal.signal(signal.SIGINT, _signal_handler)
+    original_sigterm = signal.signal(signal.SIGTERM, _signal_handler)
+    _counter_lock = threading.Lock()
+
+    try:
+        if concurrency == 1:
+            for i, task_info in enumerate(tasks_to_run, 1):
+                try:
+                    ok = _run_one_task(task_info, i)
+                except KeyboardInterrupt:
+                    raise
+                if ok:
+                    success_count += 1
+                else:
+                    failed_count += 1
+        else:
+            logger.info("[INFO] Running with concurrency=%d", concurrency)
+            indexed = list(enumerate(tasks_to_run, 1))
+            with ThreadPoolExecutor(max_workers=concurrency) as pool:
+                futures = {
+                    pool.submit(_run_one_task, ti, idx): ti["task_id"]
+                    for idx, ti in indexed
+                }
+                try:
+                    for fut in as_completed(futures):
+                        task_id = futures[fut]
+                        try:
+                            ok = fut.result()
+                        except Exception as exc:  # noqa: BLE001
+                            # Intentionally broad: any exception from a task
+                            # should mark that task failed but never kill the
+                            # whole thread pool. SystemExit / KeyboardInterrupt
+                            # are BaseException and already bypass this handler.
+                            logger.error("Task %s raised an exception: %s", task_id, exc)
+                            ok = False
+                        with _counter_lock:
+                            if ok:
+                                success_count += 1
+                            else:
+                                failed_count += 1
+                except KeyboardInterrupt:
+                    logger.warning("Interrupted — cancelling pending tasks")
+                    for fut in futures:
+                        fut.cancel()
+                    raise
+
+    except KeyboardInterrupt:
+        _signal_handler(signal.SIGINT, None)
+        return 130
+    finally:
+        signal.signal(signal.SIGINT, original_sigint)
+        signal.signal(signal.SIGTERM, original_sigterm)
+
+    logger.info(
+        "\n[SUMMARY] Total: %s | Success: %s | Failed: %s",
+        len(tasks_to_run),
+        success_count,
+        failed_count,
+    )
+    # Skip manifest for dry runs: there is no real run to record and the
+    # tasks_success/failed counters would be misleadingly zero.
+    if not getattr(args, "dry_run", False):
+        try:
+            _write_run_manifest(
+                output_dir,
+                agent_config=agent_config_dict,
+            )
+        except (OSError, KeyError, AttributeError, TypeError) as exc:
+            logger.warning("Failed to finalize run manifest: %s", exc)
+    return 0 if failed_count == 0 else 1
+
+
+def run_command(args: argparse.Namespace, config: dict[str, Any]) -> int:
+    """Entry point for the run subcommand."""
+    logger.info("Starting run command")
+    source_cfg = config
+    source_label = "root config.yaml"
+    if args.agent_config is not None:
+        cfg_path = args.agent_config
+        if not cfg_path.is_absolute():
+            cfg_path = Path.cwd() / cfg_path
+        if not cfg_path.exists():
+            raise SystemExit(f"[FAILED] --agent-config file not found: {cfg_path}")
+        source_cfg = load_config_file(cfg_path)
+        source_label = str(cfg_path)
+
+    # --agent-config only overrides the inline model config (agents.<agent>.models.*).
+    # Benchmark definitions and the agent registry keep coming from the root config,
+    # which is why run_agent still receives `config`, not `source_cfg`.
+    inline = resolve_agent_inline_config(args.agent, source_cfg, args.model_name)
+    if inline is None:
+        model_hint = (
+            f"agents.{args.agent}.models.{args.model_name}"
+            if args.model_name
+            else f"agents.{args.agent}.active_model"
+        )
+        raise SystemExit(
+            f"[FAILED] Inline agent runtime config not found in {source_label}.\n"
+            f"Hint: Configure {model_hint} in that file."
+        )
+    args._inline_agent_config = inline
+    return run_agent(args.agent, args.data, config, args)
+
+
+@handle_cli_errors
+def main(argv: list[str] | None = None) -> int:
+    config = load_config_file(CONFIG_PATH)
+    parser = argparse.ArgumentParser(prog="bubench run")
+    configure_run_parser(parser, config)
+    args, extra = parser.parse_known_args(argv)
+    if extra:
+        parser.error(f"unrecognized arguments: {' '.join(extra)}")
+    return run_command(args, config)
+
+
+if __name__ == "__main__":
+    main()

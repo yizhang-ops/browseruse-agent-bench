@@ -1,0 +1,233 @@
+---
+title: "完整工作流"
+description: "从配置到评估的端到端流程"
+icon: "play"
+---
+
+本指南将带你完成从 Agent 配置到评估结果的完整流程。
+
+## 概览
+
+1. 选择 Agent
+2. 配置 Agent
+3. 选择 Benchmark
+4. 运行任务
+5. 评估结果
+6. 查看输出
+
+---
+
+## 1. 选择 Agent
+
+browseruse-bench 支持多个 Agent，可按需求选择：
+
+| Agent | 说明 | 文档 |
+|-------|------|------|
+| **browser-use** | 支持视觉的可编程浏览器 Agent | [详情](/zh/agents/browser-use) |
+| **Agent-TARS** | 基于 Node.js CLI 的推理型 Agent | [详情](/zh/agents/agent-tars) |
+| **Skyvern** | 基于 Skyvern SDK 的浏览器自动化 Agent | [详情](/zh/agents/skyvern) |
+| **Claude Code** | Anthropic 官方 Claude CLI，通过 Playwright MCP 操控浏览器 | [详情](/zh/agents/claude-code) |
+
+---
+
+## 2. 配置 Agent
+
+所有 Agent 的运行时配置都写在根目录 `config.yaml` 的 `agents.<agent-name>` 下，这是推荐方式。
+
+复制示例配置并填入你的凭证：
+
+```bash
+cp config.example.yaml config.yaml
+```
+
+然后编辑 `config.yaml` 的 `agents` 部分：
+
+```yaml
+agents:
+  browser-use:
+    active_model: gpt          # 默认使用的模型配置名
+    models:
+      gpt:
+        model_type: OPENAI
+        model_id: gpt-4.1
+        api_key: $OPENAI_API_KEY
+        base_url: $OPENAI_BASE_URL
+    browser:
+      browser_id: Chrome-Local
+    defaults:
+      use_vision: false
+      max_steps: 40
+      timeout: 600
+```
+
+运行时可通过 `--model` 切换模型，无需修改配置文件：
+
+```bash
+bubench run --agent browser-use --model gpt ...
+```
+
+---
+
+## 3. 选择 Benchmark
+
+根据评估需求选择 Benchmark：
+
+### LexBench-Browser
+- **评估方式**：视觉评估（截图序列）
+- **评分**：0-100，默认阈值 60
+- **适用场景**：视觉理解、多步推理
+
+### Online-Mind2Web
+- **评估方式**：WebJudge 多轮评估
+- **评分**：3 分制，默认阈值 3
+- **适用场景**：网页导航与任务完成
+
+### BrowseComp
+- **评估方式**：文本答案正确性
+- **评分**：二值（正确/错误）
+- **适用场景**：事实检索与信息抽取
+
+---
+
+## 4. 运行任务
+
+### 基本命令
+
+```bash
+bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+```
+
+### 所有参数
+
+| 参数 | 说明 | 备注 |
+|------|------|------|
+| `--agent` | Agent 名称 | 默认取 `config.yaml` 中的 `default.agent`（兜底 `Agent-TARS`） |
+| `--data` | Benchmark 名称 | 默认取 `config.yaml` 中的 `default.benchmark`（兜底 `Online-Mind2Web`） |
+| `--split` | 数据划分 | 默认 `All` |
+| `--data-source` | 数据源 | `local`（默认）或 `huggingface` |
+| `--force-download` | 重新下载数据 | 仅 `huggingface` |
+| `--mode` | 任务选择模式 | `single`、`first_n`、`sample_n`、`specific`、`by_id`、`all` |
+| `--count` | `first_n`/`sample_n` 的任务数 | 默认 1 |
+| `--task-ids` | `specific` 模式的任务 ID | 空格分隔多个 ID |
+| `--id` | `by_id` 模式的单个任务 ID | 数值 ID 字段 |
+| `--timeout` | 单任务超时（秒） | 覆盖配置中的 `TIMEOUT` |
+| `--skip-completed` | 跳过已完成任务 | 适合断点续跑 |
+| `--agent-config` | 备用 root-config YAML 路径（与 `config.yaml` 同结构） | 可选；默认读取仓库根 `config.yaml` |
+| `--timestamp` | 指定运行/恢复目录 | `YYYYMMDD_HHmmss` |
+| `--dry-run` | 仅打印命令不执行 | 用于检查配置 |
+
+### 输出结构
+
+结果会保存到：
+
+```
+experiments/{benchmark}/{split}/{agent}/{timestamp}/
+├── tasks/
+│   ├── <task_id>/
+│   │   ├── result.json
+│   │   └── trajectory/
+│   │       ├── screenshot-1.png
+│   │       └── ...
+└── tasks_eval_result/
+    └── *_summary.json
+```
+
+### 进度查看
+
+日志位于 `output/logs/run/`：
+
+```bash
+ls -t output/logs/run | head -n 1
+# 然后 tail 最新文件
+```
+
+---
+
+## 5. 评估结果
+
+### 执行评估
+
+```bash
+bubench eval \
+  --data LexBench-Browser \
+  --agent browser-use \
+  --model-id bu-2-0 \
+```
+
+脚本会自动在 `--agent` / `--model-id` 对应的输出目录下选择最新的运行结果。
+
+### 评估参数
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `--model-id` | 运行时使用的 `model_id`（作为输出子目录名） | 回退到 `agents.<agent>.active_model` 对应的 `model_id` |
+| `--model` | 评估用 LLM 模型 | `config.yaml` 中的 `eval.model` |
+| `--score-threshold` | 成功阈值 | LexBench 60，其他 3 |
+| `--force-reeval` | 强制重评估 | false |
+| `--timestamp` | 指定评估目录 | 最新（自动识别） |
+| `--data-source` | 数据源（仅 LexBench） | `local` |
+| `--force-download` | 重新下载数据（仅 LexBench） | false |
+
+### 输出文件
+
+评估结果保存在 `tasks_eval_result/`：
+
+- **详细结果**：`*_eval_results.json`
+- **统计汇总**：`*_summary.json`
+
+### 查看结果
+
+```bash
+cat experiments/{benchmark}/{split}/{agent}/{timestamp}/tasks_eval_result/*_summary.json
+```
+
+---
+
+## 完整示例
+
+```bash
+# 1. 在根目录 config.yaml 中配置 Agent
+vim config.yaml   # 编辑 agents.browser-use 部分
+
+# 2. 运行推理（前 10 个任务）
+bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+  --mode first_n \
+  --count 10
+
+# 3. 评估结果
+bubench eval \
+  --data LexBench-Browser \
+  --agent browser-use \
+  --model-id bu-2-0 \
+
+# 4. 查看汇总
+ls -lh experiments/LexBench-Browser/All/browser-use/*/tasks_eval_result/
+```
+
+---
+
+## 常见问题
+
+### 超时错误
+**问题**：任务超出配置的超时时间
+**解决**：在 `config.yaml` 的 `agents.<agent>.defaults.timeout` 中调大超时时间，或在命令行传入 `--timeout`。
+
+### 缺少截图（LexBench-Browser）
+**问题**：评估因缺少截图而失败
+**解决**：确认 `tasks/<task_id>/trajectory/` 下有截图，并查看运行日志定位失败原因。
+
+### 模型 API 报错
+**问题**：LLM API 调用失败
+**解决**：检查 `config.yaml` 中的 API Key（推荐使用 `$ENV_VAR` 引用，将实际值写入 `.env`）；评估阶段同样请确认 `.env`。
+
+---
+
+## 下一步
+
+- **自定义 Benchmark**：学习如何创建自定义基准测试（[指南](/zh/benchmarks/custom-benchmark)）
+- **排行榜**：提交结果到排行榜（[详情](/zh/leaderboard/overview)）
+- **高级配置**：了解更多 Agent 参数（[文档](/zh/agents/overview)）

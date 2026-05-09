@@ -1,0 +1,67 @@
+---
+title: "本地 Chromium 浏览器"
+description: "在本机启动一个 Chromium 跑 agent，可选配 HTTP/SOCKS 代理"
+---
+
+`local`（别名 `Chrome-Local`）后端通过 Playwright 在本机启动一个 Chromium。开发、小规模跑、不需要云会话时默认用它。
+
+<Warning>
+**本地浏览器不会继承你的系统 / shell 代理。** 即使你的日常 Chrome 经 clash / v2ray / Surge 能正常访问 `bloomberg.com`，bench 启动的 Chromium **默认仍然走直连**——除非你显式配下面的 `local_proxy_server`。不配的话，需要走代理的站点会静默报 `net::ERR_CONNECTION_RESET` / `ERR_CONNECTION_TIMED_OUT`，看起来像是 agent / 模型问题，实则是网络层。
+</Warning>
+
+## 配置
+
+在任何支持 `browser_id: local` 的 agent 下加这些字段：
+
+```yaml
+# config.yaml
+agents:
+  skyvern:
+    browser:
+      browser_id: local
+      headless: false
+      # 可选代理。server 为空 == 直连（不走代理）
+      local_proxy_server: "http://127.0.0.1:7890"   # clash 默认；v2ray 一般 1087/10809；SOCKS 写 socks5://...
+      # local_proxy_username: ""                    # 可选鉴权
+      # local_proxy_password: ""
+      # local_proxy_bypass: "127.0.0.1,localhost,*.local"
+```
+
+| 字段 | 类型 | 默认 | 说明 |
+| --- | --- | --- | --- |
+| `local_proxy_server` | string | `""`（不走代理） | 完整 URL：`http(s)://host:port` 或 `socks5://host:port` |
+| `local_proxy_username` | string | — | 可选鉴权用户名 |
+| `local_proxy_password` | string | — | 可选鉴权密码 |
+| `local_proxy_bypass` | string | — | 逗号分隔的旁路 host / 通配符 |
+
+## Agent 支持矩阵
+
+| Agent | 支持 `local_proxy_*`？ | 实现方式 |
+| --- | --- | --- |
+| `skyvern` | ✅ 是 | 直接通过 `args` 把 `--proxy-server=...`（如配了 `bypass` 也加 `--proxy-bypass-list=...`）传给 `Skyvern.launch_local_browser()`。注意：bench 走的是 Skyvern 的库模式 launch，绕过了 Skyvern 自己的 `setup_proxy()` / `HOSTED_PROXY_POOL` 路径，Chrome flag 才是真正生效的入口 |
+| `browser-use` | ✅ 是 | 构造 `browser_use.browser.profile.ProxySettings` 传给 SDK 的 `Browser(...)` |
+| `Agent-TARS` | ❌ 否（会告警） | `agent-tars` CLI 自己启动 Chromium 且没暴露代理参数。配置后 bench 输出一次 WARNING |
+| `claude-code` | ❌ 否（会告警） | 走 `@playwright/mcp`，目前没有代理透传通道。同样 WARNING |
+| `openai-cua` | ❌ 否（会告警） | 同样 WARNING |
+| `deepbrowse` | ❌ 否（会告警） | 同样 WARNING |
+
+不支持代理的 agent 建议切到云端浏览器——见 [Lexmount 云浏览器](./lexmount)。Lexmount 国际版会话从大陆境外出口，绝大多数被墙站点无需你本地配代理就能访问。
+
+## 安全提示：凭证出现在 Chrome 进程参数里
+
+`skyvern` agent 把 `local_proxy_username` / `local_proxy_password` URL 编码后嵌进 `--proxy-server=http://user:pass@host:port` 传给 Chrome。Chrome 的进程参数对同机其他用户可见（`ps -ef` 或 macOS 的 `ps auxe`）。
+
+如果代理密码敏感（比如团队共享的企业凭证），推荐其中一种：
+
+- **本地起一个免认证转发器** — clash / v2ray 客户端通常能在 `127.0.0.1:7890` 监听并自己处理上游认证。这样不要配 `local_proxy_username` / `_password`，只填 `local_proxy_server: http://127.0.0.1:7890` 给 Chrome。
+- **改用 `browser-use` agent** — 凭证直接以进程内对象 `ProxySettings(...)` 传给 Playwright，不会出现在 Chrome 命令行。
+
+## 验证代理是否生效
+
+挑一个必须走代理才能到达的任务跑一次，看 `runtime.log`：
+
+```bash
+bubench run --agent skyvern --data LexBench-Browser --mode by_id --id 89
+```
+
+设了 `local_proxy_server` 时，Skyvern 会打印 `Connected to proxy http://...` 之类的日志，且 navigation 成功。如果你在日常 Chrome 里能打开的站点这里仍然报 `ERR_CONNECTION_RESET` / `ERR_CONNECTION_TIMED_OUT`，代理多半没接进去——检查 config 段，并确认你的代理客户端真的在那个端口上监听。

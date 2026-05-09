@@ -1,0 +1,191 @@
+---
+title: "数据加载"
+description: "了解如何加载和管理 Benchmark 数据集"
+---
+
+本项目支持从本地和 HuggingFace 两种方式灵活加载 Benchmark 数据集。
+
+<CardGroup cols={2}>
+  <Card title="默认本地" icon="wand-magic-sparkles">
+    默认使用本地数据。HuggingFace 模式会下载到 HF 缓存（~/.cache/huggingface）。
+  </Card>
+  <Card title="JSONL 格式" icon="file-code">
+    采用高效的 JSONL 格式存储数据，支持流式读取。
+  </Card>
+</CardGroup>
+
+## 数据源配置
+
+### 1. 普通 Benchmark
+
+对于 **LexBench-Browser** 和 **Online-Mind2Web**，在 `browseruse_bench/data/{benchmark}/data_info.json` 中配置 HuggingFace 信息：
+
+```json
+{
+  "split": {
+    "All": "LexBench-Browser/task.jsonl"
+  },
+  "default_split": "All",
+  "huggingface": {
+    "repo_id": "Lexmount/LexBench-Browser",
+    "private": false,
+    "path_prefix": "LexBench-Browser"
+  }
+}
+```
+
+分片路径相对于 `browseruse_bench/data/{benchmark}/`，支持子目录
+（例如 `LexBench-Browser/`、`LexBench-Online_Mind2Web/` 或日期文件夹）。
+
+<ResponseField name="huggingface" type="object">
+  <Expandable title="参数说明">
+    <ResponseField name="repo_id" type="string" required>
+      HuggingFace 数据集仓库 ID。
+    </ResponseField>
+    <ResponseField name="private" type="boolean">
+      是否为私有数据集。如果是 `true`，需要设置 `HF_TOKEN` 环境变量。
+    </ResponseField>
+    <ResponseField name="path_prefix" type="string">
+      （可选）HF 仓库中的子目录路径。
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### 2. BrowseComp（本地或 HuggingFace）
+
+**BrowseComp** 支持本地 JSONL 文件或 HuggingFace 下载。使用 HuggingFace 时，parquet 会下载到 HF 缓存并转换为 JSONL 供使用。
+
+```json
+{
+  "browsecomp": {
+    "csv_url": "https://openaipublic.blob.core.windows.net/simple-evals/browse_comp_test_set.csv",
+    "hf_repo_id": "MultiturnRL/BrowseComp",
+    "hf_path_prefix": "data",
+    "hf_filename": "browsecomp-00000-of-00001.parquet"
+  }
+}
+```
+
+BrowseComp HuggingFace 字段说明：
+- `hf_repo_id`：数据集仓库 ID。
+- `hf_path_prefix`：仓库内子目录（例如 `data`）。
+- `hf_filename`：parquet 文件名。
+- `hf_revision`（可选）：仓库版本。
+- `hf_private`（可选）：私有仓库设为 `true`。
+
+## 命令行使用
+
+`bubench run` 与 `bubench eval` 支持 `--data-source` 参数来控制数据加载行为：
+
+```bash
+bubench run ... --data-source [local|huggingface]
+```
+
+| 模式 | 描述 |
+|:---|:---|
+| `local` (默认) | 使用本地数据。文件不存在则报错，适用于离线环境。 |
+| `huggingface` | 从 HuggingFace 下载并使用 HF 缓存（默认 `~/.cache/huggingface`）。 |
+| `--force-download` | 配合 `huggingface` 使用，强制重新下载到 HF 缓存。 |
+
+注意事项：
+- 本地目录与 HF 缓存相互独立，HF 下载不会写回 `benchmarks/...`。
+- `--force-download` 仅对 `huggingface` 模式生效。
+- BrowseComp 的 HuggingFace 数据为 parquet，会在 HF 缓存中转换为 JSONL。
+
+### 运行示例
+
+<CodeGroup>
+
+```bash 默认（本地）
+# 使用本地数据（默认）
+bubench run --data LexBench-Browser --agent Agent-TARS
+```
+
+```bash 强制本地
+# 适用于无网环境或固定数据集
+bubench run \
+  --data LexBench-Browser --agent Agent-TARS \
+  --data-source local
+```
+
+```bash HuggingFace 下载
+# 下载到 HF 缓存
+bubench run \
+  --data LexBench-Browser --agent Agent-TARS \
+  --data-source huggingface
+```
+
+</CodeGroup>
+
+### 评估示例（LexBench-Browser）
+
+`bubench eval` 仅对 LexBench-Browser 透传 `--data-source`，其他基准从结果文件或本地路径读取。
+
+```bash
+bubench eval --agent browser-use --data LexBench-Browser \
+  --model-id bu-2-0 --data-source huggingface
+```
+
+## 环境变量配置
+
+如果使用私有数据集，必须配置 `HF_TOKEN` 环境变量。
+
+```bash
+# 临时设置
+export HF_TOKEN=hf_your_token_here
+
+# 永久设置
+echo 'export HF_TOKEN=hf_your_token_here' >> ~/.bashrc
+source ~/.bashrc
+```
+
+您可以从 [HuggingFace Settings](https://huggingface.co/settings/tokens) 获取 Access Token。
+
+HuggingFace 默认缓存路径为 `~/.cache/huggingface`，可通过 `HF_HOME` 或 `HF_HUB_CACHE` 覆盖。
+
+## 数据格式说明
+
+### JSONL 格式
+
+为了提高大文件处理效率，我们统一使用 **JSONL (JSON Lines)** 格式，即每行是一个独立的 JSON 对象。
+
+```jsonl task.jsonl
+{"task_id": "1", "query": "去京东搜索iPhone", "target_website": "www.jd.com"}
+{"task_id": "2", "query": "查看购物车", "target_website": "www.taobao.com"}
+```
+
+### 目录结构
+
+```text
+browseruse_bench/data/
+├── LexBench-Browser/
+│   ├── data_info.json              # 包含 HF 配置
+│   └── task.jsonl                  # 任务列表
+├── Online-Mind2Web/
+│   ├── data_info.json              # 包含 HF 配置
+│   ├── task.jsonl                  # All 分片
+│   └── hard.jsonl                  # Hard 分片
+├── BrowseComp/
+│   ├── data_info.json              # 元数据（csv_url 参考）
+│   └── task.jsonl                  # 本地数据文件
+
+HF 缓存存放在仓库之外（默认 `~/.cache/huggingface`）。
+```
+
+## 常见问题排查
+
+<AccordionGroup>
+  <Accordion title="私有数据集提示认证错误">
+    **错误**: `Private HuggingFace dataset requires authentication`
+    
+    **解决**: 确保已设置 `HF_TOKEN` 环境变量。
+  </Accordion>
+  <Accordion title="下载速度太慢">
+    **方案 1**: 如果在中国大陆，可以使用 HF 镜像：
+    ```bash
+    export HF_ENDPOINT=https://hf-mirror.com
+    ```
+    
+    **方案 2**: 手动下载文件放置到对应的 `benchmarks/{name}/data/{split_path}` 目录下。
+  </Accordion>
+</AccordionGroup>

@@ -1,0 +1,125 @@
+---
+title: "成本统计"
+description: "browseruse-bench 中 Token 与 Cost 指标的计算方式"
+---
+
+本页说明 `metrics.usage` 中成本字段在 browseruse-bench 中是如何生成的。
+
+## 成本在何处计算
+
+成本补全发生在共享任务运行器写入 `result.json` 之前：
+
+- 运行器：`browseruse_bench/runners/agent_runner.py`
+- 调用函数：`enrich_result_usage_cost_if_needed(...)`
+
+如果输入结果已经包含完整成本字段且 `total_cost > 0`，则保持原值；否则基于 usage 与价格表重算。
+
+## Token 使用量如何获取
+
+Token 统计来自 agent 返回的 `metrics.usage`（通常由模型响应 `usage` 透传），字段优先级如下：
+
+- `prompt_tokens`：`total_prompt_tokens` -> `prompt_tokens`
+- `completion_tokens`：`total_completion_tokens` -> `completion_tokens`
+- `total_tokens`：`total_tokens` -> `prompt_tokens + completion_tokens`
+- `cached_tokens`：
+  - `total_prompt_cached_tokens` -> `cached_tokens`
+  - 若仍为 `0`，回退到 `prompt_tokens_details.cached_tokens`
+
+特殊处理：
+
+- 当 `prompt_tokens == 0` 且 `completion_tokens == 0`，但 `total_tokens > 0` 时，框架将全部 token 视为 prompt token。
+- 当所有 token 计数都为 `0` 时，跳过补全。
+
+## 价格表如何获取
+
+价格由 `load_litellm_price_table()` 加载，并与可选自定义价格表合并。
+
+### LiteLLM 价格来源
+
+- 官方 URL：
+  - `https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json`
+- 内存缓存：
+  - `_PRICE_CACHE`，按 URL 缓存，TTL 24 小时
+- 本地文件缓存：
+  - `~/.cache/browseruse_bench/token_cost/pricing_bubench_*.json`
+  - 有效缓存优先于网络拉取
+
+### 自定义价格来源
+
+- 可选文件：
+  - `configs/pricing/model_pricing.yaml`
+- 支持字段（每 token 或每百万 token）：
+  - `input_cost_per_token`、`output_cost_per_token`、`cache_read_input_token_cost`
+  - `input_cost_per_million_tokens`、`output_cost_per_million_tokens`、`cache_read_input_cost_per_million_tokens`
+- 匹配方式：
+  - 模型名大小写不敏感的精确匹配
+- 优先级：
+  - 相同模型键下，自定义价格优先于 LiteLLM 价格
+
+若最终仍未命中价格，费率默认为 `0.0`，总成本为 `0.0`（并输出 warning 日志）。
+
+## 成本计算公式
+
+所有费率都会归一化为“美元/每 token”。
+
+```text
+non_cached_prompt_tokens = max(0, prompt_tokens - cached_tokens)
+prompt_non_cached_cost   = non_cached_prompt_tokens * input_rate
+prompt_cached_cost       = cached_tokens * cached_rate
+prompt_cost              = prompt_non_cached_cost + prompt_cached_cost
+completion_cost          = completion_tokens * output_rate
+total_cost               = prompt_cost + completion_cost
+```
+
+说明：
+
+- 若没有缓存读费率，`cached_rate` 默认使用 `input_rate`。
+- `cached_tokens` 会被限制在 `[0, prompt_tokens]` 区间。
+
+## 输出字段
+
+补全后 `metrics.usage` 会包含：
+
+- `total_prompt_tokens`
+- `total_prompt_cost`
+- `total_prompt_cached_tokens`
+- `total_prompt_cached_cost`
+- `total_completion_tokens`
+- `total_completion_cost`
+- `total_tokens`
+- `total_cost`
+- `entry_count`
+- `by_model`（单模型汇总，含 `invocations`、`average_tokens_per_invocation`）
+
+排行榜聚合时会读取每个任务结果中的 `usage.total_cost` 与 `usage.total_tokens`。
+
+## 最小示例
+
+输入 usage：
+
+```json
+{
+  "prompt_tokens": 1000,
+  "completion_tokens": 100,
+  "prompt_tokens_details": {
+    "cached_tokens": 400
+  }
+}
+```
+
+价格：
+
+```json
+{
+  "input_cost_per_token": 0.000002,
+  "output_cost_per_token": 0.000008,
+  "cache_read_input_token_cost": 0.0000005
+}
+```
+
+计算结果：
+
+- 非缓存 prompt：`600 * 0.000002 = 0.0012`
+- 缓存 prompt：`400 * 0.0000005 = 0.0002`
+- completion：`100 * 0.000008 = 0.0008`
+- total：`0.0022`

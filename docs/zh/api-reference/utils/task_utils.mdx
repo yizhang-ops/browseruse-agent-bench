@@ -1,0 +1,227 @@
+---
+title: "task_utils"
+description: "任务加载、过滤与处理工具"
+---
+
+# browseruse_bench.utils.task_utils
+
+任务处理相关的工具函数。
+
+## 导入
+
+```python
+from browseruse_bench.utils import (
+    load_tasks,
+    load_tasks_with_benchmark_support,
+    filter_tasks,
+    filter_completed_tasks,
+    is_task_completed_by_result_json,
+    resolve_tasks_json_path,
+    print_task_summary,
+)
+```
+
+---
+
+## load_tasks
+
+加载任务数据。
+
+```python
+def load_tasks(
+    tasks_json_path: str,
+    prompt_fmt: Optional[str] = None
+) -> List[Dict[str, Any]]
+```
+
+<ParamField path="tasks_json_path" type="str" required>
+  tasks JSON 文件路径
+</ParamField>
+
+<ParamField path="prompt_fmt" type="str" default="None">
+  可选的 prompt 模板，格式如 `"{task}\n...{url}..."`。提供时会在任务字典中追加 `prompt` 字段。
+</ParamField>
+
+<ResponseField name="return" type="list of dict">
+  任务列表，每项包含 `task_id`、`task_text`、`url`。若提供了 `prompt_fmt`，则还会包含 `prompt`。
+</ResponseField>
+
+---
+
+## load_tasks_with_benchmark_support
+
+加载任务，并支持不同 benchmark（包括 BrowseComp）。
+
+```python
+def load_tasks_with_benchmark_support(
+    tasks_json_path: Path,
+    prompt_fmt: Optional[str] = None
+) -> List[Dict[str, Any]]
+```
+
+<ParamField path="tasks_json_path" type="Path" required>
+  tasks JSON 文件路径
+</ParamField>
+
+<ParamField path="prompt_fmt" type="str" default="None">
+  可选的 prompt 模板（BrowseComp 有自己的模板，此参数会被忽略）
+</ParamField>
+
+---
+
+## filter_tasks
+
+根据模式筛选任务。
+
+```python
+def filter_tasks(
+    tasks: List[Dict[str, Any]],
+    mode: str,
+    count: int,
+    task_ids: Optional[List[str]],
+    task_id: Optional[str] = None
+) -> List[Dict[str, Any]]
+```
+
+<ParamField path="tasks" type="list of dict" required>
+  任务列表
+</ParamField>
+
+<ParamField path="mode" type="str" required>
+  筛选模式：
+  - `single` - 只跑第一个任务
+  - `first_n` - 跑前 N 个任务
+  - `sample_n` - 随机抽样 N 个任务
+  - `specific` - 跑指定 ID 的任务
+  - `by_id` - 按 ID 跑单个任务
+  - `all` - 跑全部任务
+</ParamField>
+
+<ParamField path="count" type="int" required>
+  `first_n` 或 `sample_n` 模式下的任务数量
+</ParamField>
+
+<ParamField path="task_ids" type="list of str" default="None">
+  `specific` 模式下的任务 ID 列表
+</ParamField>
+
+<ParamField path="task_id" type="str" default="None">
+  `by_id` 模式下的单个任务 ID
+</ParamField>
+
+---
+
+## filter_completed_tasks
+
+过滤掉已完成的任务。
+
+```python
+def filter_completed_tasks(
+    tasks: List[Dict[str, Any]],
+    output_dir: Path,
+    check_func: Callable[[str, Path], bool]
+) -> Tuple[List[Dict[str, Any]], int]
+```
+
+<ParamField path="tasks" type="list of dict" required>
+  任务列表
+</ParamField>
+
+<ParamField path="output_dir" type="Path" required>
+  输出目录
+</ParamField>
+
+<ParamField path="check_func" type="function" required>
+  判断任务是否已完成的函数
+</ParamField>
+
+<ResponseField name="return" type="tuple">
+  (剩余任务列表, 被跳过的任务数量)
+</ResponseField>
+
+---
+
+## is_task_completed_by_result_json
+
+通过 `result.json` 判断任务是否已完成。
+
+```python
+def is_task_completed_by_result_json(
+    task_id: str,
+    output_dir: Path
+) -> bool
+```
+
+<ParamField path="task_id" type="str" required>
+  任务 ID
+</ParamField>
+
+<ParamField path="output_dir" type="Path" required>
+  输出目录路径
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  `result.json` 存在且非空时返回 True
+</ResponseField>
+
+---
+
+## resolve_tasks_json_path
+
+解析 tasks JSON 文件路径。
+
+```python
+def resolve_tasks_json_path(
+    tasks_json_arg: Optional[str],
+    default_tasks_json: Path,
+    env_var: str = 'TASKS_JSON'
+) -> str
+```
+
+<ParamField path="tasks_json_arg" type="str" default="None">
+  命令行传入的路径
+</ParamField>
+
+<ParamField path="default_tasks_json" type="Path" required>
+  默认路径
+</ParamField>
+
+<ParamField path="env_var" type="str" default="'TASKS_JSON'">
+  环境变量名
+</ParamField>
+
+---
+
+## print_task_summary
+
+打印任务执行摘要。
+
+```python
+def print_task_summary(
+    total_tasks: int,
+    tasks_to_run: int,
+    success_count: int,
+    failed_count: int,
+    output_dir: Path
+) -> None
+```
+
+<ParamField path="total_tasks" type="int" required>
+  任务总数
+</ParamField>
+
+<ParamField path="tasks_to_run" type="int" required>
+  本次运行的任务数量
+</ParamField>
+
+<ParamField path="success_count" type="int" required>
+  成功的任务数量
+</ParamField>
+
+<ParamField path="failed_count" type="int" required>
+  失败的任务数量
+</ParamField>
+
+<ParamField path="output_dir" type="Path" required>
+  输出目录路径
+</ParamField>

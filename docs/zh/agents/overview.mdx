@@ -1,0 +1,81 @@
+---
+title: "Agents 概览"
+description: "browseruse-bench 目前支持的浏览器代理列表"
+---
+
+browseruse-bench 提供统一的接口来运行和评估不同的浏览器代理。
+
+## 已支持的 Agents
+
+<CardGroup cols={2}>
+  <Card title="browser-use" icon="python" href="browser-use">
+    基于 Python 的浏览器代理，提供可编程的浏览器自动化能力。支持本地浏览器和 Lexmount 云浏览器。
+  </Card>
+  <Card title="Agent-TARS" icon="terminal" href="agent-tars">
+    由 TARS 团队开发的浏览器代理，以 npm CLI 包的形式发布。
+  </Card>
+  <Card title="Skyvern" icon="cloud" href="skyvern">
+    基于 Skyvern SDK 的浏览器代理，支持多引擎与多种浏览器后端。
+  </Card>
+  <Card title="Claude Code" icon="code" href="claude-code">
+    Anthropic 官方 Claude CLI，通过 Playwright MCP 以非交互模式操控真实浏览器。
+  </Card>
+</CardGroup>
+
+## 功能对比
+
+| 特性 | browser-use | Agent-TARS | Skyvern | Claude Code |
+|------|-------------|------------|---------|-------------|
+| 编程语言 | Python | Node.js | Python | Node.js CLI |
+| 安装方式 | uv/pip | npm | uv/pip | npm |
+| 本地浏览器 | ✅ | ✅ | ✅ | ✅（via MCP）|
+| 云浏览器 | ✅ | ✅ | ✅ | — |
+
+## 快速使用
+
+<CodeGroup>
+```bash browser-use
+# 安装
+uv sync
+
+# 运行
+bubench run --agent browser-use --data LexBench-Browser --mode first_n --count 3
+```
+
+```bash Agent-TARS
+# 安装
+uv sync
+npm install -g @agent-tars/cli@0.3.0
+
+# 运行
+bubench run --agent Agent-TARS --data LexBench-Browser --mode first_n --count 3
+```
+
+```bash Skyvern
+# 安装
+uv sync
+
+# 运行
+bubench run --agent skyvern --data LexBench-Browser --mode first_n --count 3
+```
+
+```bash Claude Code
+# 安装
+npm install -g @anthropic-ai/claude-code
+claude mcp add playwright --scope user -- npx @playwright/mcp@latest
+
+# 运行
+bubench run --agent claude-code --data LexBench-Browser --mode first_n --count 3
+```
+</CodeGroup>
+
+<Note>
+如果找不到 `bubench`，请先激活 `.venv`，或使用 `uv run bubench ...` 运行命令。
+</Note>
+
+## 计划支持
+- [ ] 更多开源 Agent
+
+<Note>
+如果你希望将自己的 Agent 集成到 browseruse-bench，请参考[贡献指南](/zh/development/contributing)。
+</Note>

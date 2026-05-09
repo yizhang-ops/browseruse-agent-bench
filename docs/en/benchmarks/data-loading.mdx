@@ -1,0 +1,191 @@
+---
+title: "Data Loading"
+description: "Learn how to load and manage benchmark datasets"
+---
+
+This project supports flexible benchmark data loading from both **local files** and **HuggingFace**.
+
+<CardGroup cols={2}>
+  <Card title="Local Default" icon="wand-magic-sparkles">
+    Uses local data by default. HuggingFace mode downloads into the HF cache (~/.cache/huggingface).
+  </Card>
+  <Card title="JSONL Format" icon="file-code">
+    Uses efficient JSONL format for data storage, supporting streaming processing.
+  </Card>
+</CardGroup>
+
+## Data Source Configuration
+
+### 1. Standard Benchmarks
+
+For **LexBench-Browser** and **Online-Mind2Web**, configure HuggingFace details in `browseruse_bench/data/{benchmark}/data_info.json`:
+
+```json
+{
+  "split": {
+    "All": "LexBench-Browser/task.jsonl"
+  },
+  "default_split": "All",
+  "huggingface": {
+    "repo_id": "Lexmount/LexBench-Browser",
+    "private": false,
+    "path_prefix": "LexBench-Browser"
+  }
+}
+```
+
+Split paths are relative to `browseruse_bench/data/{benchmark}/` and can include subdirectories
+(e.g., `LexBench-Browser/`, `LexBench-Online_Mind2Web/`, or date folders).
+
+<ResponseField name="huggingface" type="object">
+  <Expandable title="Parameters">
+    <ResponseField name="repo_id" type="string" required>
+      HuggingFace dataset repository ID.
+    </ResponseField>
+    <ResponseField name="private" type="boolean">
+      Whether it is a private dataset. If `true`, the `HF_TOKEN` environment variable must be set.
+    </ResponseField>
+    <ResponseField name="path_prefix" type="string">
+      (Optional) Subdirectory path within the HF repository.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### 2. BrowseComp (Local or HuggingFace)
+
+**BrowseComp** supports local JSONL files or HuggingFace downloads. When using HuggingFace, the parquet file is downloaded into the HF cache and converted to JSONL for use.
+
+```json
+{
+  "browsecomp": {
+    "csv_url": "https://openaipublic.blob.core.windows.net/simple-evals/browse_comp_test_set.csv",
+    "hf_repo_id": "MultiturnRL/BrowseComp",
+    "hf_path_prefix": "data",
+    "hf_filename": "browsecomp-00000-of-00001.parquet"
+  }
+}
+```
+
+BrowseComp HuggingFace fields:
+- `hf_repo_id`: Dataset repo ID.
+- `hf_path_prefix`: Subdirectory inside the repo (e.g., `data`).
+- `hf_filename`: Parquet file name.
+- `hf_revision` (optional): Repo revision.
+- `hf_private` (optional): Set to `true` if the repo requires a token.
+
+## CLI Usage
+
+`bubench run` and `bubench eval` support the `--data-source` argument to control data loading behavior:
+
+```bash
+bubench run ... --data-source [local|huggingface]
+```
+
+| Mode | Description |
+|:---|:---|
+| `local` (Default) | Uses local files. Errors if files are missing. Suitable for offline usage. |
+| `huggingface` | Downloads from HuggingFace and uses the HF cache (default `~/.cache/huggingface`). |
+| `--force-download` | With `huggingface`, forces a re-download into the HF cache. |
+
+Notes:
+- Local and HuggingFace storage are separate. HF downloads stay in the cache and are not copied into `benchmarks/...`.
+- `--force-download` only applies to `huggingface` mode.
+- BrowseComp HuggingFace data is parquet and is converted to JSONL in the HF cache.
+
+### Run Examples
+
+<CodeGroup>
+
+```bash Default (Local)
+# Use local data (default)
+bubench run --data LexBench-Browser --agent Agent-TARS
+```
+
+```bash Force Local
+# Suitable for offline environments or fixed datasets
+bubench run \
+  --data LexBench-Browser --agent Agent-TARS \
+  --data-source local
+```
+
+```bash HuggingFace Download
+# Download into HF cache
+bubench run \
+  --data LexBench-Browser --agent Agent-TARS \
+  --data-source huggingface
+```
+
+</CodeGroup>
+
+### Evaluation Examples (LexBench-Browser)
+
+`bubench eval` passes `--data-source` only for LexBench-Browser. Other benchmarks use results files or local paths.
+
+```bash
+bubench eval --agent browser-use --data LexBench-Browser \
+  --model-id bu-2-0 --data-source huggingface
+```
+
+## Environment Variables
+
+When using private datasets, you must configure the `HF_TOKEN` environment variable.
+
+```bash
+# Temporary
+export HF_TOKEN=hf_your_token_here
+
+# Permanent
+echo 'export HF_TOKEN=hf_your_token_here' >> ~/.bashrc
+source ~/.bashrc
+```
+
+You can get your Access Token from [HuggingFace Settings](https://huggingface.co/settings/tokens).
+
+HuggingFace caches files under `~/.cache/huggingface` by default. You can override this with `HF_HOME` or `HF_HUB_CACHE`.
+
+## Data Format
+
+### JSONL Format
+
+To improve efficiency with large files, we use **JSONL (JSON Lines)** format, where each line is an independent JSON object.
+
+```jsonl task.jsonl
+{"task_id": "1", "query": "Search for iPhone on JD", "target_website": "www.jd.com"}
+{"task_id": "2", "query": "View shopping cart", "target_website": "www.taobao.com"}
+```
+
+### Directory Structure
+
+```text
+browseruse_bench/data/
+├── LexBench-Browser/
+│   ├── data_info.json              # Contains HF config
+│   └── task.jsonl                  # Task list
+├── Online-Mind2Web/
+│   ├── data_info.json              # Contains HF config
+│   ├── task.jsonl                  # All split
+│   └── hard.jsonl                  # Hard split
+├── BrowseComp/
+│   ├── data_info.json              # Contains metadata (csv_url reference)
+│   └── task.jsonl                  # Local data file
+
+HF cache is stored outside the repo (default `~/.cache/huggingface`).
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Authentication error for private datasets">
+    **Error**: `Private HuggingFace dataset requires authentication`
+    
+    **Solution**: Ensure `HF_TOKEN` environment variable is set.
+  </Accordion>
+  <Accordion title="Slow download speed">
+    **Option 1**: If you are in mainland China, use an HF mirror:
+    ```bash
+    export HF_ENDPOINT=https://hf-mirror.com
+    ```
+    
+    **Option 2**: Manually download files and place them in the corresponding `benchmarks/{name}/data/{split_path}` directory.
+  </Accordion>
+</AccordionGroup>

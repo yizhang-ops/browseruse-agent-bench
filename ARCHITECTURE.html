@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>browseruse-bench 架构文档</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --border: #e1e4e8;
+      --text: #24292e;
+      --text-muted: #6a737d;
+      --accent: #0366d6;
+      --accent-light: #e8f0fe;
+      --code-bg: #f6f8fa;
+      --success: #28a745;
+      --warning: #f66a0a;
+      --section-gap: 56px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--text);
+      background: var(--bg);
+    }
+    /* Layout */
+    .layout { display: flex; min-height: 100vh; }
+    nav {
+      width: 240px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+    }
+    nav .nav-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      padding: 0 20px 12px;
+    }
+    nav a {
+      display: block;
+      padding: 6px 20px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13.5px;
+      border-left: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    nav a:hover { color: var(--accent); background: var(--accent-light); }
+    nav a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 500; }
+    nav .nav-section { margin-top: 16px; }
+    nav .nav-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      padding: 8px 20px 4px;
+    }
+    main {
+      flex: 1;
+      min-width: 0;
+      padding: 48px 56px;
+      max-width: 1100px;
+    }
+    /* Typography */
+    h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-top: var(--section-gap);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    h3 { font-size: 17px; font-weight: 600; margin-top: 32px; margin-bottom: 10px; }
+    h4 { font-size: 14px; font-weight: 600; margin-top: 20px; margin-bottom: 6px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    p { margin-bottom: 14px; }
+    ul, ol { padding-left: 24px; margin-bottom: 14px; }
+    li { margin-bottom: 4px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    /* Subtitle / hero */
+    .doc-meta { color: var(--text-muted); font-size: 13px; margin-bottom: 32px; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-right: 6px;
+    }
+    .badge-blue { background: #dbeafe; color: #1d4ed8; }
+    .badge-green { background: #dcfce7; color: #16a34a; }
+    .badge-orange { background: #ffedd5; color: #c2410c; }
+    /* Code */
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 13px;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    pre code { background: none; border: none; padding: 0; font-size: inherit; }
+    /* Callout */
+    .callout {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-light);
+      border-radius: 0 6px 6px 0;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    .callout.warning { border-color: var(--warning); background: #fff7ed; }
+    .callout strong { display: block; margin-bottom: 4px; }
+    /* Diagram container */
+    .diagram {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      margin: 20px 0;
+      overflow-x: auto;
+      text-align: center;
+    }
+    .diagram-caption {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      margin-bottom: 8px;
+    }
+    /* Table */
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+    th {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 600;
+    }
+    td { border: 1px solid var(--border); padding: 8px 12px; vertical-align: top; }
+    tr:nth-child(even) td { background: #fafafa; }
+    /* Card grid */
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .card-title { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+    .card-desc { font-size: 13px; color: var(--text-muted); }
+    /* Step list */
+    .steps { counter-reset: step; list-style: none; padding: 0; }
+    .steps li {
+      counter-increment: step;
+      display: flex;
+      gap: 14px;
+      margin-bottom: 16px;
+      align-items: flex-start;
+    }
+    .steps li::before {
+      content: counter(step);
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* Directory table */
+    .dir-table {
+      width: 100%; border-collapse: collapse;
+      border: 1px solid var(--border); border-radius: 8px;
+      overflow: hidden; font-size: 13px; margin-bottom: 16px;
+    }
+    .dir-table td { border: none; padding: 5px 16px; vertical-align: middle; }
+    .dir-table tr + tr td { border-top: 1px solid #f1f5f9; }
+    .dir-table tr:hover td { background: #f0f6ff; }
+    .dp {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      white-space: pre; color: var(--text);
+    }
+    .dp.is-root { font-weight: 700; color: var(--accent); font-size: 13.5px; }
+    .dp.is-dir  { color: #0550ae; }
+    .dp.is-file { color: #57606a; }
+    .dd { color: #6a737d; font-size: 12px; padding-left: 8px; }
+    /* Section anchor offset */
+    section { scroll-margin-top: 24px; }
+
+    /* ── Custom Architecture Diagram ─────────────────────────── */
+    .arch-wrap { margin: 20px 0; user-select: none; }
+    .arch-user-row { text-align: center; margin-bottom: 8px; }
+    .arch-user-node {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 22px; background: #f8fafc;
+      border: 2px solid #94a3b8; border-radius: 24px;
+      font-size: 14px; font-weight: 600; color: #334155;
+    }
+    .arch-connector {
+      display: flex; align-items: flex-start;
+      justify-content: center; padding: 2px 0; gap: 10px; height: 46px;
+    }
+    .arch-conn-center { display: flex; flex-direction: column; align-items: center; gap: 0; }
+    .arch-conn-shaft { width: 2px; height: 18px; background: #94a3b8; }
+    .arch-conn-head {
+      width: 0; height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 7px solid #94a3b8;
+    }
+    .arch-conn-label {
+      margin-top: 4px; font-size: 11px; color: #64748b;
+      background: #fff; border: 1px solid #e2e8f0;
+      border-radius: 4px; padding: 2px 8px; white-space: nowrap;
+    }
+    .arch-layer {
+      border-radius: 10px; border: 1px solid #e2e8f0;
+      overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+    .arch-layer-hdr {
+      padding: 8px 18px; font-size: 11.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .arch-layer-body {
+      display: flex; gap: 12px; padding: 14px 16px;
+      background: #fff; flex-wrap: wrap;
+    }
+    .arch-card {
+      flex: 1; min-width: 130px; border-radius: 8px;
+      padding: 12px 14px; border: 1.5px solid;
+    }
+    .arch-card-name { font-weight: 600; font-size: 13.5px; margin-bottom: 3px; }
+    .arch-card-sub  { font-size: 12px; opacity: 0.72; line-height: 1.5; }
+    .arch-card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+    .arch-tag {
+      font-size: 11px; padding: 2px 8px; border-radius: 10px;
+      font-weight: 500; line-height: 1.5;
+    }
+    .arch-tag.arrow { background: transparent !important; color: #94a3b8 !important;
+      padding: 2px 2px; font-size: 13px; }
+    /* Layer colour themes */
+    .layer-cli  .arch-layer-hdr { background: #dbeafe; color: #1e40af; }
+    .layer-exec .arch-layer-hdr { background: #dcfce7; color: #166534; }
+    .layer-data .arch-layer-hdr { background: #ede9fe; color: #4c1d95; }
+    .layer-out  .arch-layer-hdr { background: #ffedd5; color: #9a3412; }
+
+    .card-cli  { background: #eff6ff; border-color: #bfdbfe; color: #1e3a8a; }
+    .card-cli  .arch-tag { background: #dbeafe; color: #1d4ed8; }
+    .card-exec { background: #f0fdf4; border-color: #bbf7d0; color: #14532d; }
+    .card-exec .arch-tag { background: #dcfce7; color: #15803d; }
+    .card-data { background: #faf5ff; border-color: #ddd6fe; color: #3b0764; }
+    .card-data .arch-tag { background: #ede9fe; color: #6d28d9; }
+    .card-out  { background: #fff7ed; border-color: #fed7aa; color: #7c2d12; }
+    .card-out  .arch-tag { background: #ffedd5; color: #c2410c; }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Sidebar Nav -->
+  <nav id="sidebar">
+    <div class="nav-title">browseruse-bench</div>
+    <div class="nav-section">
+      <a href="#overview">§1 系统概览</a>
+      <a href="#dataflow">§1.1 运行时数据流</a>
+      <a href="#directory">§1.2 目录结构</a>
+    </div>
+    <div class="nav-section">
+      <a href="#modules">§2 模块详解</a>
+      <a href="#agents">§2.1 Agents</a>
+      <a href="#browsers">§2.2 Browsers</a>
+      <a href="#benchmarks">§2.3 Benchmarks</a>
+      <a href="#schemas">§2.4 Schemas</a>
+      <a href="#cli">§2.5 CLI</a>
+      <a href="#leaderboard">§2.6 Leaderboard</a>
+    </div>
+    <div class="nav-section">
+      <a href="#ext">§3 扩展指南</a>
+      <a href="#ext-agent">§3.1 自定义 Agent</a>
+      <a href="#ext-benchmark">§3.2 自定义 Benchmark</a>
+      <a href="#ext-browser">§3.3 自定义 Browser Provider</a>
+    </div>
+    <div class="nav-section">
+      <a href="#config">§4 配置参考</a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Header -->
+    <h1>browseruse-bench 架构文档</h1>
+    <div class="doc-meta">
+      <span class="badge badge-blue">内部文档</span>
+      <span class="badge badge-green">v1.x</span>
+      最后更新：2026-03-26
+    </div>
+    <p>
+      <strong>browseruse-bench</strong> 是面向 AI 浏览器 Agent 的一体化评测框架，支持在受控、可复现的条件下，对多个 Agent、多个 Benchmark、多种浏览器和多种模型进行横向对比评测。本文档从系统整体架构出发，逐层讲解各模块职责与数据流向，并说明如何扩展 Agent、Benchmark 和 Browser Provider。
+    </p>
+
+    <!-- §1 系统总览 -->
+    <section id="overview">
+      <h2>§1 系统概览</h2>
+      <p>系统由六个顶级模块组成，职责边界清晰：</p>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-title">CLI</div>
+          <div class="card-desc">命令入口，解析参数、加载配置、调度各子系统</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Agents</div>
+          <div class="card-desc">各 AI Browser Agent 的适配层，统一接口抽象</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Browsers</div>
+          <div class="card-desc">浏览器会话生命周期管理，支持本地和多种云端后端</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Benchmarks</div>
+          <div class="card-desc">数据集 + LLM-as-Judge 评测逻辑，每个 Benchmark 独立</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Schemas</div>
+          <div class="card-desc">Pydantic 数据契约，AgentResult → EvalResult 标准化</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Leaderboard</div>
+          <div class="card-desc">聚合评测结果，生成 HTML 排行榜并提供 FastAPI 服务</div>
+        </div>
+      </div>
+
+      <div class="arch-wrap">
+
+        <!-- User -->
+        <div class="arch-user-row">
+          <span class="arch-user-node">👤 用户 / CI</span>
+        </div>
+
+        <div class="arch-connector">
+          <div class="arch-conn-center">
+            <div class="arch-conn-shaft"></div>
+            <div class="arch-conn-head"></div>
+            <div class="arch-conn-label">CLI 命令</div>
+          </div>
+        </div>
+
+        <!-- Layer 1: CLI -->
+        <div class="arch-layer layer-cli">
+          <div class="arch-layer-hdr">Layer 1 &nbsp;·&nbsp; 入口层（CLI）</div>
+          <div class="arch-layer-body">
+            <div class="arch-card card-cli">
+              <div class="arch-card-name">bubench run</div>
+              <div class="arch-card-sub">加载数据集 · 调度任务子进程 · 汇总结果</div>
+            </div>
+            <div class="arch-card card-cli">
+              <div class="arch-card-name">bubench eval</div>
+              <div class="arch-card-sub">读取运行结果 · LLM-as-Judge 评测</div>
+            </div>
+            <div class="arch-card card-cli">
+              <div class="arch-card-name">bubench leaderboard</div>
+              <div class="arch-card-sub">聚合 EvalSummary · 生成排行榜 HTML</div>
+            </div>
+            <div class="arch-card card-cli">
+              <div class="arch-card-name">bubench server</div>
+              <div class="arch-card-sub">排行榜 Web UI · REST API · port 8012</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arch-connector">
+          <div class="arch-conn-center">
+            <div class="arch-conn-shaft"></div>
+            <div class="arch-conn-head"></div>
+            <div class="arch-conn-label">subprocess · agent_runner.py</div>
+          </div>
+        </div>
+
+        <!-- Layer 2: Execution -->
+        <div class="arch-layer layer-exec">
+          <div class="arch-layer-hdr">Layer 2 &nbsp;·&nbsp; 执行层</div>
+          <div class="arch-layer-body">
+            <div class="arch-card card-exec">
+              <div class="arch-card-name">🧠 LLM Models</div>
+              <div class="arch-card-sub">由 <code style="font-size:11px;background:#dcfce7;border:none;padding:1px 4px;border-radius:3px">MODEL_ID</code> 配置，每次运行独立指定</div>
+              <div class="arch-card-tags">
+                <span class="arch-tag">GPT-4o / 4.1</span>
+                <span class="arch-tag">Claude 3.x / 4.x</span>
+                <span class="arch-tag">Gemini 2.x</span>
+                <span class="arch-tag">自定义模型</span>
+              </div>
+            </div>
+            <div class="arch-card card-exec">
+              <div class="arch-card-name">🤖 Agents</div>
+              <div class="arch-card-sub">统一抽象接口 BaseAgent（ABC）</div>
+              <div class="arch-card-tags">
+                <span class="arch-tag">BrowserUseAgent</span>
+                <span class="arch-tag">SkyvernAgent</span>
+                <span class="arch-tag">AgentTARSAgent</span>
+              </div>
+            </div>
+            <div class="arch-card card-exec">
+              <div class="arch-card-name">🖥 Browsers</div>
+              <div class="arch-card-sub">浏览器会话生命周期 BrowserBackend（ABC）</div>
+              <div class="arch-card-tags">
+                <span class="arch-tag">LocalBackend</span>
+                <span class="arch-tag">LexmountBackend</span>
+                <span class="arch-tag">AgentBayBackend</span>
+                <span class="arch-tag">CloudNativeBackend</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arch-connector">
+          <div class="arch-conn-center">
+            <div class="arch-conn-shaft"></div>
+            <div class="arch-conn-head"></div>
+            <div class="arch-conn-label">AgentResult → result.json</div>
+          </div>
+        </div>
+
+        <!-- Layer 3: Data & Eval -->
+        <div class="arch-layer layer-data">
+          <div class="arch-layer-hdr">Layer 3 &nbsp;·&nbsp; 数据与评测层</div>
+          <div class="arch-layer-body">
+            <div class="arch-card card-data">
+              <div class="arch-card-name">📊 Benchmarks</div>
+              <div class="arch-card-sub">数据集 + LLM-as-Judge 评测逻辑（各自独立）</div>
+              <div class="arch-card-tags">
+                <span class="arch-tag">LexBench-Browser</span>
+                <span class="arch-tag">Online-Mind2Web</span>
+                <span class="arch-tag">BrowseComp</span>
+              </div>
+            </div>
+            <div class="arch-card card-data">
+              <div class="arch-card-name">📐 Schemas</div>
+              <div class="arch-card-sub">Pydantic 数据契约，跨阶段标准化接口</div>
+              <div class="arch-card-tags">
+                <span class="arch-tag">AgentResult</span>
+                <span class="arch-tag arrow">→</span>
+                <span class="arch-tag">EvalResult</span>
+                <span class="arch-tag arrow">→</span>
+                <span class="arch-tag">EvalSummary</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arch-connector">
+          <div class="arch-conn-center">
+            <div class="arch-conn-shaft"></div>
+            <div class="arch-conn-head"></div>
+            <div class="arch-conn-label">EvalSummary</div>
+          </div>
+        </div>
+
+        <!-- Layer 4: Output -->
+        <div class="arch-layer layer-out">
+          <div class="arch-layer-hdr">Layer 4 &nbsp;·&nbsp; 输出层</div>
+          <div class="arch-layer-body">
+            <div class="arch-card card-out">
+              <div class="arch-card-name">📋 Leaderboard Generator</div>
+              <div class="arch-card-sub">扫描所有 EvalSummary · 生成交互式排行榜 HTML</div>
+            </div>
+            <div class="arch-card card-out">
+              <div class="arch-card-name">🌐 FastAPI Server</div>
+              <div class="arch-card-sub">Web UI + REST API · 支持 systemd 部署</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="diagram-caption">图 1-1：系统分层架构图（横向分层 · 竖向分列）</div>
+
+      <h3>关键设计决策</h3>
+      <ul>
+        <li><strong>进程隔离</strong>：每个任务由 <code>run.py</code> 以独立子进程调用 <code>scripts/agent_runner.py</code> 执行，依赖冲突（如 browser-use vs skyvern）由各自 venv 隔离。</li>
+        <li><strong>注册表模式</strong>：Agent 和 Browser Backend 均通过装饰器 / 工厂函数注册，新实现无需修改核心调度代码。</li>
+        <li><strong>Schema 契约</strong>：<code>AgentResult</code> 使用 <code>extra="forbid"</code>，保证字段精确，防止评测脚本读取 Agent 私有字段。</li>
+        <li><strong>LLM-as-Judge</strong>：评测独立于运行，通过 <code>bubench eval</code> 批量调用 OpenAI API 对已有运行结果打分。</li>
+      </ul>
+    </section>
+
+    <!-- §2 运行时数据流 -->
+    <section id="dataflow">
+      <h2>§1.1 运行时数据流</h2>
+      <p>一次完整的基准测试由三个独立阶段组成：<strong>Run → Eval → Leaderboard</strong>。各阶段均可单独执行。</p>
+
+      <div class="diagram">
+        <div class="mermaid">
+sequenceDiagram
+    participant User
+    participant RunCLI as bubench run
+    participant Runner as agent_runner.py (subprocess)
+    participant Agent as Agent.run_task()
+    participant Browser as BrowserBackend
+    participant FS as 文件系统 (output/)
+
+    User->>RunCLI: bubench run --agent browser-use --benchmark LexBench-Browser
+    RunCLI->>RunCLI: 加载 config.yaml + agent config.yaml
+    RunCLI->>RunCLI: 加载数据集，过滤任务列表
+    loop 每个任务
+        RunCLI->>Runner: subprocess Popen(agent_runner.py, task_info.json)
+        Runner->>Runner: get_agent("browser-use")
+        Runner->>Agent: agent.prepare(config)
+        Runner->>Agent: agent.run_task(task_info, config, workspace)
+        Agent->>Browser: open_browser_session(browser_id)
+        Browser-->>Agent: BrowserSessionContext (cdp_url / session_id)
+        Agent->>Agent: 执行任务步骤，截图，调用 LLM
+        Agent-->>Browser: 关闭 session
+        Agent-->>Runner: AgentResult
+        Runner->>FS: 写入 result.json (tasks/{task_id}/)
+        Runner-->>RunCLI: exit code 0/1
+    end
+    RunCLI->>User: 汇总 success/failed 数量
+
+    Note over User,FS: 第二阶段：评测
+
+    User->>EvalCLI: bubench eval --agent browser-use --benchmark LexBench-Browser
+    participant EvalCLI as bubench eval
+    EvalCLI->>FS: 读取所有 result.json
+    EvalCLI->>EvalCLI: 调用 Benchmark eval 逻辑 (LLM-as-Judge)
+    EvalCLI->>FS: 写入 eval_result.json + summary.json
+
+    Note over User,FS: 第三阶段：排行榜
+
+    User->>LbCLI: bubench leaderboard
+    participant LbCLI as bubench leaderboard
+    LbCLI->>FS: 读取所有 summary.json (experiments/)
+    LbCLI->>LbCLI: 聚合指标，生成 HTML
+    LbCLI->>FS: 写入 output/leaderboard.html
+        </div>
+        <div class="diagram-caption">图 2-1：Run → Eval → Leaderboard 全链路时序图</div>
+      </div>
+
+      <h3>输出目录结构</h3>
+      <p>每次运行的输出路径格式为：</p>
+      <pre><code>experiments/{Benchmark}/{Split}/{Agent}/{MODEL_ID}/{YYYYMMDD_HHmmss}/
+├── tasks/
+│   ├── {task_id}/
+│   │   ├── result.json          # AgentResult (运行阶段产物)
+│   │   ├── eval_result.json     # EvalResult  (评测阶段产物)
+│   │   └── screenshots/         # 截图序列
+│   └── ...
+├── {agent}_{benchmark}_eval_summary.json   # EvalSummary
+└── {agent}_{benchmark}_per_task_*.json     # 逐任务明细</code></pre>
+    </section>
+
+    <!-- §1.2 目录结构速览 -->
+    <section id="directory">
+      <h2>§1.2 目录结构速览</h2>
+      <table class="dir-table">
+        <colgroup><col style="width:340px"><col></colgroup>
+        <tbody>
+          <tr><td class="dp is-root">📦 browseruse-bench/</td><td class="dd">项目根目录</td></tr>
+
+          <tr><td class="dp is-dir">├── 📁 benchmarks/</td><td class="dd">各 Benchmark 数据 + 评测逻辑</td></tr>
+          <tr><td class="dp is-dir">│   ├── LexBench-Browser/</td><td class="dd">data/ · eval/src/ · prompts/（LLM Judge 模板）</td></tr>
+          <tr><td class="dp is-dir">│   ├── Online-Mind2Web/</td><td class="dd">data/ · eval/src/</td></tr>
+          <tr><td class="dp is-dir">│   └── BrowseComp/</td><td class="dd">data/ · eval/src/</td></tr>
+
+          <tr><td class="dp is-dir">├── 📁 browseruse_bench/</td><td class="dd">核心 Python 包</td></tr>
+          <tr><td class="dp is-dir">│   ├── agents/</td><td class="dd">BaseAgent + 具体实现 + AgentRegistry</td></tr>
+          <tr><td class="dp is-dir">│   ├── browsers/</td><td class="dd">BrowserBackend + BrowserManager + BrowserRegistry</td></tr>
+          <tr><td class="dp is-dir">│   │   └── providers/</td><td class="dd">local · agentbay · lexmount · cloudnative</td></tr>
+          <tr><td class="dp is-dir">│   ├── cli/</td><td class="dd">run · eval · leaderboard · server · service · skills</td></tr>
+          <tr><td class="dp is-dir">│   ├── leaderboard/</td><td class="dd">Generator（HTML 生成）+ FastAPI Server</td></tr>
+          <tr><td class="dp is-dir">│   ├── schemas/</td><td class="dd">AgentResult · EvalResult · EvalSummary（Pydantic）</td></tr>
+          <tr><td class="dp is-dir">│   └── utils/</td><td class="dd">配置加载 · 数据加载 · 日志 · 成本计算 · 任务过滤</td></tr>
+
+          <tr><td class="dp is-dir">├── 📁 configs/</td><td class="dd">各 Agent 配置模板</td></tr>
+          <tr><td class="dp is-file">│   └── agents/{agent}/config.yaml.example</td><td class="dd">browser-use · skyvern · Agent-TARS</td></tr>
+
+          <tr><td class="dp is-dir">├── 📁 docs/</td><td class="dd">Mintlify 文档站（en/ + zh/）</td></tr>
+
+          <tr><td class="dp is-dir">├── 📁 experiments/</td><td class="dd">运行 + 评测输出（gitignore）</td></tr>
+          <tr><td class="dp is-file">│   └── {Benchmark}/{Split}/{Agent}/{MODEL_ID}/{timestamp}/</td><td class="dd">每次运行的独立输出目录</td></tr>
+
+          <tr><td class="dp is-dir">├── 📁 output/</td><td class="dd">日志目录 + 排行榜 HTML（gitignore）</td></tr>
+          <tr><td class="dp is-dir">├── 📁 scripts/</td><td class="dd">uv run 入口包装 + agent_runner.py（子进程入口）</td></tr>
+
+          <tr><td class="dp is-file">├── 📄 config.yaml</td><td class="dd">全局配置：agents · benchmarks · defaults · leaderboard</td></tr>
+          <tr><td class="dp is-file">├── 📄 pyproject.toml</td><td class="dd">依赖定义，注册 bubench CLI 入口点</td></tr>
+          <tr><td class="dp is-file">└── 📄 .env</td><td class="dd">密钥（不提交 git，参考 .env.example）</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- §2 模块详解 -->
+    <section id="modules">
+      <h2>§2 模块详解</h2>
+      <p>本章逐模块拆解各层的内部结构、接口契约与设计决策，覆盖 Agents、Browsers、Benchmarks、Schemas、CLI 和 Leaderboard 六个子模块。</p>
+    </section>
+
+    <section id="agents">
+      <h2>§2.1 Agents 模块</h2>
+      <p>路径：<code>browseruse_bench/agents/</code></p>
+      <p>所有 Agent 实现统一继承 <code>BaseAgent</code>，通过 <code>@register_agent</code> 装饰器注册到全局注册表，<code>agent_runner.py</code> 通过名称查找实例。</p>
+
+      <div class="diagram">
+        <div class="mermaid">
+classDiagram
+    class BaseAgent {
+        <<abstract>>
+        +name: str
+        +prepare(agent_config) None
+        +run_task(task_info, agent_config, task_workspace) AgentResult
+    }
+    class BrowserUseAgent {
+        +name = "browser-use"
+        +run_task() AgentResult
+    }
+    class SkyvernAgent {
+        +name = "skyvern"
+        +run_task() AgentResult
+    }
+    class AgentTARSAgent {
+        +name = "Agent-TARS"
+        +run_task() AgentResult
+    }
+    class AgentRegistry {
+        +_AGENT_REGISTRY: dict
+        +register_agent(cls) cls
+        +get_agent(name) BaseAgent
+        +list_agents() list[str]
+    }
+
+    BaseAgent <|-- BrowserUseAgent
+    BaseAgent <|-- SkyvernAgent
+    BaseAgent <|-- AgentTARSAgent
+    AgentRegistry ..> BaseAgent : creates
+        </div>
+        <div class="diagram-caption">图 3-1：Agent 类层次与注册表</div>
+      </div>
+
+      <p>Agent 所使用的 LLM 模型通过 <code>agent_config["MODEL_ID"]</code> 传入，同一 Agent 可搭配任意模型运行，结果分别落盘在 <code>experiments/…/{Agent}/{MODEL_ID}/</code> 子目录下，Leaderboard 按 Agent × Model 维度聚合展示。</p>
+
+      <h3>run_task() 契约</h3>
+      <table>
+        <tr><th>参数</th><th>类型</th><th>说明</th></tr>
+        <tr><td><code>task_info</code></td><td><code>dict</code></td><td>含 <code>task_id</code>、<code>task_text</code>、<code>url</code> 等字段</td></tr>
+        <tr><td><code>agent_config</code></td><td><code>dict</code></td><td>来自 <code>configs/agents/{agent}/config.yaml</code>，已合并环境变量</td></tr>
+        <tr><td><code>task_workspace</code></td><td><code>Path</code></td><td>任务输出目录，Agent 可在此写截图、日志等</td></tr>
+        <tr><td>返回值</td><td><code>AgentResult</code></td><td>标准化结果，详见 §2.4</td></tr>
+      </table>
+    </section>
+
+    <section id="browsers">
+      <h2>§2.2 Browsers 模块</h2>
+      <p>路径：<code>browseruse_bench/browsers/</code></p>
+      <p>负责浏览器会话的生命周期管理。Agent 通过 <code>open_browser_session()</code> 上下文管理器获取会话，无需关心具体后端。</p>
+
+      <div class="diagram">
+        <div class="mermaid">
+graph LR
+    A["Agent.run_task()"] -->|open_browser_session| M["BrowserManager<br/>(context manager)"]
+    M -->|get_backend| R["BrowserRegistry"]
+    R --> Local["LocalBackend<br/>Chrome-Local / local"]
+    R --> LX["LexmountBackend<br/>lexmount"]
+    R --> AB["AgentBayBackend<br/>agentbay"]
+    R --> CN["CloudNativeBackend<br/>browser-use-cloud<br/>skyvern-cloud"]
+    R --> CDP["CDPBackend<br/>cdp"]
+
+    Local -->|CDP URL| SC["BrowserSessionContext"]
+    LX -->|session_id + CDP URL| SC
+    AB -->|session_id + CDP URL| SC
+    CN -->|cloud session info| SC
+    CDP -->|CDP URL| SC
+
+    SC --> A
+        </div>
+        <div class="diagram-caption">图 3-2：Browser Provider 体系</div>
+      </div>
+
+      <h3>BrowserSessionContext 字段</h3>
+      <p><code>BrowserSessionContext</code> 是 Backend 返回给 Agent 的会话句柄，包含连接 Browser 所需的全部信息（CDP URL、session ID 等），各 Backend 可通过 <code>extra="allow"</code> 附加私有字段。</p>
+
+      <h3>孤儿会话清理</h3>
+      <p>当 Agent 子进程异常终止时，<code>run.py</code> 会检测 <code>.browser_session_state.json</code> 是否残留，并调用 <code>browsers/orphan_cleanup.py</code> 完成后端侧清理，防止云端浏览器资源泄漏。</p>
+    </section>
+
+    <section id="benchmarks">
+      <h2>§2.3 Benchmarks 模块</h2>
+      <p>路径：<code>benchmarks/</code></p>
+      <p>每个 Benchmark 是独立的数据 + 评测单元，通过 <code>config.yaml</code> 注册到全局配置。</p>
+
+      <div class="diagram">
+        <div class="mermaid">
+graph TB
+    subgraph LexBench["LexBench-Browser"]
+        LBD["data/tasks.jsonl<br/>(340 tasks, v1.4)"]
+        LBE["eval/src/lexmount_eval.py<br/>LLM-as-Judge"]
+        LBP["prompts/eval_stepwise_*.txt<br/>prompts/eval_final_*.txt"]
+        LBE --> LBP
+    end
+    subgraph OM2W["Online-Mind2Web"]
+        OMD["data/Online_Mind2Web.json"]
+        OME["eval/src/webjudge_online_mind2web.py<br/>WebJudge 评测"]
+    end
+    subgraph BC["BrowseComp"]
+        BCD["data/tasks.jsonl (HF parquet)"]
+        BCE["eval/src/run.py<br/>精确匹配 + LLM Judge"]
+    end
+
+    EvalCLI["bubench eval"] --> LexBench & OM2W & BC
+        </div>
+        <div class="diagram-caption">图 3-3：Benchmark 模块结构</div>
+      </div>
+
+      <h3>评测策略对比</h3>
+      <table>
+        <tr><th>Benchmark</th><th>评测方式</th><th>评测维度</th><th>数据量</th></tr>
+        <tr><td>LexBench-Browser</td><td>LLM-as-Judge (stepwise / final)</td><td>步骤级 + 最终结果</td><td>340 tasks (v1.4)</td></tr>
+        <tr><td>Online-Mind2Web</td><td>WebJudge (截图 + 文本)</td><td>任务完成度</td><td>~200 tasks</td></tr>
+        <tr><td>BrowseComp</td><td>精确匹配 + LLM grader</td><td>答案准确性</td><td>HuggingFace 动态</td></tr>
+      </table>
+    </section>
+
+    <section id="schemas">
+      <h2>§2.4 Schemas 模块</h2>
+      <p>路径：<code>browseruse_bench/schemas/</code></p>
+      <p>Pydantic v2 数据契约，是 Agent 产物与评测逻辑之间的稳定接口。</p>
+
+      <div class="diagram">
+        <div class="mermaid">
+erDiagram
+    AgentResult {
+        string schema_version "2.0"
+        string task_id
+        string task
+        string env_status "success|failed"
+        string agent_done "done|timeout|max_steps|error"
+        bool agent_success "nullable"
+        string answer
+        string model_id
+        string browser_id
+        list action_history
+        list screenshots
+        AgentMetrics metrics
+        dict agent_metadata "opaque, eval不可读"
+        dict config
+    }
+    AgentMetrics {
+        int ttft_ms
+        int end_to_end_ms
+        int steps
+        AgentUsage usage
+    }
+    AgentUsage {
+        int total_prompt_tokens
+        int total_completion_tokens
+        float total_cost
+        int entry_count
+    }
+    EvalResult {
+        string task_id
+        int predicted_label "1=success 0=failure"
+        string model_id
+        string browser_id
+        AgentResultRef agent_result_ref
+        EvalDetails evaluation_details
+        string failure_category
+    }
+    EvalDetails {
+        string response
+        int score
+        bool is_correct
+        string reasoning
+        EvalUsage eval_usage
+        AgentMetrics agent_metrics
+    }
+    EvalSummary {
+        OverallStatistics overall_statistics
+        dict metrics_statistics
+        FailureCategoryStats failure_category_statistics
+    }
+
+    AgentResult ||--|| AgentMetrics : contains
+    AgentMetrics ||--o| AgentUsage : contains
+    EvalResult ||--|| EvalDetails : contains
+    EvalResult ||--|| AgentResultRef : references
+    EvalDetails ||--o| AgentMetrics : copies
+    EvalSummary ||--o{ EvalResult : aggregates
+        </div>
+        <div class="diagram-caption">图 3-4：核心 Schema ER 图</div>
+      </div>
+
+      <div class="callout">
+        <strong>重要约定</strong>
+        <code>AgentResult.agent_metadata</code> 是 Agent 私有字段，评测脚本 <strong>不得</strong>读取该字段。需要跨阶段传递的评测相关数据应放在 <code>AgentResult</code> 顶级字段中。
+      </div>
+    </section>
+
+    <section id="cli">
+      <h2>§2.5 CLI 模块</h2>
+      <p>路径：<code>browseruse_bench/cli/</code>，入口：<code>bubench</code> 命令（<code>pyproject.toml</code> 定义）</p>
+
+      <table>
+        <tr><th>子命令</th><th>模块</th><th>职责</th></tr>
+        <tr><td><code>bubench run</code></td><td><code>cli/run.py</code></td><td>加载数据集、调度任务子进程、汇总结果</td></tr>
+        <tr><td><code>bubench eval</code></td><td><code>cli/eval.py</code></td><td>读取 result.json，调用 Benchmark 评测逻辑，输出 EvalResult</td></tr>
+        <tr><td><code>bubench leaderboard</code></td><td><code>cli/leaderboard.py</code></td><td>聚合所有 EvalSummary，生成排行榜 HTML</td></tr>
+        <tr><td><code>bubench server</code></td><td><code>cli/server.py</code></td><td>启动 FastAPI 服务，提供排行榜 Web UI 和 API</td></tr>
+        <tr><td><code>bubench service</code></td><td><code>cli/service.py</code></td><td>管理 systemd 服务（install/start/stop/status）</td></tr>
+        <tr><td><code>bubench skills</code></td><td><code>cli/skills.py</code></td><td>安装内置开发者 skills 包</td></tr>
+      </table>
+
+      <p><code>scripts/</code> 目录下的 <code>run.py</code>、<code>eval.py</code> 等是对应 CLI 子命令的薄包装，供 <code>uv run scripts/xxx.py</code> 方式调用。<code>scripts/agent_runner.py</code> 是每个任务子进程的真正入口，不对外暴露为 CLI。</p>
+    </section>
+
+    <section id="leaderboard">
+      <h2>§2.6 Leaderboard 模块</h2>
+      <p>路径：<code>browseruse_bench/leaderboard/</code></p>
+      <p><code>generator.py</code> 扫描 <code>experiments/</code> 目录下所有 <code>*_eval_summary.json</code>，聚合各 Agent × Benchmark × Model 的指标，输出交互式 HTML 文件。<code>server.py</code> 用 FastAPI 将 HTML 和原始 JSON 以 HTTP 服务形式暴露。</p>
+
+      <h3>核心指标</h3>
+      <table>
+        <tr><th>指标</th><th>含义</th></tr>
+        <tr><td>Success Rate</td><td>任务成功率（LLM-as-Judge 打分）</td></tr>
+        <tr><td>Avg Steps</td><td>成功任务平均步数</td></tr>
+        <tr><td>Avg E2E Latency</td><td>端到端延迟（秒）</td></tr>
+        <tr><td>Avg Tokens</td><td>成功任务平均 Token 消耗</td></tr>
+        <tr><td>Avg Cost</td><td>成功任务平均费用（USD）</td></tr>
+      </table>
+    </section>
+
+    <!-- §3 扩展指南 -->
+    <section id="ext">
+      <h2>§3 扩展指南</h2>
+      <p>browseruse-bench 通过注册表模式实现开放扩展：Agent、Benchmark、Browser Provider 均可独立添加，无需修改核心调度代码。以下三节分别说明各扩展点的具体步骤。</p>
+    </section>
+
+    <section id="ext-agent">
+      <h2>§3.1 自定义 Agent</h2>
+
+      <div class="diagram">
+        <div class="mermaid">
+flowchart LR
+    A["1. 新建文件<br/>browseruse_bench/agents/my_agent.py"] --> B["2. 继承 BaseAgent<br/>实现 run_task()"]
+    B --> C["3. @register_agent<br/>装饰器注册"]
+    C --> D["4. 在 __init__.py 导入<br/>触发注册"]
+    D --> E["5. 添加配置目录<br/>configs/agents/my-agent/config.yaml"]
+    E --> F["6. 注册到 config.yaml<br/>agents.my-agent 节点"]
+        </div>
+        <div class="diagram-caption">图 3-1：添加自定义 Agent 流程</div>
+      </div>
+
+      <h4>代码骨架</h4>
+      <pre><code># browseruse_bench/agents/my_agent.py
+from pathlib import Path
+from typing import Any
+from browseruse_bench.agents.base import BaseAgent
+from browseruse_bench.agents.registry import register_agent
+from browseruse_bench.schemas import AgentResult
+
+@register_agent
+class MyAgent(BaseAgent):
+    name = "my-agent"                       # 唯一标识，对应 --agent 参数
+
+    def prepare(self, agent_config: dict[str, Any]) -> None:
+        # 延迟导入、环境检查等初始化逻辑（可选）
+        pass
+
+    def run_task(
+        self,
+        task_info: dict[str, Any],
+        agent_config: dict[str, Any],
+        task_workspace: Path,
+    ) -> AgentResult:
+        # 1. 从 agent_config 读取 BROWSER_ID
+        browser_id = agent_config.get("BROWSER_ID", "Chrome-Local")
+
+        # 2. 使用 open_browser_session 获取浏览器会话
+        from browseruse_bench.browsers.manager import open_browser_session
+        with open_browser_session(browser_id, self.name, agent_config) as session:
+            cdp_url = session.cdp_url
+            # ... 执行任务，截图 ...
+
+        # 3. 返回标准化的 AgentResult
+        from datetime import datetime, timezone
+        from browseruse_bench.schemas.agent_result import AgentMetrics, AgentUsage
+        return AgentResult(
+            task_id=task_info["task_id"],
+            task=task_info.get("task_text", ""),
+            timestamp=datetime.now(timezone.utc),
+            env_status="success",
+            agent_done="done",
+            agent_success=True,
+            answer="...",
+            model_id=agent_config.get("MODEL_ID", ""),
+            browser_id=browser_id,
+            metrics=AgentMetrics(end_to_end_ms=1000, steps=5),
+        )</code></pre>
+
+      <p>在 <code>browseruse_bench/agents/__init__.py</code> 末尾添加导入：</p>
+      <pre><code>from browseruse_bench.agents.my_agent import MyAgent  # noqa: F401</code></pre>
+
+      <p>在 <code>config.yaml</code> 的 <code>agents</code> 节点下添加：</p>
+      <pre><code>agents:
+  my-agent:
+    config_path: configs/agents/my-agent/config.yaml
+    supported_benchmarks:
+      - LexBench-Browser
+      - Online-Mind2Web</code></pre>
+    </section>
+
+    <section id="ext-benchmark">
+      <h2>§3.2 自定义 Benchmark</h2>
+
+      <div class="diagram">
+        <div class="mermaid">
+flowchart LR
+    A["1. 创建目录<br/>benchmarks/MyBench/"] --> B["2. 准备数据<br/>data/tasks.jsonl<br/>data/data_info.json"]
+    B --> C["3. 实现评测脚本<br/>eval/src/run.py"]
+    C --> D["4. 注册到 config.yaml<br/>benchmarks.MyBench 节点"]
+        </div>
+        <div class="diagram-caption">图 3-2：添加自定义 Benchmark 流程</div>
+      </div>
+
+      <h4>data_info.json 格式</h4>
+      <pre><code>{
+  "default_split": "All",
+  "split": {
+    "All": "tasks.jsonl"
+  }
+}</code></pre>
+
+      <h4>tasks.jsonl 最小字段</h4>
+      <pre><code>{"task_id": "001", "task": "在 example.com 搜索 foo", "url": "https://example.com"}
+{"task_id": "002", "task": "...", "url": "..."}</code></pre>
+
+      <h4>config.yaml 注册</h4>
+      <pre><code>benchmarks:
+  MyBench:
+    path: benchmarks/MyBench
+    output_base: experiments/MyBench</code></pre>
+    </section>
+
+    <section id="ext-browser">
+      <h2>§3.3 自定义 Browser Provider</h2>
+
+      <div class="diagram">
+        <div class="mermaid">
+flowchart LR
+    A["1. 新建文件<br/>browsers/providers/my_provider.py"] --> B["2. 继承 BrowserBackend<br/>实现 open() / close()"]
+    B --> C["3. 在 browsers/registry.py<br/>注册 backend ID"]
+        </div>
+        <div class="diagram-caption">图 3-3：添加自定义 Browser Provider 流程</div>
+      </div>
+
+      <h4>代码骨架</h4>
+      <pre><code># browseruse_bench/browsers/providers/my_provider.py
+from typing import Any, Dict
+from browseruse_bench.browsers.base import BrowserBackend
+from browseruse_bench.browsers.types import BrowserSessionContext
+
+class MyProviderBackend(BrowserBackend):
+    def open(self, agent_name: str, agent_config: Dict[str, Any]) -> BrowserSessionContext:
+        # 启动/连接远程浏览器，获取 CDP URL
+        cdp_url = "ws://..."
+        return BrowserSessionContext(
+            backend_id=self.backend_id,
+            cdp_url=cdp_url,
+        )
+
+    def close(self, session_context: BrowserSessionContext) -> None:
+        # 释放浏览器资源
+        pass</code></pre>
+
+      <p>在 <code>browsers/registry.py</code> 的 <code>_register_default_backends()</code> 中添加：</p>
+      <pre><code>register_backend("my-browser", lambda: MyProviderBackend("my-browser"))</code></pre>
+
+      <p>Agent 的 <code>config.yaml</code> 中设置 <code>BROWSER_ID: my-browser</code> 即可使用。</p>
+    </section>
+
+    <!-- §6 配置参考 -->
+    <section id="config">
+      <h2>§4 配置参考</h2>
+
+      <h3>config.yaml 结构</h3>
+      <pre><code>default:
+  agent: browser-use            # 默认 Agent
+  benchmark: Online-Mind2Web    # 默认 Benchmark
+  task_start_url: ~             # 全局默认起始 URL（可被数据集覆盖）
+
+agents:
+  browser-use:
+    config_path: configs/agents/browser-use/config.yaml
+    supported_benchmarks: [LexBench-Browser, Online-Mind2Web, BrowseComp]
+  skyvern:
+    config_path: configs/agents/skyvern/config.yaml
+    venv_path: .venv-skyvern
+
+benchmarks:
+  LexBench-Browser:
+    path: benchmarks/LexBench-Browser
+    output_base: experiments/LexBench-Browser
+  Online-Mind2Web:
+    path: benchmarks/Online-Mind2Web
+    output_base: experiments/Online-Mind2Web
+
+leaderboard:
+  output_path: output/leaderboard.html</code></pre>
+
+      <h3>Agent config.yaml 核心字段</h3>
+      <table>
+        <tr><th>字段</th><th>必填</th><th>说明</th></tr>
+        <tr><td><code>MODEL_ID</code></td><td>✅</td><td>模型标识，同时作为输出路径子目录名</td></tr>
+        <tr><td><code>BROWSER_ID</code></td><td>✅</td><td>浏览器后端 ID，需在 Browser Registry 中注册</td></tr>
+        <tr><td><code>timeout_seconds</code></td><td>❌</td><td>单任务超时秒数，默认由 CLI 或 Agent 自行处理</td></tr>
+        <tr><td><code>CONTEXT_ID</code></td><td>❌</td><td>浏览器 Context ID，用于登录态复用（lexmount 支持）</td></tr>
+      </table>
+
+      <h3>环境变量速查</h3>
+      <table>
+        <tr><th>变量</th><th>说明</th></tr>
+        <tr><td><code>OPENAI_API_KEY</code></td><td>LLM-as-Judge 评测所用 API Key</td></tr>
+        <tr><td><code>LEXMOUNT_API_KEY</code></td><td>Lexmount 云端浏览器认证</td></tr>
+        <tr><td><code>LEXMOUNT_PROJECT_ID</code></td><td>Lexmount 项目 ID</td></tr>
+        <tr><td><code>AGENTBAY_API_KEY</code></td><td>AgentBay 云端浏览器认证（放 .env，不放 config.yaml）</td></tr>
+        <tr><td><code>BUBENCH_SIGINT_GRACE_SECONDS</code></td><td>Ctrl-C 后等待子进程优雅退出的秒数（默认 20）</td></tr>
+        <tr><td><code>BUBENCH_SIGTERM_GRACE_SECONDS</code></td><td>SIGTERM 后等待秒数（默认 8）</td></tr>
+        <tr><td><code>HF_ENDPOINT</code></td><td>HuggingFace 镜像地址（中国网络可用 https://hf-mirror.com）</td></tr>
+      </table>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+
+  // Active nav highlight on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('nav a[href^="#"]');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`nav a[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

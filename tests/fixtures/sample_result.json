@@ -1,0 +1,29 @@
+{
+    "task_id": "test_task_001",
+    "task": "Click the login button and enter test credentials",
+    "answer": "Successfully logged in with test credentials",
+    "final_result_response": "The task was completed successfully. I clicked the login button and entered the test credentials.",
+    "model_id": "test-model",
+    "browser_id": "Chrome-Test",
+    "action_history": [
+        "🔗 Navigated to https://example.com/",
+        "Clicked button \"Login\"",
+        "Typed 'test@example.com'",
+        "Typed 'password123'",
+        "Clicked button \"Submit\""
+    ],
+    "metrics": {
+        "ttft_ms": 500,
+        "end_to_end_ms": 5000,
+        "steps": 5,
+        "usage": {
+            "total_prompt_tokens": 1000,
+            "total_completion_tokens": 200,
+            "total_tokens": 1200,
+            "total_cost": 0.01
+        }
+    },
+    "config": {
+        "timeout_seconds": 300
+    }
+}

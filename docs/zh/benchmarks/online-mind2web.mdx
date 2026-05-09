@@ -1,0 +1,86 @@
+---
+title: "Online-Mind2Web"
+description: "真实网站 Web 交互任务评测"
+---
+
+Online-Mind2Web 是基于 Mind2Web 数据集的在线评测基准，测试 Agent 在真实网站上的导航和交互能力。
+
+## 概览
+
+| 属性 | 值 |
+|------|-----|
+| 来源 | Mind2Web 数据集 |
+| 任务类型 | 网页导航和交互 |
+| 目标网站 | 真实英文网站 |
+| 评估方式 | WebJudge 语义匹配 |
+
+## 任务特点
+
+<CardGroup cols={2}>
+  <Card title="真实网站" icon="globe">
+    测试在真实网站上的操作能力，而非模拟环境
+  </Card>
+  <Card title="多步骤任务" icon="route">
+    需要多个连续步骤完成复杂目标
+  </Card>
+  <Card title="语义评估" icon="comments">
+    使用 WebJudge 进行语义匹配评估
+  </Card>
+  <Card title="无需登录" icon="unlock">
+    所有任务均无需登录即可执行
+  </Card>
+</CardGroup>
+
+## 快速开始
+
+### 运行任务
+
+```bash
+# 运行前 3 个任务
+bubench run \
+  --agent browser-use \
+  --data Online-Mind2Web \
+  --mode first_n \
+  --count 3
+
+# 运行全部任务
+bubench run \
+  --agent Agent-TARS \
+  --data Online-Mind2Web \
+  --mode all \
+  --skip-completed
+```
+
+### 评估结果
+
+```bash
+bubench eval --agent browser-use --data Online-Mind2Web --model-id bu-2-0
+```
+
+
+## 评估指标
+
+| 指标 | 说明 |
+|------|------|
+| Task Success Rate | 任务完成率 |
+| Action Accuracy | 操作准确率 |
+| Element Accuracy | 元素定位准确率 |
+
+## 数据格式
+
+任务数据存储在 `benchmarks/Online-Mind2Web/data/`：
+
+```json
+{
+  "task_id": "b7258ee05d75e6c50673a59914db412e_110325",
+  "confirmed_task": "Find the store location and hours of the closest Trader Joe's to zip code 90028 and set it as my home store.",
+  "website": "https://www.traderjoes.com/",
+  "reference_length": 6,
+  "level": "medium"
+}
+```
+
+## 相关链接
+
+- [Online-Mind2Web 论文](https://arxiv.org/abs/2504.01382)
+- [Online-Mind2Web GitHub](https://github.com/OSU-NLP-Group/Online-Mind2Web)

@@ -1,0 +1,127 @@
+---
+title: 'config_loader'
+description: 'YAML configuration loading utilities'
+---
+
+# browseruse_bench.utils.config_loader
+
+Configuration file loading utilities.
+
+## Import
+
+```python
+from browseruse_bench.utils import (
+    load_config_file,
+    resolve_benchmark_config,
+    load_data_info,
+    get_default_split,
+)
+```
+
+---
+
+## load_config_file
+
+Load YAML configuration file.
+
+```python
+def load_config_file(path: Path) -> Dict[str, Any]
+```
+
+<ParamField path="path" type="Path" required>
+  Configuration file path
+</ParamField>
+
+<ResponseField name="return" type="dict">
+  Configuration dictionary (empty dict if file not found)
+</ResponseField>
+
+<Note>
+If `pyyaml` is not installed, a built-in simplified YAML parser is used (supports basic key-value pairs only).
+</Note>
+
+---
+
+## resolve_benchmark_config
+
+Get Benchmark configuration.
+
+```python
+def resolve_benchmark_config(
+    config: Dict[str, Any],
+    benchmark: str
+) -> Dict[str, Any]
+```
+
+<ParamField path="config" type="dict" required>
+  Main configuration dictionary
+</ParamField>
+
+<ParamField path="benchmark" type="str" required>
+  Benchmark name
+</ParamField>
+
+<ResponseField name="return" type="dict">
+  Configuration dictionary for the benchmark
+</ResponseField>
+
+<Warning>
+Raises `SystemExit` if benchmark does not exist.
+</Warning>
+
+### Usage Example
+
+```python
+from browseruse_bench.utils import load_config_file, resolve_benchmark_config
+
+config = load_config_file(Path("config.yaml"))
+bench_config = resolve_benchmark_config(config, "lexbench-browser")
+```
+
+---
+
+## load_data_info
+
+Load benchmark's `data_info.json`.
+
+```python
+def load_data_info(benchmark_path: Path) -> Dict[str, Any]
+```
+
+<ParamField path="benchmark_path" type="Path" required>
+  Path to Benchmark directory
+</ParamField>
+
+<ResponseField name="return" type="dict">
+  Contents of `data_info.json` (empty dict if file not found)
+</ResponseField>
+
+---
+
+## get_default_split
+
+Get default split.
+
+```python
+def get_default_split(data_info: Dict[str, Any]) -> Optional[str]
+```
+
+Prioritizes `default_split` in `data_info`, otherwise prefers `All` or the first split key.
+
+<ParamField path="data_info" type="dict" required>
+  Contents of `data_info.json`
+</ParamField>
+
+<ResponseField name="return" type="str or None">
+  Default split name, None if undetermined
+</ResponseField>
+
+### Usage Example
+
+```python
+from browseruse_bench.utils import load_data_info, get_default_split
+from pathlib import Path
+
+data_info = load_data_info(Path("benchmarks/lexbench-browser"))
+split = get_default_split(data_info)  # e.g., "All"
+```

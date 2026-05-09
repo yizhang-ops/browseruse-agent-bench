@@ -1,0 +1,157 @@
+---
+title: "stats_utils"
+description: "统计计算与汇总生成工具"
+---
+
+# browseruse_bench.utils.stats_utils
+
+统计相关的工具函数。
+
+## 导入
+
+```python
+from browseruse_bench.utils import (
+    calculate_metric_stats,
+    calculate_all_metrics_stats,
+    filter_tasks_by_label,
+    generate_evaluation_summary,
+)
+```
+
+---
+
+## calculate_metric_stats
+
+为指定指标计算统计信息。
+
+```python
+def calculate_metric_stats(
+    tasks: List[Dict[str, Any]],
+    metric: str,
+    path: str = "evaluation_details"
+) -> Dict[str, float]
+```
+
+<ParamField path="tasks" type="list of dict" required>
+  任务结果列表
+</ParamField>
+
+<ParamField path="metric" type="str" required>
+  指标名称，例如 `ttft_ms`、`end_to_end_ms`、`steps`
+</ParamField>
+
+<ParamField path="path" type="str" default="evaluation_details">
+  指标在任务字典中的路径
+</ParamField>
+
+<ResponseField name="return" type="dict">
+  统计字典，包含 `count`、`mean`、`min`、`max`、`median`
+</ResponseField>
+
+---
+
+## calculate_all_metrics_stats
+
+为多个指标计算统计信息。
+
+```python
+def calculate_all_metrics_stats(
+    tasks: List[Dict[str, Any]],
+    metrics: Optional[List[str]] = None,
+    path: str = "evaluation_details"
+) -> Dict[str, Dict[str, float]]
+```
+
+<ParamField path="metrics" type="list of str" default="见下方说明">
+  指标名称列表
+</ParamField>
+
+### 返回结构
+
+```python
+{
+    "ttft_ms": {"count": 10, "mean": 1234.5, ...},
+    "end_to_end_ms": {"count": 10, "mean": 5678.9, ...},
+    "steps": {"count": 10, "mean": 3.2, ...},
+    "usage": {
+        "total_tokens": {"count": 10, "mean": 1500, ...},
+        "total_cost": {"count": 10, "mean": 0.05, ...},
+        ...
+    }
+}
+```
+
+---
+
+## filter_tasks_by_label
+
+按 label 过滤任务。
+
+```python
+def filter_tasks_by_label(
+    tasks: List[Dict[str, Any]],
+    key: str = "predicted_label",
+    val: int = 1
+) -> List[Dict[str, Any]]
+```
+
+<ParamField path="tasks" type="list of dict" required>
+  任务结果列表
+</ParamField>
+
+<ParamField path="key" type="str" default="predicted_label">
+  Label 键名
+</ParamField>
+
+<ParamField path="val" type="int" default="1">
+  Label 值（1 = 成功，0 = 失败）
+</ParamField>
+
+---
+
+## generate_evaluation_summary
+
+生成评估汇总。
+
+```python
+def generate_evaluation_summary(
+    results: List[Dict[str, Any]],
+    total: int,
+    metrics: Optional[List[str]] = None
+) -> Dict[str, Any]
+```
+
+<ParamField path="results" type="list of dict" required>
+  评估结果列表
+</ParamField>
+
+<ParamField path="total" type="int" required>
+  任务总数
+</ParamField>
+
+<ParamField path="metrics" type="list of str" default="见下方说明">
+  要计算的指标列表
+</ParamField>
+
+### 返回结构
+
+```python
+{
+    "overall_statistics": {
+        "total_tasks": 100,
+        "evaluated_tasks": 95,
+        "successful_tasks": 70,
+        "failed_tasks": 25,
+        "success_rate": 73.68,
+        "failure_rate": 26.32
+    },
+    "metrics_statistics": {...},
+    "successful_tasks_metrics": {...},
+    "failed_tasks_metrics": {...},
+    "failure_category_statistics": {...},
+    "task_list": {
+        "successful_task_ids": [...],
+        "failed_task_ids": [...]
+    }
+}
+```

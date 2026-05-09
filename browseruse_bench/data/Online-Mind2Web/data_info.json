@@ -1,0 +1,12 @@
+{
+  "default_split": "All",
+  "split": {
+    "All": "task.jsonl",
+    "Hard": "hard.jsonl"
+  },
+  "huggingface": {
+    "repo_id": "osunlp/Online-Mind2Web",
+    "private": true,
+    "path_prefix": ""
+  }
+}

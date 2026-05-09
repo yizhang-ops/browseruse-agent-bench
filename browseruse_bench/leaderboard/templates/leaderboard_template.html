@@ -1,0 +1,2144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Agent Leaderboard</title>
+    <!-- Import Chart.js for failure category bar chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        .toolbar {
+            padding: 12px 16px;
+            margin: 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-end;
+            gap: 12px;
+            background: #ffffff;
+        }
+
+        .selector-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+        }
+
+        .selector-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding-left: 16px;
+        }
+
+        .toolbar select {
+            padding: 8px 16px;
+            font-size: 0.95rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            color: #374151;
+            font-weight: 500;
+            cursor: pointer;
+            min-width: 180px;
+            transition: all 0.2s ease;
+        }
+
+        .toolbar select:hover {
+            border-color: #9ca3af;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .toolbar select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .refresh-btn {
+            padding: 8px 16px;
+            font-size: 0.95rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: #ffffff;
+            color: #374151;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .refresh-btn:hover {
+            background: #f3f4f6;
+            border-color: #9ca3af;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .refresh-btn:active {
+            background: #e5e7eb;
+            transform: scale(0.98);
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            background: #f9fafb;
+        }
+
+        .refresh-btn .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #6b7280;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .refresh-icon svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .message-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease;
+            max-width: 400px;
+        }
+
+        .message-toast.success {
+            background: #10b981;
+        }
+
+        .message-toast.error {
+            background: #ef4444;
+        }
+
+        .message-toast.info {
+            background: #3b82f6;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .table-container {
+            padding: 40px;
+            overflow-x: auto;
+        }
+
+        /* Unified card container - contains toolbar and table */
+        .leaderboard-card {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            margin: 0;
+        }
+
+        .leaderboard-card .toolbar {
+            margin: 0;
+            border-radius: 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        .leaderboard-card .table-wrapper {
+            padding: 0;
+            margin: 0;
+            overflow-x: auto;
+            border-radius: 0;
+        }
+
+        .leaderboard-card .table-wrapper table {
+            margin: 0;
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .leaderboard-card .table-wrapper thead {
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        /* Ensure table content area also has white background */
+        .leaderboard-card .table-wrapper tbody {
+            background: #ffffff;
+        }
+
+        /* Special handling for the first table container */
+        .table-container:first-of-type {
+            padding: 0;
+            overflow-x: visible;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+            table-layout: fixed;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        th {
+            padding: 18px 15px;
+            text-align: center;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.85rem;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+            word-wrap: break-word;
+            /* Top-align all header cells so the title text lines up across the
+               row regardless of whether the cell carries an extra in-header
+               filter dropdown / checkbox below it. */
+            vertical-align: top;
+        }
+
+        /* Body cells keep their numeric right-alignment, but the header row is
+           uniformly centered (see `th { text-align: center }` above). */
+        th.number {
+            text-align: center;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+            transform: scale(1.01);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        #leaderboard-tbody tr:first-child {
+            background: #fff3cd;
+        }
+
+        #leaderboard-tbody tr:first-child:hover {
+            background: #ffe69c;
+        }
+
+        td {
+            padding: 18px 15px;
+            /* Allow content wrapping */
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+            vertical-align: middle;
+        }
+
+        td.number {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Agent / Model / Browser column headers stack the label above an
+           inline filter dropdown so filtering lives in the purple header row.
+           Top-alignment is now inherited from the global `th` rule, so this
+           selector exists only as a hook for future column-specific styling. */
+        th.filterable-col {
+            /* (no overrides; intentionally left blank) */
+        }
+
+        .col-header-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: center;
+            text-align: center;
+        }
+
+        .column-filter-select {
+            width: 100%;
+            max-width: 100%;
+            padding: 4px 6px;
+            font-size: 0.78rem;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.45);
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: none;
+            letter-spacing: normal;
+            font-weight: 500;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image:
+                linear-gradient(45deg, transparent 50%, #ffffff 50%),
+                linear-gradient(135deg, #ffffff 50%, transparent 50%);
+            background-position:
+                calc(100% - 14px) 50%,
+                calc(100% - 9px) 50%;
+            background-size: 5px 5px, 5px 5px;
+            background-repeat: no-repeat;
+            padding-right: 22px;
+        }
+
+        .column-filter-select option {
+            color: #111827;
+            background: #ffffff;
+        }
+
+        .column-filter-select:focus {
+            outline: none;
+            border-color: #ffffff;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.45);
+        }
+
+        /* Config column: constrain width, wrap long values, allow internal scroll */
+        th.config-col,
+        td.config-col {
+            width: 220px;
+            max-width: 220px;
+        }
+
+        td.config-col {
+            font-size: 0.78rem;
+            line-height: 1.45;
+            color: #4b5563;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            max-height: 9.5em;
+            overflow-y: auto;
+            padding: 10px 12px;
+        }
+
+        td.config-col::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        td.config-col::-webkit-scrollbar-thumb {
+            background: rgba(102, 126, 234, 0.35);
+            border-radius: 3px;
+        }
+
+        .rank {
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: #667eea;
+            text-align: center;
+        }
+
+        th.rank-col,
+        td.rank-cell {
+            width: 70px;
+            max-width: 70px;
+            text-align: center;
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+
+        .rank-col-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .rank-select-all {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.75rem;
+            color: #4b5563;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .rank-select-all input {
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
+
+        .rank-checkbox-wrapper {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .rank-checkbox-wrapper input {
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
+
+        .rank.first {
+            color: #ffd700;
+            font-size: 1.5rem;
+        }
+
+        .rank.second {
+            color: #c0c0c0;
+        }
+
+        .rank.third {
+            color: #cd7f32;
+        }
+
+        .agent-name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .model-name {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.85rem;
+            color: #495057;
+            background: #f8f9fa;
+            padding: 4px 8px;
+            border-radius: 4px;
+            /* Model name can be long, allow wrapping to avoid visual overflow */
+            display: inline-block;
+            word-break: break-all;
+        }
+
+        .success-rate {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .success-rate.high {
+            color: #28a745;
+        }
+
+        .success-rate.medium {
+            color: #ffc107;
+        }
+
+        .success-rate.low {
+            color: #dc3545;
+        }
+
+        /* AVG SUCCESS E2ET/TTFT header + cell: stacked content, horizontally centered.
+           Keep the element as a regular table-cell so column width + padding align
+           with the rest of the table; just center inline children via text-align
+           and stack them using block-level spans. */
+        th.number.metric-header-cell,
+        td.number.metric-cell {
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .metric-header-cell .metric-primary,
+        .metric-header-cell .metric-subtext,
+        .metric-cell .metric-primary,
+        .metric-cell .metric-subtext {
+            display: block;
+        }
+
+        .metric-primary {
+            font-weight: 600;
+        }
+
+        .metric-subtext {
+            color: #6c757d;
+            font-size: 0.8rem;
+            margin-top: 2px;
+        }
+
+        .metric-header-cell .metric-subtext {
+            color: #ffffff;
+            font-size: 0.78rem;
+            opacity: 0.85;
+        }
+
+        .metric-cell .metric-primary {
+            font-weight: 400;
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .chart-subtitle {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .chart-subtitle strong {
+            color: #374151;
+        }
+
+        .chart-subtitle span {
+            white-space: nowrap;
+        }
+
+
+        #failure-chart {
+            margin-top: 20px;
+        }
+
+        .failure-legend {
+            margin-top: 8px;
+            margin-bottom: 16px;
+            padding: 0;
+            background: transparent;
+            border: none;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            column-gap: 24px;
+            row-gap: 10px;
+        }
+
+        .task-details-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .task-details-filter {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: #4b5563;
+        }
+
+        .task-details-filter select {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            background: #fff;
+            color: #1f2933;
+        }
+
+        .task-details-filter select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+
+        .task-status-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .task-status-pill.failure {
+            background: rgba(239, 68, 68, 0.15);
+            color: #b91c1c;
+        }
+
+        .task-status-pill.success {
+            background: rgba(16, 185, 129, 0.18);
+            color: #047857;
+        }
+
+        .stat-warning {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        .failure-legend .legend-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 4px 0;
+            border: none;
+            border-radius: 0;
+            background: transparent;
+        }
+
+        .failure-legend .legend-swatch {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+        }
+
+        .failure-legend .legend-label {
+            flex: 1;
+            font-size: 0.95rem;
+            color: #1f2933;
+            line-height: 1.4;
+            white-space: normal;
+            word-break: break-word;
+        }
+
+        .failure-legend .legend-empty {
+            font-size: 0.9rem;
+            color: #6c757d;
+            grid-column: 1 / -1;
+            text-align: left;
+        }
+
+        .task-details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .task-details-filter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .task-details-filter label {
+            font-size: 0.9rem;
+            color: #4b5563;
+            font-weight: 600;
+        }
+
+        .task-details-filter select {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #374151;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px;
+            background: #f8f9fa;
+            color: #6c757d;
+            font-size: 0.9rem;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Trajectory Image Viewer Styles */
+        .trajectory-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .trajectory-modal {
+            background: #ffffff;
+            border-radius: 12px;
+            max-width: 900px;
+            width: 90%;
+            max-height: 90vh;
+            padding: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .trajectory-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .trajectory-modal-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .trajectory-modal-close {
+            border: none;
+            background: transparent;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: #6c757d;
+        }
+
+        .trajectory-modal-body {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .trajectory-modal-arrow {
+            border: none;
+            background: #f1f3f5;
+            border-radius: 999px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: #495057;
+        }
+
+        .trajectory-modal-arrow:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        .trajectory-modal-image-wrapper {
+            flex: 1;
+            max-width: 720px;
+            max-height: 70vh;
+            overflow: hidden;
+            border-radius: 8px;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .trajectory-modal-image-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .trajectory-modal-footer {
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: #6c757d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .trajectory-modal-footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .trajectory-modal-footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .table-container {
+                padding: 20px;
+            }
+
+            th,
+            td {
+                padding: 12px 8px;
+                font-size: 0.85rem;
+            }
+
+            .failure-legend {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏆 Browser Agent Leaderboard</h1>
+            <p>Browser Use Agent Performance Comparison</p>
+        </div>
+
+        <div class="table-container">
+            <div class="leaderboard-card">
+                <div class="toolbar">
+                    <button id="refresh-btn" class="refresh-btn" onclick="refreshLeaderboard()"
+                        title="Regenerate Leaderboard">
+                        <span id="refresh-icon" class="refresh-icon" aria-hidden="true"></span>
+                        <span id="refresh-text">Refresh</span>
+                    </button>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="rank-col">
+                                    <div class="rank-col-header">
+                                        <span>Rank</span>
+                                        <label class="rank-select-all" title="Select All / Deselect All">
+                                            <input type="checkbox" id="rank-select-all"
+                                                onchange="toggleSelectAllRanks(event)">
+                                            <span>All</span>
+                                        </label>
+                                    </div>
+                                </th>
+                                <th class="filterable-col">
+                                    <div class="col-header-stack">
+                                        <span>Data</span>
+                                        <select id="benchmark-filter-select" class="column-filter-select" onchange="switchBenchmarkFilter()">
+                                            <!-- Dynamically populated -->
+                                        </select>
+                                    </div>
+                                </th>
+                                <th class="filterable-col">
+                                    <div class="col-header-stack">
+                                        <span>Split</span>
+                                        <select id="split-filter-select" class="column-filter-select" onchange="switchSplitFilter()">
+                                            <!-- Dynamically populated -->
+                                        </select>
+                                    </div>
+                                </th>
+                                <th class="filterable-col">
+                                    <div class="col-header-stack">
+                                        <span>Agent</span>
+                                        <select id="agent-filter-select" class="column-filter-select" onchange="switchAgentFilter()">
+                                            <!-- Dynamically populated -->
+                                        </select>
+                                    </div>
+                                </th>
+                                <th class="filterable-col">
+                                    <div class="col-header-stack">
+                                        <span>Model</span>
+                                        <select id="model-filter-select" class="column-filter-select" onchange="switchModelFilter()">
+                                            <!-- Dynamically populated -->
+                                        </select>
+                                    </div>
+                                </th>
+                                <th class="filterable-col">
+                                    <div class="col-header-stack">
+                                        <span>Browser</span>
+                                        <select id="browser-filter-select" class="column-filter-select" onchange="switchBrowserFilter()">
+                                            <!-- Dynamically populated -->
+                                        </select>
+                                    </div>
+                                </th>
+                                <th class="config-col">Config</th>
+                                <th class="number">Success Rate</th>
+                                <th class="number score-col">AVG SCORE</th>
+                                <th class="number">AVG SUCCESS STEPS</th>
+                                <th class="number metric-header-cell">
+                                    <span class="metric-primary">AVG SUCCESS E2ET/TTFT</span>
+                                </th>
+                                <th class="number">AVG SUCCESS TOKENS</th>
+                                <th class="number">AVG SUCCESS COST</th>
+                                <th>Eval Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-tbody">
+                            <!-- Table content populated dynamically via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div class="chart-title">Failure Category Distribution per Agent</div>
+            <div class="chart-subtitle">
+                <strong>Failure Categories:</strong>
+                <span>A: Agent Issue</span>
+                <span>B: Browser Issue</span>
+                <span>C: Website Unreachable</span>
+            </div>
+            <div id="failure-legend" class="failure-legend"></div>
+            <canvas id="failure-chart" height="80"></canvas>
+        </div>
+
+        <!-- Trajectory Image Viewer: Global Modal -->
+        <div class="trajectory-modal-overlay" id="trajectory-modal-overlay">
+            <div class="trajectory-modal">
+                <div class="trajectory-modal-header">
+                    <div class="trajectory-modal-title" id="trajectory-modal-title">Trajectory Viewer</div>
+                    <button class="trajectory-modal-close" onclick="closeTrajectoryViewer()">✕</button>
+                </div>
+                <div class="trajectory-modal-body">
+                    <button class="trajectory-modal-arrow" id="trajectory-prev-btn"
+                        onclick="prevTrajectoryImage()">&lt;</button>
+                    <div class="trajectory-modal-image-wrapper">
+                        <img id="trajectory-image" src="" alt="Trajectory step">
+                    </div>
+                    <button class="trajectory-modal-arrow" id="trajectory-next-btn"
+                        onclick="nextTrajectoryImage()">&gt;</button>
+                </div>
+                <div class="trajectory-modal-footer">
+                    <span id="trajectory-counter">0 / 0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Generated on {{TIMESTAMP}}</p>
+            <p>Powered by <a href="https://github.com/lexmount/browseruse-bench">BrowserUse Bench</a></p>
+        </div>
+    </div>
+
+    <script>
+        // All benchmark data, keyed by benchmark name
+        const benchmarksData = {{ BENCHMARKS_JSON }};
+        // Flattened view: every row gains an explicit `benchmark` field so the
+        // table can mix benchmarks and the Benchmark column-filter can scope it.
+        const allRows = (() => {
+            const out = [];
+            Object.entries(benchmarksData).forEach(([benchmarkName, rows]) => {
+                (rows || []).forEach(item => {
+                    out.push({ ...item, benchmark: item.benchmark || benchmarkName });
+                });
+            });
+            return out;
+        })();
+        let failureChart = null;
+        const DEFAULT_SELECTED_COUNT = 6;
+        let selectedAgentLabels = new Set();
+        const ALL_FILTER_VALUE = 'All';
+        let currentBenchmarkFilter = ALL_FILTER_VALUE;
+        let currentSplitFilter = ALL_FILTER_VALUE;
+        let currentAgentFilter = ALL_FILTER_VALUE;
+        let currentModelFilter = ALL_FILTER_VALUE;
+        let currentBrowserFilter = ALL_FILTER_VALUE;
+        let currentTaskDetailsContext = {
+            benchmark: null,
+            agentLabel: null,
+            category: null,
+        };
+        let currentTaskStatusFilter = 'failure';
+
+        // Trajectory viewer state
+        let currentTrajectoryImages = [];
+        let currentTrajectoryIndex = 0;
+
+        // Predefined failure categories to ensure stable legend and colors
+        const ALL_FAILURE_CATEGORIES = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+        const REFRESH_ICON_MARKUP = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0114.13-3.36L23 10"></path>
+                <path d="M20.49 15a9 9 0 01-14.13 3.36L1 14"></path>
+            </svg>
+        `;
+        (function initRefreshIcon() {
+            const iconEl = document.getElementById('refresh-icon');
+            if (iconEl) {
+                iconEl.innerHTML = REFRESH_ICON_MARKUP;
+            }
+        })();
+
+        // Failure category labels (short explanation)
+        const FAILURE_CATEGORY_LABELS = {
+            'A1': 'Agent Capability Issue',
+            'A2': 'Agent Code Bug',
+            'B1': 'Bot Detection Triggered',
+            'B2': 'Login Failed',
+            'C1': 'Network/Geo-block Issue',
+            'C2': 'Website Down/Invalid',
+        };
+        const TASK_STATUS_LABELS = {
+            failure: 'Failure',
+            success: 'Success',
+            all: 'All',
+        };
+
+        function formatSeconds(value, digits = 1) {
+            if (typeof value !== 'number' || !isFinite(value)) {
+                return '-';
+            }
+            return value.toFixed(digits);
+        }
+
+        function formatTokens(value) {
+            if (typeof value !== 'number' || !isFinite(value)) {
+                return '-';
+            }
+            return Math.round(value).toLocaleString('en-US');
+        }
+
+        function formatCost(value) {
+            if (typeof value !== 'number' || !isFinite(value)) {
+                return '-';
+            }
+            return value.toFixed(4);
+        }
+
+        function normalizeModelName(modelName) {
+            if (typeof modelName !== 'string') {
+                return modelName;
+            }
+            const trimmed = modelName.trim();
+            if (!trimmed) {
+                return '';
+            }
+            const VOLCENGINE_PREFIX = 'volcengine/';
+            if (trimmed.startsWith(VOLCENGINE_PREFIX)) {
+                return trimmed.slice(VOLCENGINE_PREFIX.length);
+            }
+            return trimmed;
+        }
+
+        function escapeHtml(text) {
+            if (typeof text !== 'string') {
+                return '';
+            }
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function findAgentData(benchmarkName, agentLabel) {
+            const agents = benchmarksData[benchmarkName] || [];
+            return agents.find(a => buildAgentLabel(a) === agentLabel)
+                || agents.find(a => a.agent === agentLabel);
+        }
+
+        function findFirstCategoryWithData(agentData) {
+            if (!agentData || !agentData.failure_details) {
+                return null;
+            }
+            for (const category of ALL_FAILURE_CATEGORIES) {
+                const details = agentData.failure_details[category];
+                if (details && details.length) {
+                    return category;
+                }
+            }
+            const extraCategories = Object.keys(agentData.failure_details);
+            for (const cat of extraCategories) {
+                const details = agentData.failure_details[cat];
+                if (details && details.length) {
+                    return cat;
+                }
+            }
+            return null;
+        }
+        function buildAgentLabel(item) {
+            const parts = [];
+            const normalizedModel = normalizeModelName(item.model);
+            if (normalizedModel && normalizedModel !== 'Unknown') parts.push(normalizedModel);
+            if (item.browser && item.browser !== 'Unknown') parts.push(item.browser);
+            if (item.eval_date && item.eval_date !== 'Unknown') parts.push(item.eval_date);
+            return parts.length ? `${item.agent} (${parts.join(' · ')})` : item.agent;
+        }
+
+        // Internal key used by `selectedAgentLabels` and the failure-chart
+        // filter. The visible agent label is benchmark-agnostic (and that's
+        // intentional — users see the same label string regardless of where
+        // the row lives), but with the flat `allRows` the same label can map
+        // to two different rows (one per benchmark). Composing the benchmark
+        // into the key keeps each row's checkbox / chart entry independent.
+        function buildRowKey(item) {
+            return `${item.benchmark || ''}::${buildAgentLabel(item)}`;
+        }
+
+        function getRowKeyFromElement(element) {
+            if (!element) return null;
+            const label = getAgentLabelFromElement(element);
+            if (!label) return null;
+            const benchmark = decodeAgentLabelValue(element.getAttribute('data-benchmark')) || '';
+            return `${benchmark}::${label}`;
+        }
+
+        // ------- Column filters: Benchmark / Split / Agent / Model / Browser -------
+
+        function getUniqueValues(data, key) {
+            const set = new Set();
+            data.forEach(item => {
+                const v = item[key];
+                if (v !== undefined && v !== null && v !== '') {
+                    set.add(String(v));
+                }
+            });
+            return Array.from(set).sort((a, b) => a.localeCompare(b));
+        }
+
+        function populateFilterSelect(selectId, values, currentValue) {
+            const select = document.getElementById(selectId);
+            if (!select) return currentValue;
+            select.innerHTML = '';
+            const options = [ALL_FILTER_VALUE, ...values];
+            options.forEach(val => {
+                const opt = document.createElement('option');
+                opt.value = val;
+                opt.textContent = val;
+                select.appendChild(opt);
+            });
+            const nextValue = options.includes(currentValue) ? currentValue : ALL_FILTER_VALUE;
+            select.value = nextValue;
+            return nextValue;
+        }
+
+        // Repopulate every column-header filter from the full row population so
+        // each dropdown always lists every available value (and preserves the
+        // current selection when still valid).
+        function refreshColumnFilterSelectors() {
+            currentBenchmarkFilter = populateFilterSelect(
+                'benchmark-filter-select',
+                getUniqueValues(allRows, 'benchmark'),
+                currentBenchmarkFilter
+            );
+            currentSplitFilter = populateFilterSelect(
+                'split-filter-select',
+                getUniqueValues(allRows, 'split'),
+                currentSplitFilter
+            );
+            currentAgentFilter = populateFilterSelect(
+                'agent-filter-select',
+                getUniqueValues(allRows, 'agent'),
+                currentAgentFilter
+            );
+            currentModelFilter = populateFilterSelect(
+                'model-filter-select',
+                getUniqueValues(allRows, 'model'),
+                currentModelFilter
+            );
+            currentBrowserFilter = populateFilterSelect(
+                'browser-filter-select',
+                getUniqueValues(allRows, 'browser'),
+                currentBrowserFilter
+            );
+        }
+
+        function applyAllColumnFilters(data) {
+            return data.filter(item => {
+                if (currentBenchmarkFilter !== ALL_FILTER_VALUE && String(item.benchmark) !== currentBenchmarkFilter) return false;
+                if (currentSplitFilter !== ALL_FILTER_VALUE && String(item.split) !== currentSplitFilter) return false;
+                if (currentAgentFilter !== ALL_FILTER_VALUE && String(item.agent) !== currentAgentFilter) return false;
+                if (currentModelFilter !== ALL_FILTER_VALUE && String(item.model) !== currentModelFilter) return false;
+                if (currentBrowserFilter !== ALL_FILTER_VALUE && String(item.browser) !== currentBrowserFilter) return false;
+                return true;
+            });
+        }
+
+        function rerenderForFilterChange() {
+            renderTable();
+            renderFailureChart();
+            setTimeout(() => { showFirstAvailableTaskDetails(); }, 300);
+        }
+
+        function switchBenchmarkFilter() {
+            const sel = document.getElementById('benchmark-filter-select');
+            if (!sel) return;
+            currentBenchmarkFilter = sel.value || ALL_FILTER_VALUE;
+            rerenderForFilterChange();
+        }
+
+        function switchSplitFilter() {
+            const sel = document.getElementById('split-filter-select');
+            if (!sel) return;
+            currentSplitFilter = sel.value || ALL_FILTER_VALUE;
+            rerenderForFilterChange();
+        }
+
+        function switchAgentFilter() {
+            const sel = document.getElementById('agent-filter-select');
+            if (!sel) return;
+            currentAgentFilter = sel.value || ALL_FILTER_VALUE;
+            rerenderForFilterChange();
+        }
+
+        function switchModelFilter() {
+            const sel = document.getElementById('model-filter-select');
+            if (!sel) return;
+            currentModelFilter = sel.value || ALL_FILTER_VALUE;
+            rerenderForFilterChange();
+        }
+
+        function switchBrowserFilter() {
+            const sel = document.getElementById('browser-filter-select');
+            if (!sel) return;
+            currentBrowserFilter = sel.value || ALL_FILTER_VALUE;
+            rerenderForFilterChange();
+        }
+
+        function formatConfigDisplay(config) {
+            if (!config || typeof config !== 'object') {
+                return '-';
+            }
+            const entries = [];
+            Object.entries(config).forEach(([key, value]) => {
+                if (value === undefined || value === null || value === '') {
+                    return;
+                }
+                // Skip timeout related fields
+                if (key === 'timeout_seconds' || key === 'timeout') {
+                    return;
+                }
+                let label = key;
+                let displayValue = value;
+                entries.push(`${escapeHtml(label)}: ${escapeHtml(String(displayValue))}`);
+            });
+            return entries.length ? entries.join('<br>') : '-';
+        }
+
+        // Build failure category chart data scoped by the active column filters.
+        // X-axis: Failure category (A1, A2, B1, ...)
+        // Color: Different Agents
+        function buildFailureChartData(agentFilterSet = null) {
+            const rawData = applyAllColumnFilters(allRows);
+
+            const shouldFilter = agentFilterSet instanceof Set;
+            // `agentFilterSet` is keyed by `buildRowKey(item)` so that two
+            // different benchmarks producing the same agent label remain
+            // independently toggleable.
+            const data = shouldFilter
+                ? rawData.filter(item => agentFilterSet.has(buildRowKey(item)))
+                : rawData;
+
+            const categories = ALL_FAILURE_CATEGORIES;  // X-axis: fixed order failure categories
+            const agents = data.map(item => buildAgentLabel(item));
+
+            if (categories.length === 0 || agents.length === 0) {
+                return { labels: categories, datasets: [] };
+            }
+
+            const palette = [
+                'rgba(255, 99, 132, 0.7)',
+                'rgba(54, 162, 235, 0.7)',
+                'rgba(255, 206, 86, 0.7)',
+                'rgba(75, 192, 192, 0.7)',
+                'rgba(153, 102, 255, 0.7)',
+                'rgba(255, 159, 64, 0.7)',
+                'rgba(199, 199, 199, 0.7)',
+            ];
+
+            // One dataset per row, fixed color, X-axis is category.
+            // Stash the row's benchmark on the dataset itself so the chart
+            // click handler can recover it directly. Doing a post-hoc
+            // `allRows.find(r => buildAgentLabel(r) === agent)` would
+            // collide whenever the same agent+model+browser combo shows up
+            // across multiple benchmarks (which is now the common case
+            // since `allRows` is flat).
+            const datasets = data.map((item, idx) => {
+                const fcMap = item.failure_categories || {};
+                const values = categories.map(cat => {
+                    const v = fcMap[cat];
+                    return typeof v === 'number' ? v : 0;
+                });
+
+                return {
+                    label: buildAgentLabel(item),
+                    data: values,
+                    backgroundColor: palette[idx % palette.length],
+                    benchmark: item.benchmark || null,
+                };
+            });
+
+            // Convert category codes to detailed labels (e.g. "A1 Agent Capability Issue")
+            const labels = categories.map(cat => {
+                const label = FAILURE_CATEGORY_LABELS[cat] || cat;
+                return `${cat} ${label}`;
+            });
+
+            return {
+                labels: labels,
+                datasets: datasets,
+            };
+        }
+
+        function renderFailureLegend(chartData) {
+            const legendContainer = document.getElementById('failure-legend');
+            if (!legendContainer) {
+                return;
+            }
+            const datasets = (chartData && chartData.datasets) || [];
+            if (!datasets.length) {
+                legendContainer.innerHTML = '<div class="legend-empty">Please select agents to display</div>';
+                return;
+            }
+
+            const html = datasets.map(ds => {
+                const colorValue = Array.isArray(ds.backgroundColor)
+                    ? (ds.backgroundColor[0] || '#cbd5f5')
+                    : (ds.backgroundColor || '#cbd5f5');
+                const labelText = escapeHtml(ds.label || '');
+                return `
+                    <div class="legend-item">
+                        <span class="legend-swatch" style="background:${colorValue};"></span>
+                        <span class="legend-label">${labelText}</span>
+                    </div>
+                `;
+            }).join('');
+
+            legendContainer.innerHTML = html;
+        }
+
+        function decodeAgentLabelValue(value) {
+            if (!value) {
+                return null;
+            }
+            try {
+                return decodeURIComponent(value);
+            } catch (error) {
+                return value;
+            }
+        }
+
+        function getAgentLabelFromElement(element) {
+            if (!element) {
+                return null;
+            }
+            const encoded = element.getAttribute('data-agent-label');
+            return encoded ? decodeAgentLabelValue(encoded) : null;
+        }
+
+        function getRankCheckboxes() {
+            return Array.from(document.querySelectorAll('#leaderboard-tbody .rank-checkbox'));
+        }
+
+        function updateRankSelectAllState() {
+            const selectAllEl = document.getElementById('rank-select-all');
+            if (!selectAllEl) {
+                return;
+            }
+            const checkboxes = getRankCheckboxes();
+            selectAllEl.disabled = !checkboxes.length;
+            if (!checkboxes.length) {
+                selectAllEl.checked = false;
+                selectAllEl.indeterminate = false;
+                return;
+            }
+            const checkedCount = checkboxes.filter(cb => cb.checked).length;
+            selectAllEl.checked = checkedCount === checkboxes.length;
+            selectAllEl.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+        }
+
+        function initializeRankSelection() {
+            selectedAgentLabels = new Set();
+            const checkboxes = getRankCheckboxes();
+            if (!checkboxes.length) {
+                updateRankSelectAllState();
+                renderFailureChart();
+                return;
+            }
+            checkboxes.forEach((checkbox, index) => {
+                const shouldCheck = index < DEFAULT_SELECTED_COUNT;
+                checkbox.checked = shouldCheck;
+                const key = getRowKeyFromElement(checkbox);
+                if (shouldCheck && key) {
+                    selectedAgentLabels.add(key);
+                }
+            });
+            updateRankSelectAllState();
+            renderFailureChart();
+        }
+
+        function handleRankSelectionChange(checkbox) {
+            if (!checkbox) {
+                return;
+            }
+            const key = getRowKeyFromElement(checkbox);
+            if (!key) {
+                return;
+            }
+            if (checkbox.checked) {
+                selectedAgentLabels.add(key);
+            } else {
+                selectedAgentLabels.delete(key);
+            }
+            updateRankSelectAllState();
+            renderFailureChart();
+        }
+
+        function toggleSelectAllRanks(event) {
+            const target = event && event.target ? event.target : document.getElementById('rank-select-all');
+            if (!target || target.disabled) {
+                return;
+            }
+            const checkboxes = getRankCheckboxes();
+            if (!checkboxes.length) {
+                target.checked = false;
+                target.indeterminate = false;
+                return;
+            }
+            const selectAll = target.checked;
+            selectedAgentLabels = new Set();
+            checkboxes.forEach(cb => {
+                cb.checked = selectAll;
+                const key = getRowKeyFromElement(cb);
+                if (selectAll && key) {
+                    selectedAgentLabels.add(key);
+                }
+            });
+            target.indeterminate = false;
+            updateRankSelectAllState();
+            renderFailureChart();
+        }
+
+        function attachAgentRowClickHandlers() {
+            const tbody = document.getElementById('leaderboard-tbody');
+            if (!tbody) {
+                return;
+            }
+            const rows = Array.from(tbody.querySelectorAll('tr[data-agent-label]'));
+            rows.forEach(row => {
+                row.addEventListener('click', handleAgentRowClick);
+            });
+        }
+
+        function handleAgentRowClick(event) {
+            const target = event.target;
+            if (target && target.closest('.rank-checkbox-wrapper')) {
+                return;
+            }
+            const row = event.currentTarget;
+            const agentLabel = getAgentLabelFromElement(row);
+            const benchmarkName = decodeAgentLabelValue(row.getAttribute('data-benchmark') || '');
+            if (!agentLabel || !benchmarkName) {
+                return;
+            }
+            const filterSelect = document.getElementById('task-status-filter');
+            if (filterSelect) {
+                filterSelect.value = 'all';
+            }
+            currentTaskStatusFilter = 'all';
+            showTaskDetails(benchmarkName, agentLabel, null, 'all');
+            setTimeout(scrollTaskDetailsIntoView, 50);
+        }
+
+        function scrollTaskDetailsIntoView() {
+            const container = document.getElementById('task-details-container');
+            if (!container) {
+                return;
+            }
+            container.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+
+        function handleTaskFilterChange() {
+            const select = document.getElementById('task-status-filter');
+            if (!select) {
+                return;
+            }
+            currentTaskStatusFilter = select.value || 'failure';
+            if (
+                currentTaskDetailsContext.benchmark &&
+                currentTaskDetailsContext.agentLabel
+            ) {
+                showTaskDetails(
+                    currentTaskDetailsContext.benchmark,
+                    currentTaskDetailsContext.agentLabel,
+                    currentTaskDetailsContext.category,
+                    currentTaskStatusFilter
+                );
+            }
+        }
+
+        // Render / Update failure chart based on the currently filtered rows.
+        function renderFailureChart() {
+            const canvas = document.getElementById('failure-chart');
+            if (!canvas) {
+                return;
+            }
+            const ctx = canvas.getContext('2d');
+            const chartData = buildFailureChartData(selectedAgentLabels);
+
+            if (failureChart) {
+                failureChart.destroy();
+                failureChart = null;
+            }
+
+            if (!chartData.datasets.length) {
+                // Clear canvas and update legend if no failure data
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                renderFailureLegend(chartData);
+                return;
+            }
+
+            // Save original category codes for click handling
+            const categories = ALL_FAILURE_CATEGORIES;
+            failureChart = new Chart(ctx, {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false,
+                        },
+                        // Set layout, one legend item per row
+                        layout: {
+                            padding: {
+                                top: 10,
+                                bottom: 10,
+                            }
+                        },
+                        title: {
+                            display: false,
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterBody: (items) => {
+                                    if (!items || !items.length) return '';
+                                    const item = items[0];
+                                    const agent = chartData.labels[item.dataIndex];
+                                    const category = chartData.datasets[item.datasetIndex].label;
+                                    return `Agent: ${agent}, Category: ${category}`;
+                                },
+                            },
+                        },
+                    },
+                    scales: {
+                        x: {
+                            stacked: false,
+                        },
+                        y: {
+                            stacked: false,
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '# Failed Tasks',
+                            },
+                            ticks: {
+                                stepSize: 1,
+                                callback: (value) => Number.isInteger(value) ? value : null,
+                            },
+                        },
+                    },
+                    // On bar click, show failure details for Agent + Category.
+                    // The benchmark is read straight off the clicked dataset
+                    // (stashed in `buildFailureChartData`), so a shared agent
+                    // label across benchmarks doesn't ambiguate the lookup.
+                    onClick: (evt, elements) => {
+                        if (!elements || !elements.length) return;
+                        const el = elements[0];
+                        const category = categories[el.index];
+                        const dataset = chartData.datasets[el.datasetIndex] || {};
+                        const agent = dataset.label;
+                        const benchmarkName = dataset.benchmark;
+                        if (!agent || !benchmarkName) return;
+                        const filterSelect = document.getElementById('task-status-filter');
+                        if (filterSelect) {
+                            filterSelect.value = 'failure';
+                        }
+                        showTaskDetails(benchmarkName, agent, category, 'failure');
+                    },
+                },
+            });
+
+            // Custom legend: one item per row
+            renderFailureLegend(chartData);
+        }
+
+        function normalizeTaskRecord(item, fallbackCategory = null, defaultStatus = 'failure') {
+            const normalized = {
+                ...(item || {})
+            };
+            const rawStatus = normalized.status ? String(normalized.status).toLowerCase() : '';
+            if (rawStatus === 'success' || rawStatus === 'failure') {
+                normalized.status = rawStatus;
+            } else {
+                normalized.status = defaultStatus;
+            }
+            if (fallbackCategory && !normalized.failure_category) {
+                normalized.failure_category = fallbackCategory;
+            }
+            if (!normalized.metrics || typeof normalized.metrics !== 'object') {
+                normalized.metrics = {};
+            }
+            return normalized;
+        }
+
+        function buildTaskRowHtml(item) {
+            const statusClass = item.status === 'success' ? 'success' : 'failure';
+            const statusLabel = TASK_STATUS_LABELS[item.status] || (statusClass === 'success' ? 'Success' : 'Failure');
+            const statusPill = `<span class="task-status-pill ${statusClass}">${statusLabel}</span>`;
+
+            const taskIdRaw = item.task_id || '(unknown)';
+            const taskIdShort = taskIdRaw.length > 40 ? `${taskIdRaw.slice(0, 40)}...` : taskIdRaw;
+            const taskDesc = item.task || '(no task description)';
+            const shortTask = taskDesc.length > 80 ? `${taskDesc.slice(0, 80)}...` : taskDesc;
+            const safeTaskFull = escapeHtml(taskDesc);
+            const safeShortTask = escapeHtml(shortTask);
+            const safeTaskId = escapeHtml(taskIdShort);
+
+            const actions = Array.isArray(item.action_history) ? item.action_history : [];
+            const stepsCount = actions.length;
+            const actionsSummary = stepsCount ? `Show actions(${stepsCount} steps)` : 'No actions';
+            const safeActionsSummary = escapeHtml(actionsSummary);
+            const actionsText = actions.map((a, i) => `${i + 1}. ${a}`).join('\n');
+            const safeActionsText = escapeHtml(actionsText);
+
+            const reasoningText = item.classification_reasoning || item.failure_reasoning || '';
+            const safeReasoning = escapeHtml(reasoningText || '');
+            const evalResponse = item.evaluation_response || '';
+            const safeEvalResponse = escapeHtml(evalResponse || '');
+
+            const metrics = (item.metrics && typeof item.metrics === 'object') ? item.metrics : {};
+            const e2eSeconds = typeof metrics.e2e_seconds === 'number'
+                ? metrics.e2e_seconds
+                : (typeof metrics.end_to_end_ms === 'number' ? metrics.end_to_end_ms / 1000 : 0);
+            const timeoutSeconds = typeof metrics.timeout_seconds === 'number'
+                ? metrics.timeout_seconds
+                : 300;
+            const exceedsTimeout = e2eSeconds > timeoutSeconds;
+            const e2eDisplay = formatSeconds(e2eSeconds);
+            const timeoutDisplay = formatSeconds(timeoutSeconds);
+            const ttftDisplay = formatSeconds(metrics.ttft_seconds);
+            const tokensDisplay = formatTokens(metrics.total_tokens);
+            const costDisplayRaw = formatCost(metrics.total_cost);
+            const costDisplay = costDisplayRaw === '-' ? '-' : `$${costDisplayRaw}`;
+
+            let trajLink = '-';
+            const images = Array.isArray(item.trajectory_images) ? item.trajectory_images : [];
+            if (images.length > 0) {
+                const imgsJson = JSON.stringify(images).replace(/"/g, '&quot;');
+                trajLink = `<button type="button" onclick="openTrajectoryViewer(this)" data-images="${imgsJson}">View trajectory</button>`;
+            }
+            const e2eCombined = `${e2eDisplay}/${timeoutDisplay}`;
+            const e2eMarkup = exceedsTimeout
+                ? `<span class="stat-warning">${e2eCombined}</span>`
+                : e2eCombined;
+            const benchmarkFlag = (currentTaskDetailsContext.benchmark || '').toLowerCase();
+            const isLexBenchBrowser = benchmarkFlag === 'lexbench-browser';
+            const scoreValue = isLexBenchBrowser
+                ? (
+                    typeof item.evaluation_details?.score === 'number'
+                        ? item.evaluation_details.score
+                        : (typeof item.metrics?.score === 'number' ? item.metrics.score : null)
+                )
+                : null;
+            const scoreDisplay = typeof scoreValue === 'number'
+                ? `Score: ${scoreValue}`
+                : '';
+            const statsBlock = `
+                <div>E2ET: ${e2eMarkup}</div>
+                <div>TTFT: ${ttftDisplay}</div>
+                <div>Tokens: ${tokensDisplay}</div>
+                <div>Cost: ${costDisplay}</div>
+                ${scoreDisplay ? `<div>${scoreDisplay}</div>` : ''}
+            `;
+
+            // For success tasks, show "-" for classification
+            let classificationCell = '-';
+
+            if (item.status === 'failure') {
+                let classificationCategoryLabel = '';
+                // Get the category label if available
+                if (item.failure_category) {
+                    const displayCat = FAILURE_CATEGORY_LABELS[item.failure_category]
+                        ? `${item.failure_category} - ${FAILURE_CATEGORY_LABELS[item.failure_category]}`
+                        : item.failure_category;
+                    classificationCategoryLabel = `<div style="font-weight:600;color:#dc3545;margin-bottom:6px;">${escapeHtml(displayCat)}</div>`;
+                }
+
+                const classificationBlock = safeReasoning
+                    ? `<pre style="white-space:pre-wrap;font-size:0.8rem;background:#f8f9fa;padding:8px;border-radius:4px;margin-top:6px;">${safeReasoning}</pre>`
+                    : '<span style="color:#6c757d;margin-top:6px;display:inline-block;">No classification notes.</span>';
+
+                classificationCell = `
+                    ${classificationCategoryLabel}
+                    <details>
+                        <summary>Show classification basis</summary>
+                        ${classificationBlock}
+                    </details>
+                `;
+            }
+
+            const evaluationBlock = safeEvalResponse
+                ? `<pre style="white-space:pre-wrap;font-size:0.8rem;background:#f8f9fa;padding:8px;border-radius:4px;margin-top:6px;">${safeEvalResponse}</pre>`
+                : '<span style="color:#6c757d;margin-top:6px;display:inline-block;">No evaluation notes.</span>';
+
+            let actionsBlock = '<span style="color:#6c757d;margin-top:6px;display:inline-block;">No recorded actions.</span>';
+            if (stepsCount) {
+                actionsBlock = `<pre style="white-space:pre-wrap;font-size:0.8rem;background:#f8f9fa;padding:8px;border-radius:4px;margin-top:6px;">${safeActionsText}</pre>`;
+            }
+
+            return `
+                <tr>
+                    <td>${statusPill}</td>
+                    <td style="max-width: 180px; word-break: break-all;">${safeTaskId}</td>
+                    <td>
+                        <details>
+                            <summary>${safeShortTask}</summary>
+                            <pre style="white-space:pre-wrap;font-size:0.85rem;background:#f8f9fa;padding:8px;border-radius:4px;margin-top:6px;">${safeTaskFull}</pre>
+                        </details>
+                    </td>
+                    <td>
+                        <details>
+                            <summary>${safeActionsSummary}</summary>
+                            ${actionsBlock}
+                        </details>
+                    </td>
+                    <td>${trajLink}</td>
+                    <td>${statsBlock}</td>
+                    <td>${classificationCell}</td>
+                    <td>
+                        <details>
+                            <summary>Show evaluation</summary>
+                            ${evaluationBlock}
+                        </details>
+                    </td>
+                </tr>
+            `;
+        }
+
+        function showTaskDetails(benchmarkName, agentName, category = null, statusOverride = null) {
+            const container = document.getElementById('task-details-container');
+            const title = document.getElementById('task-details-title');
+            const subtitle = document.getElementById('task-details-subtitle');
+            const content = document.getElementById('task-details-content');
+            const filterSelect = document.getElementById('task-status-filter');
+            if (!container || !title || !subtitle || !content) {
+                return;
+            }
+
+            const agentData = findAgentData(benchmarkName, agentName);
+            if (!agentData) {
+                container.style.display = 'block';
+                title.textContent = 'Task Details';
+                subtitle.innerHTML = `<div>Missing task details for ${escapeHtml(agentName)}</div>`;
+                content.innerHTML = '<p style="color:#dc3545;">No task records available.</p>';
+                return;
+            }
+
+            let statusFilter = statusOverride || currentTaskStatusFilter || 'failure';
+            if (filterSelect) {
+                if (statusOverride) {
+                    filterSelect.value = statusFilter;
+                } else {
+                    statusFilter = filterSelect.value || statusFilter;
+                }
+            }
+            if (!['failure', 'success', 'all'].includes(statusFilter)) {
+                statusFilter = 'failure';
+                if (filterSelect) {
+                    filterSelect.value = 'failure';
+                }
+            }
+            currentTaskStatusFilter = statusFilter;
+
+            currentTaskDetailsContext.benchmark = benchmarkName;
+            currentTaskDetailsContext.agentLabel = agentName;
+            if (category) {
+                currentTaskDetailsContext.category = category;
+            }
+
+            const failureDetails = agentData.failure_details || {};
+            const successDetails = Array.isArray(agentData.success_details) ? agentData.success_details : [];
+
+            let effectiveCategory = category || currentTaskDetailsContext.category;
+            if (!effectiveCategory) {
+                effectiveCategory = findFirstCategoryWithData(agentData);
+            }
+            if (effectiveCategory) {
+                currentTaskDetailsContext.category = effectiveCategory;
+            }
+
+            const subtitleParts = [
+                `<div><strong>Benchmark:</strong> ${escapeHtml(benchmarkName)}</div>`,
+                `<div><strong>Agent:</strong> ${escapeHtml(agentName)}</div>`,
+                `<div><strong>Status:</strong> ${TASK_STATUS_LABELS[statusFilter] || statusFilter}</div>`
+            ];
+
+            let rows = [];
+            if (statusFilter === 'failure') {
+                if (effectiveCategory) {
+                    const displayCat = FAILURE_CATEGORY_LABELS[effectiveCategory]
+                        ? `${effectiveCategory} - ${FAILURE_CATEGORY_LABELS[effectiveCategory]}`
+                        : effectiveCategory;
+                    subtitleParts.push(`<div><strong>Category:</strong> ${escapeHtml(displayCat)}</div>`);
+                    rows = (failureDetails[effectiveCategory] || []).map(item =>
+                        normalizeTaskRecord(item, effectiveCategory, 'failure')
+                    );
+                } else {
+                    rows = [];
+                }
+            } else if (statusFilter === 'success') {
+                rows = successDetails.map(item => normalizeTaskRecord(item, null, 'success'));
+            } else {
+                const failureRows = Object.keys(failureDetails).reduce((acc, cat) => {
+                    const entries = failureDetails[cat] || [];
+                    entries.forEach(entry => acc.push(normalizeTaskRecord(entry, cat, 'failure')));
+                    return acc;
+                }, []);
+                const successRows = successDetails.map(item => normalizeTaskRecord(item, null, 'success'));
+                rows = failureRows.concat(successRows);
+            }
+
+            title.textContent = 'Task Details';
+            subtitle.innerHTML = subtitleParts.join('');
+            container.style.display = 'block';
+
+            if (!rows.length) {
+                const emptyLabel = statusFilter === 'all'
+                    ? 'No tasks found for this agent.'
+                    : `No ${TASK_STATUS_LABELS[statusFilter] || statusFilter} tasks for this selection.`;
+                content.innerHTML = `<p style="color:#6c757d;">${emptyLabel}</p>`;
+                return;
+            }
+
+            const rowsHtml = rows.map(buildTaskRowHtml).join('');
+            content.innerHTML = `
+                <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;padding:8px;border-bottom:1px solid #e9ecef;width:110px;">Result</th>
+                            <th style="text-align:left;padding:8px;border-bottom:1px solid #e9ecef;">Task ID</th>
+                            <th style="text-align:left;padding:8px;border-bottom:1px solid #e9ecef;">Task</th>
+                            <th style="text-align:left;padding:8px;border-bottom:1px solid #e9ecef;">Action History</th>
+                            <th style="text-align:left;padding:8px;border-bottom:1px solid #e9ecef;">Trajectory</th>
+                            <th style="text-align:left;padding:8px;border-bottom:1px solid #e9ecef;">Statistic</th>
+                            <th style="text-align:left;padding:8px;border-bottom:1px solid #e9ecef;">Failure Classification</th>
+                            <th style="text-align:left;padding:8px;border-bottom:1px solid #e9ecef;">EVALUATION BASIS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Switch Benchmark
+        // Show toast message
+        function showMessage(message, type = 'info') {
+            // Remove existing toast
+            const existing = document.querySelector('.message-toast');
+            if (existing) {
+                existing.remove();
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `message-toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            // Auto remove after 3s
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Refresh Leaderboard
+        async function refreshLeaderboard() {
+            const btn = document.getElementById('refresh-btn');
+            const icon = document.getElementById('refresh-icon');
+            const text = document.getElementById('refresh-text');
+
+            // Disable button and show loading state
+            btn.disabled = true;
+            icon.innerHTML = '<span class="spinner"></span>';
+            text.textContent = 'refreshing...';
+
+            try {
+                showMessage('Regenerating leaderboard, please wait...', 'info');
+
+                const response = await fetch('/api/regenerate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    showMessage('✅ Leaderboard updated, refreshing page...', 'success');
+                    // Refresh page after 1s
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    throw new Error(data.detail || 'Generation failed');
+                }
+            } catch (error) {
+                showMessage(`❌ Refresh failed: ${error.message}`, 'error');
+                // Restore button state
+                icon.innerHTML = REFRESH_ICON_MARKUP;
+                text.textContent = 'refresh';
+                btn.disabled = false;
+            }
+        }
+
+        // Render Table from the flattened all-rows view, honoring all 5 column filters.
+        function renderTable() {
+            const data = applyAllColumnFilters(allRows);
+            const tbody = document.getElementById('leaderboard-tbody');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;">No data available</td></tr>';
+                selectedAgentLabels = new Set();
+                updateRankSelectAllState();
+                renderFailureChart();
+                return;
+            }
+
+            let html = '';
+            data.forEach((item, index) => {
+                const rank = index + 1;
+                const agentLabel = buildAgentLabel(item);
+                const encodedAgentLabel = encodeURIComponent(agentLabel);
+                const modelDisplay = escapeHtml(normalizeModelName(item.model) || 'Unknown');
+                let rankClass = '';
+                if (rank === 1) rankClass = 'first';
+                else if (rank === 2) rankClass = 'second';
+                else if (rank === 3) rankClass = 'third';
+
+                let successRateClass = 'low';
+                if (item.success_rate >= 80) successRateClass = 'high';
+                else if (item.success_rate >= 60) successRateClass = 'medium';
+                const configDisplay = formatConfigDisplay(item.config);
+
+                const benchmarkDisplay = escapeHtml(item.benchmark || 'Unknown');
+                const splitDisplay = escapeHtml(item.split || '-');
+                const encodedBenchmark = encodeURIComponent(item.benchmark || '');
+
+                html += `
+                    <tr data-agent-label="${encodedAgentLabel}" data-benchmark="${encodedBenchmark}">
+                        <td class="rank-cell">
+                            <label class="rank-checkbox-wrapper">
+                                <input type="checkbox" class="rank-checkbox" data-agent-label="${encodedAgentLabel}" data-benchmark="${encodedBenchmark}" onchange="handleRankSelectionChange(this)">
+                                <span class="rank ${rankClass}">${rank}</span>
+                            </label>
+                        </td>
+                        <td>${benchmarkDisplay}</td>
+                        <td>${splitDisplay}</td>
+                        <td class="agent-name">${item.agent}</td>
+                        <td><span class="model-name">${modelDisplay}</span></td>
+                        <td>${item.browser}</td>
+                        <td class="config-col">${configDisplay}</td>
+                        <td class="number">
+                            <span class="success-rate ${successRateClass}">${item.success_rate.toFixed(2)}%</span>
+                            <br>
+                            <small style="color: #6c757d;">(${item.successful_tasks}/${item.total_tasks})</small>
+                        </td>
+                        <td class="number score-col">${(typeof item.avg_score === 'number' ? item.avg_score.toFixed(1) : '-')}</td>
+                        <td class="number">${item.avg_steps.toFixed(1)}</td>
+                        <td class="number metric-cell">
+                            <span class="metric-primary">${item.avg_e2e_time.toFixed(1)}s</span>
+                            <span class="metric-subtext">(${item.avg_ttft.toFixed(2)}s)</span>
+                        </td>
+                        <td class="number">${(item.avg_tokens !== 0) ? item.avg_tokens.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '-'}</td>
+                        <td class="number">${(typeof item.avg_cost === 'number' && !isNaN(item.avg_cost)) ? ('$' + item.avg_cost.toFixed(4)) : '-'}</td>
+                        <td>${item.eval_date || 'Unknown'}</td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+            initializeRankSelection();
+            attachAgentRowClickHandlers();
+        }
+
+        // Find and show the first row that has any task details, scanning the
+        // currently-filtered flat data so the picked sample matches what the
+        // table is actually showing.
+        function showFirstAvailableTaskDetails() {
+            const agents = applyAllColumnFilters(allRows);
+            if (!agents.length) {
+                return;
+            }
+
+            for (const agentData of agents) {
+                const category = findFirstCategoryWithData(agentData);
+                if (category) {
+                    const agentName = buildAgentLabel(agentData);
+                    showTaskDetails(agentData.benchmark, agentName, category, 'failure');
+                    return;
+                }
+            }
+
+            for (const agentData of agents) {
+                if (Array.isArray(agentData.success_details) && agentData.success_details.length) {
+                    const agentName = buildAgentLabel(agentData);
+                    showTaskDetails(agentData.benchmark, agentName, null, 'success');
+                    return;
+                }
+            }
+        }
+
+        // Initial render on page load.
+        window.onload = function () {
+            refreshColumnFilterSelectors();
+            renderTable();
+
+            // Delay showing Task Details, wait for chart render
+            setTimeout(() => {
+                showFirstAvailableTaskDetails();
+            }, 500);
+        };
+
+        // -------- Trajectory Image Viewer Logic --------
+        function openTrajectoryViewer(btn) {
+            const raw = btn.getAttribute('data-images') || '[]';
+            let images = [];
+            try {
+                images = JSON.parse(raw);
+            } catch (e) {
+                console.error('Failed to parse trajectory images:', e);
+                return;
+            }
+            if (!images.length) {
+                return;
+            }
+
+            currentTrajectoryImages = images;
+            currentTrajectoryIndex = 0;
+
+            updateTrajectoryModal();
+            document.getElementById('trajectory-modal-overlay').style.display = 'flex';
+        }
+
+        function closeTrajectoryViewer() {
+            document.getElementById('trajectory-modal-overlay').style.display = 'none';
+            currentTrajectoryImages = [];
+            currentTrajectoryIndex = 0;
+        }
+
+        function updateTrajectoryModal() {
+            const imgEl = document.getElementById('trajectory-image');
+            const counterEl = document.getElementById('trajectory-counter');
+            const prevBtn = document.getElementById('trajectory-prev-btn');
+            const nextBtn = document.getElementById('trajectory-next-btn');
+
+            if (!currentTrajectoryImages.length) {
+                imgEl.src = '';
+                counterEl.textContent = '0 / 0';
+                prevBtn.disabled = true;
+                nextBtn.disabled = true;
+                return;
+            }
+
+            const idx = Math.max(0, Math.min(currentTrajectoryIndex, currentTrajectoryImages.length - 1));
+            currentTrajectoryIndex = idx;
+
+            // Handle image path
+            const imgPath = currentTrajectoryImages[idx];
+            if (imgPath && !imgPath.startsWith('http://') && !imgPath.startsWith('https://') && !imgPath.startsWith('/')) {
+                // Check if accessed via Web Server
+                const isWebServer = window.location.protocol === 'http:' || window.location.protocol === 'https:';
+                if (isWebServer) {
+                    // Accessed via Web Server, use /experiments/ prefix
+                    imgEl.src = '/experiments/' + imgPath;
+                } else {
+                    // Local HTML file, use relative path
+                    imgEl.src = imgPath;
+                }
+            } else {
+                imgEl.src = imgPath || '';
+            }
+            counterEl.textContent = `${idx + 1} / ${currentTrajectoryImages.length}`;
+
+            prevBtn.disabled = idx === 0;
+            nextBtn.disabled = idx === currentTrajectoryImages.length - 1;
+
+        }
+
+        function prevTrajectoryImage() {
+            if (currentTrajectoryIndex > 0) {
+                currentTrajectoryIndex -= 1;
+                updateTrajectoryModal();
+            }
+        }
+
+        function nextTrajectoryImage() {
+            if (currentTrajectoryIndex < currentTrajectoryImages.length - 1) {
+                currentTrajectoryIndex += 1;
+                updateTrajectoryModal();
+            }
+        }
+    </script>
+</body>
+
+</html>

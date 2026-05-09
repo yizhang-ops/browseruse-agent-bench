@@ -1,0 +1,144 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "browseruse-bench"
+version = "1.0.0"
+description = "Browser Agent Evaluation Framework - Multi-Agent × Multi-Benchmark"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Lexmount Team"}
+]
+requires-python = ">=3.11"
+keywords = ["browser", "agent", "benchmark", "evaluation", "llm", "web-automation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Core dependencies (agent-specific deps in optional-dependencies)
+dependencies = [
+    "pydantic>=2.0",
+    "openai>=1.68.2",
+    "backoff>=2.2.1",
+    "Pillow",
+    "numpy>=1.26.4",
+    "python-dotenv>=1.0",
+    "PyYAML>=6.0",
+    "fastapi",
+    "uvicorn",
+    "psycopg2-binary>=2.9.9",
+    "lexmount>=0.4.8",
+    "lexbench-sdk>=0.1.0",
+    "python-socks",
+    "pandas>=2.1.3",
+    "huggingface_hub",
+    "pyarrow",
+    "fastparquet"
+]
+
+# Optional dependency groups
+[project.optional-dependencies]
+# Development dependencies
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio",
+    "ruff",
+    "mypy",
+]
+
+# Agent-specific dependencies (use --extra to select)
+browser-use = [
+    "browser-use>=0.12.6",
+    "wuying-agentbay-sdk>=0.15.0",
+]
+
+skyvern = [
+    "skyvern>=1.0.0",
+    # TODO: Re-enable playwright when skyvern execution becomes a regular path
+    # and we verify the explicit dependency is required in this repo.
+    # "playwright>=1.57.0; python_full_version >= '3.12'",
+    "psycopg[binary,pool]>=3.2.13; python_full_version >= '3.14'",
+]
+
+openai-cua = [
+    # OpenAI SDK is in core deps; only playwright needs to be installed explicitly.
+    "playwright>=1.57.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/lexmount/browseruse-bench"
+Repository = "https://github.com/lexmount/browseruse-bench"
+Issues = "https://github.com/lexmount/browseruse-bench/issues"
+
+[project.scripts]
+bubench = "browseruse_bench.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["browseruse_bench*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.json", "*.sql", "*.html"]
+# Visualization ships static assets (moved into the package in #285); ship them
+# explicitly so `pip install` includes them while avoiding a repo-wide css/js/png glob.
+"browseruse_bench.visualization" = ["css/*.css", "js/*.js", "assets/*.png"]
+
+# ========== Development tool configuration ==========
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = ["E501", "E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["browseruse_bench"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: end-to-end tests that require external tools (claude CLI, API keys)",
+]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+reportMissingTypeStubs = false
+
+[tool.uv]
+# Declare conflicting optional dependencies.
+# browser-use / skyvern / openai-cua pin different playwright versions and must be installed
+# into separate venvs (.venvs/<agent>).
+conflicts = [
+    [
+        { extra = "browser-use" },
+        { extra = "skyvern" },
+    ],
+    [
+        { extra = "skyvern" },
+        { extra = "openai-cua" },
+    ],
+    [
+        { extra = "browser-use" },
+        { extra = "openai-cua" },
+    ],
+]

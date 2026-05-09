@@ -1,0 +1,233 @@
+---
+title: "Complete Workflow"
+description: "End-to-end guide for running agents and evaluating results"
+icon: "play"
+---
+
+This guide walks you through the complete workflow from agent configuration to final evaluation results.
+
+## Overview
+
+1. Select an agent
+2. Configure the agent
+3. Choose a benchmark
+4. Run tasks
+5. Evaluate results
+6. Inspect outputs
+
+---
+
+## 1. Select an Agent
+
+browseruse-bench supports multiple agents. Choose one based on your needs:
+
+| Agent | Description | Documentation |
+|-------|-------------|---------------|
+| **browser-use** | Programmable browser agent with vision capabilities | [Details](/en/agents/browser-use) |
+| **Agent-TARS** | Reasoning-focused agent via Node.js CLI | [Details](/en/agents/agent-tars) |
+| **Skyvern** | Browser automation powered by the Skyvern SDK | [Details](/en/agents/skyvern) |
+| **Claude Code** | Anthropic's Claude CLI with Playwright MCP | [Details](/en/agents/claude-code) |
+
+---
+
+## 2. Configure Agent
+
+All agent runtime settings live in the root `config.yaml` under `agents.<agent-name>`. This is the recommended approach.
+
+Copy the example and fill in your credentials:
+
+```bash
+cp config.example.yaml config.yaml
+```
+
+Then edit the `agents` section in `config.yaml`:
+
+```yaml
+agents:
+  browser-use:
+    active_model: gpt          # model profile to use by default
+    models:
+      gpt:
+        model_type: OPENAI
+        model_id: gpt-4.1
+        api_key: $OPENAI_API_KEY
+        base_url: $OPENAI_BASE_URL
+    browser:
+      browser_id: Chrome-Local
+    defaults:
+      use_vision: false
+      max_steps: 40
+      timeout: 600
+```
+
+Switch the active model at runtime without editing the file:
+
+```bash
+bubench run --agent browser-use --model gpt ...
+```
+
+---
+
+## 3. Select Benchmark
+
+Choose a benchmark based on your evaluation needs:
+
+### LexBench-Browser
+- **Evaluation Method**: Visual assessment (screenshot sequence analysis)
+- **Scoring**: 0-100 scale, default threshold: 60
+- **Use Case**: Visual understanding and multi-step reasoning
+
+### Online-Mind2Web
+- **Evaluation Method**: WebJudge multi-round evaluation
+- **Scoring**: 3-point scale, default threshold: 3
+- **Use Case**: Web navigation and task completion
+
+### BrowseComp
+- **Evaluation Method**: Text answer accuracy
+- **Scoring**: Binary (correct/incorrect)
+- **Use Case**: Factual accuracy and information extraction
+
+---
+
+## 4. Run Tasks
+
+### Basic Command
+
+```bash
+bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+```
+
+### All Parameters
+
+| Parameter | Description | Notes |
+|-----------|-------------|-------|
+| `--agent` | Agent name | Defaults to `config.yaml` `default.agent` (fallback `Agent-TARS`) |
+| `--data` | Benchmark name | Defaults to `config.yaml` `default.benchmark` (fallback `Online-Mind2Web`) |
+| `--split` | Dataset split | Defaults to `All` |
+| `--data-source` | Dataset source | `local` (default) or `huggingface` |
+| `--force-download` | Re-download dataset | Only for `huggingface` |
+| `--mode` | Task selection mode | `single`, `first_n`, `sample_n`, `specific`, `by_id`, `all` |
+| `--count` | Task count for `first_n`/`sample_n` | Defaults to 1 |
+| `--task-ids` | Task IDs for `specific` mode | Space-separated list |
+| `--id` | Single task ID for `by_id` mode | Numeric ID field |
+| `--timeout` | Timeout per task (seconds) | Overrides `TIMEOUT` in config |
+| `--skip-completed` | Skip tasks with existing results | Useful for resumes |
+| `--agent-config` | Alternate root-config YAML path (same shape as `config.yaml`) | Optional; defaults to repo root `config.yaml` |
+| `--timestamp` | Run or resume in a specific directory | `YYYYMMDD_HHmmss` |
+| `--dry-run` | Show the command without executing | Configuration check |
+
+### Output Structure
+
+Results are saved to:
+
+```
+experiments/{benchmark}/{split}/{agent}/{timestamp}/
+├── tasks/
+│   ├── <task_id>/
+│   │   ├── result.json
+│   │   └── trajectory/
+│   │       ├── screenshot-1.png
+│   │       └── ...
+└── tasks_eval_result/
+    └── *_summary.json
+```
+
+### Monitoring Progress
+
+Log files are created under `output/logs/run/`:
+
+```bash
+ls -t output/logs/run | head -n 1
+# then tail the newest file
+```
+
+---
+
+## 5. Evaluate Results
+
+### Run Evaluation
+
+```bash
+bubench eval \
+  --data LexBench-Browser \
+  --agent browser-use \
+  --model-id bu-2-0 \
+```
+
+The script automatically finds the latest results under the `--agent` / `--model-id` output directory.
+
+### Evaluation Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `--model-id` | `model_id` used at run time (output subdirectory) | `agents.<agent>.active_model` → `model_id` |
+| `--model` | Evaluation LLM model | From `eval.model` in `config.yaml` |
+| `--score-threshold` | Success threshold | 60 (LexBench), 3 (others) |
+| `--force-reeval` | Force re-evaluation | false |
+| `--timestamp` | Evaluate a specific run | Latest (auto-detected) |
+| `--data-source` | Dataset source (LexBench only) | `local` |
+| `--force-download` | Re-download dataset (LexBench only) | false |
+
+### Output Files
+
+Evaluation results are written to `tasks_eval_result/`:
+
+- **Detailed Results**: `*_eval_results.json`
+- **Summary Statistics**: `*_summary.json`
+
+### Review Results
+
+```bash
+cat experiments/{benchmark}/{split}/{agent}/{timestamp}/tasks_eval_result/*_summary.json
+```
+
+---
+
+## Complete Example
+
+```bash
+# 1. Configure agent in root config.yaml
+vim config.yaml   # edit agents.browser-use section
+
+# 2. Run inference (first 10 tasks)
+bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+  --mode first_n \
+  --count 10
+
+# 3. Evaluate results
+bubench eval \
+  --data LexBench-Browser \
+  --agent browser-use \
+  --model-id bu-2-0 \
+
+# 4. View summary
+ls -lh experiments/LexBench-Browser/All/browser-use/*/tasks_eval_result/
+```
+
+---
+
+## Common Issues
+
+### Timeout Errors
+**Problem**: Tasks exceed configured timeout
+**Solution**: Increase `timeout` in the agent's `defaults` section of `config.yaml`, or pass `--timeout` on the command line.
+
+### Missing Screenshots (LexBench-Browser)
+**Problem**: Evaluation fails due to missing screenshots
+**Solution**: Confirm `tasks/<task_id>/trajectory/` contains screenshots and check the run logs for task failures.
+
+### Model API Errors
+**Problem**: LLM API calls fail
+**Solution**: Verify API keys in `config.yaml` (use `$ENV_VAR` references and set values in `.env`); for evaluation, check `.env` values.
+
+---
+
+## Next Steps
+
+- **Custom Benchmarks**: Learn how to create your own benchmark ([Guide](/en/benchmarks/custom-benchmark))
+- **Leaderboard**: Submit results to the public leaderboard ([Details](/en/leaderboard/overview))
+- **Advanced Configuration**: Explore advanced agent settings ([Documentation](/en/agents/overview))

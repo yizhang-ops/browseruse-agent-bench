@@ -1,0 +1,19 @@
+{
+    "git.autofetch": true,
+    "editor.defaultFormatter": "ms-python.autopep8",
+    "editor.formatOnSave": false,
+    "python.analysis.diagnosticSeverityOverrides": {
+    },
+    "python.analysis.inlayHints.functionReturnTypes": true,
+    "python.analysis.inlayHints.pytestParameters": true,
+    "workbench.settings.applyToAllProfiles": [
+
+    ],
+    "python.analysis.extraPaths": [
+      ".venv/lib/python3.13/site-packages"
+    ],
+    "[json]": {
+      "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "workbench.editor.showTabs": "multiple"
+}

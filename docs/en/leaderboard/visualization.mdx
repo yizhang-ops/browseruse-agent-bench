@@ -1,0 +1,146 @@
+---
+title: "Visualization"
+description: "Interactive experiment explorer for browsing agent trajectories, evaluation details, and per-task logs"
+---
+
+browseruse-bench includes an interactive visualization server for exploring experiment results at the task level — complementing the static leaderboard with trajectory playback, API log inspection, and evaluation detail views.
+
+## Features
+
+<CardGroup cols={2}>
+  <Card title="Trajectory Playback" icon="film">
+    Browse step-by-step screenshots for each task
+  </Card>
+  <Card title="Evaluation Details" icon="magnifying-glass">
+    View eval prompts, scores, verdicts, and rubric criteria
+  </Card>
+  <Card title="API Log Inspection" icon="terminal">
+    Inspect per-step API calls and system prompts
+  </Card>
+  <Card title="Judge Experiment Sets" icon="flask">
+    Compare evaluation methods across tasks with variance analysis
+  </Card>
+</CardGroup>
+
+## Quick Start
+
+### Start the server
+
+```bash
+# Generate index and start server (auto-regenerates on file changes)
+bubench viz --watch
+
+# Access at http://localhost:8080
+```
+
+### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--host` | `127.0.0.1` | Bind address (use `0.0.0.0` to expose to the network) |
+| `--port` | `8080` | Server port |
+| `--watch` | off | Auto-regenerate index when experiment files change |
+| `--watch-interval` | `3.0` | Watch poll interval in seconds |
+| `--generate-only` | off | Regenerate `experiments.json` and exit without starting the server |
+
+> **Security note:** The server binds to `127.0.0.1` by default so only the local machine can reach it. The `/api/regenerate` endpoint is unauthenticated and `/experiments/*` serves raw files (logs, screenshots, configs). Only pass `--host 0.0.0.0` on trusted networks — see the [Remote / Intranet Sharing](#remote--intranet-sharing) section below.
+
+### Generate index only
+
+```bash
+bubench viz --generate-only
+```
+
+Scans `experiments/` and writes `browseruse_bench/visualization/data/experiments.json`. Useful for CI or pre-generating before serving.
+
+## Experiment Directory Layout
+
+The visualization server reads the same experiment directory structure as the leaderboard:
+
+```
+experiments/{benchmark}/{split}/{agent}/{timestamp}/
+  tasks/{task_id}/
+    result.json              # required
+    trajectory/*.png         # step screenshots (optional)
+    api_logs/step_*.json     # per-step API logs (optional)
+    agent_history.gif        # animated replay (optional)
+  tasks_eval_result/         # evaluation results (optional)
+    *_eval_results.json
+    *summary.json
+```
+
+A 5-level layout with an explicit model directory is also supported:
+
+```
+experiments/{benchmark}/{split}/{agent}/{model_id}/{timestamp}/
+```
+
+## Remote / Intranet Sharing
+
+Run the server in a tmux session so it stays alive after you disconnect from SSH:
+
+**Install tmux (if not already installed):**
+
+<CodeGroup>
+```bash macOS
+brew install tmux
+```
+
+```bash Ubuntu/Debian
+sudo apt install tmux
+```
+
+```bash CentOS/RHEL
+sudo yum install tmux
+```
+</CodeGroup>
+
+**Start the server in the background:**
+
+```bash
+tmux new-session -d -s viz "bubench viz --host 0.0.0.0 --port 8090 --watch"
+```
+
+**Common tmux commands:**
+
+```bash
+tmux attach -t viz          # view logs (Ctrl+b d to detach)
+tmux kill-session -t viz    # stop the server
+```
+
+**Find the server URL:** when bound to `0.0.0.0`, the startup log prints the detected LAN URL on its first lines — attach with `tmux attach -t viz` to read it. To look up the IP manually:
+
+<CodeGroup>
+```bash macOS
+ipconfig getifaddr en0
+```
+
+```bash Linux
+hostname -I | awk '{print $1}'
+```
+</CodeGroup>
+
+Then open `http://<server-ip>:8090/` in your browser.
+
+**Firewall (if other machines cannot connect):**
+
+<CodeGroup>
+```bash Ubuntu/Debian
+sudo ufw allow 8090/tcp
+```
+
+```bash CentOS/RHEL
+sudo firewall-cmd --permanent --add-port=8090/tcp && sudo firewall-cmd --reload
+```
+</CodeGroup>
+
+## Leaderboard vs. Visualization
+
+| | Leaderboard | Visualization |
+|-|-------------|---------------|
+| **Purpose** | Agent ranking overview | Task-level detail exploration |
+| **Output** | Self-contained HTML file | Dynamic SPA served locally |
+| **Granularity** | Run-level aggregates | Per-task trajectories and logs |
+| **Sharing** | Share the HTML file directly | Run the server on a shared host |
+
+Use the leaderboard for quick public sharing; use visualization for in-depth analysis during development.

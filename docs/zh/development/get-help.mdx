@@ -1,0 +1,122 @@
+---
+title: "获取帮助"
+description: "遇到问题？这里是获取帮助的渠道"
+icon: "circle-question"
+---
+
+如果你在使用 browseruse-bench 时遇到问题，以下是获取帮助的方式。
+
+## 常见问题
+
+### 安装问题
+
+<AccordionGroup>
+  <Accordion title="pip install 失败">
+    尝试使用 uv 安装：
+    ```bash
+    pip install uv
+    uv sync
+    ```
+  </Accordion>
+  <Accordion title="找不到 Chrome 浏览器">
+    确保已安装 Chrome 并在 PATH 中，或使用 Lexmount 云浏览器。
+  </Accordion>
+  <Accordion title="Agent-TARS 安装失败">
+    确保 Node.js 版本 >= 18：
+    ```bash
+    node --version
+    npm install -g @agent-tars/cli@0.3.0
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### 运行问题
+
+<AccordionGroup>
+  <Accordion title="任务超时">
+    增加超时时间：
+    ```bash
+    bubench run --agent browser-use --data LexBench-Browser --timeout 600
+    ```
+  </Accordion>
+  <Accordion title="API Key 无效">
+    检查 `.env` 文件中的 API Key 是否正确：
+    ```bash
+    cat .env | grep API_KEY
+    ```
+  </Accordion>
+  <Accordion title="云浏览器连接失败">
+    1. 检查 `LEXMOUNT_API_KEY` 和 `LEXMOUNT_PROJECT_ID`
+    2. 确认网络可以访问 Lexmount 服务
+  </Accordion>
+</AccordionGroup>
+
+### 评估问题
+
+<AccordionGroup>
+  <Accordion title="评估模型调用失败">
+    检查 `OPENAI_API_KEY`，以及 `config.yaml` 中的 `eval.model` / `eval.base_url` 配置。
+  </Accordion>
+  <Accordion title="评估结果全部失败">
+    尝试降低评分阈值：
+    ```bash
+    bubench eval --agent browser-use --data LexBench-Browser --model-id bu-2-0 --score-threshold 50
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## 查看日志
+
+### 运行日志
+
+运行日志保存在 `output/logs/` 目录下：
+
+```bash
+# 查看最新日志
+ls -lt output/logs/ | head -5
+
+# 查看日志内容
+tail -f output/logs/<latest_log>.log
+```
+
+## 提交 Issue
+
+如果以上方法都无法解决问题，请在 GitHub 上提交 Issue：
+
+1. 访问 [GitHub Issues](https://github.com/lexmount/browseruse-bench/issues)
+2. 点击 "New Issue"
+3. 提供以下信息：
+   - 问题描述
+   - 复现步骤
+   - 错误日志
+   - 系统环境（OS、Python 版本等）
+
+### Issue 模板
+
+```markdown
+## 问题描述
+简要描述遇到的问题
+
+## 复现步骤
+1. 运行命令 `...`
+2. 看到错误 `...`
+
+## 错误日志
+```
+粘贴错误日志
+```
+
+## 环境信息
+- OS: macOS / Linux / Windows
+- Python: 3.10 / 3.11 / 3.12
+- browseruse-bench 版本: ...
+```
+
+## 社区支持
+
+- **GitHub Discussions**：提问和讨论
+- **GitHub Issues**：报告 Bug 和功能请求
+
+## 商业支持
+
+如需商业支持或企业级部署咨询，请联系 support@lexmount.com。

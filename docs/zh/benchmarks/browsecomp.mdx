@@ -1,0 +1,85 @@
+---
+title: "BrowseComp"
+description: "浏览器操作竞赛任务评测"
+---
+
+BrowseComp 是一个浏览器操作竞赛任务的基准测试，评估 Agent 的综合浏览器操作能力。
+
+## 概览
+
+| 属性 | 值 |
+|------|-----|
+| 任务类型 | 浏览器操作 |
+| 评估方式 | Grader 评分 |
+| 难度 | 中高 |
+
+## 任务特点
+
+<CardGroup cols={2}>
+  <Card title="竞赛级任务" icon="medal">
+    源自浏览器操作竞赛，任务难度较高
+  </Card>
+  <Card title="综合能力" icon="puzzle-piece">
+    考察多种浏览器操作技能的综合运用
+  </Card>
+</CardGroup>
+
+## 快速开始
+
+### 运行任务
+
+```bash
+# 运行前 3 个任务
+bubench run \
+  --agent browser-use \
+  --data BrowseComp \
+  --mode first_n \
+  --count 3
+
+# 使用 Agent-TARS 运行
+bubench run \
+  --agent Agent-TARS \
+  --data BrowseComp \
+  --mode first_n \
+  --count 3
+```
+
+### 评估结果
+
+```bash
+bubench eval --agent browser-use --data BrowseComp --model-id bu-2-0
+```
+
+## 数据加载
+
+BrowseComp 支持本地 JSONL 文件或 HuggingFace 下载。使用 HuggingFace：
+
+```bash
+bubench run --agent browser-use --data BrowseComp \
+  --data-source huggingface
+```
+
+HuggingFace 的 parquet 会在缓存中转换为 JSONL 后使用。
+
+## 评估指标
+
+| 指标 | 说明 |
+|------|------|
+| Task Completion | 任务完成率 |
+| Accuracy | 结果准确率 |
+
+## 数据格式
+
+任务数据存储在 `benchmarks/BrowseComp/data/`：
+
+```json
+{
+  "task_id": "browsecomp_001",
+  "task": "Navigate to the website and complete the registration form",
+  "expected_result": "Registration successful"
+}
+```
+
+## 相关链接
+
+- [BrowseComp 官方](https://openai.com/index/browsecomp/)

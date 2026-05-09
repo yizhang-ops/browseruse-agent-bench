@@ -1,0 +1,122 @@
+---
+title: "Get Help"
+description: "Having trouble? Here's how to get help"
+icon: "circle-question"
+---
+
+If you encounter issues while using browseruse-bench, here are ways to get help.
+
+## Common Issues
+
+### Installation Issues
+
+<AccordionGroup>
+  <Accordion title="pip install failed">
+    Try installing with uv:
+    ```bash
+    pip install uv
+    uv sync
+    ```
+  </Accordion>
+  <Accordion title="Chrome browser not found">
+    Ensure Chrome is installed and in PATH, or use Lexmount Cloud Browser.
+  </Accordion>
+  <Accordion title="Agent-TARS installation failed">
+    Ensure Node.js version >= 18:
+    ```bash
+    node --version
+    npm install -g @agent-tars/cli@0.3.0
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Runtime Issues
+
+<AccordionGroup>
+  <Accordion title="Task Timeout">
+    Increase timeout duration:
+    ```bash
+    bubench run --agent browser-use --data LexBench-Browser --timeout 600
+    ```
+  </Accordion>
+  <Accordion title="Invalid API Key">
+    Check if API Key in `.env` file is correct:
+    ```bash
+    cat .env | grep API_KEY
+    ```
+  </Accordion>
+  <Accordion title="Cloud Browser Connection Failed">
+    1. Check `LEXMOUNT_API_KEY` and `LEXMOUNT_PROJECT_ID`
+    2. Confirm network access to Lexmount API
+  </Accordion>
+</AccordionGroup>
+
+### Evaluation Issues
+
+<AccordionGroup>
+  <Accordion title="Evaluation Model Call Failed">
+    Check `OPENAI_API_KEY` and the `eval.model` / `eval.base_url` section in `config.yaml`.
+  </Accordion>
+  <Accordion title="All Evaluation Results Failed">
+    Try lowering the score threshold:
+    ```bash
+    bubench eval --agent browser-use --data LexBench-Browser --model-id bu-2-0 --score-threshold 50
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## View Logs
+
+### Runtime Logs
+
+Runtime logs are saved in the `output/logs/` directory:
+
+```bash
+# View latest logs
+ls -lt output/logs/ | head -5
+
+# Tail log content
+tail -f output/logs/<latest_log>.log
+```
+
+## Submit Issue
+
+If none of the above methods solve your problem, please submit an Issue on GitHub:
+
+1. Visit [GitHub Issues](https://github.com/lexmount/browseruse-bench/issues)
+2. Click "New Issue"
+3. Provide the following information:
+   - Problem description
+   - Reproduction steps
+   - Error logs
+   - System environment (OS, Python version, etc.)
+
+### Issue Template
+
+```markdown
+## Problem Description
+Briefly describe the problem encountered
+
+## Reproduction Steps
+1. Run command `...`
+2. See error `...`
+
+## Error Logs
+```
+Paste error logs
+```
+
+## Environment Info
+- OS: macOS / Linux / Windows
+- Python: 3.10 / 3.11 / 3.12
+- browseruse-bench version: ...
+```
+
+## Community Support
+
+- **GitHub Discussions**: Questions and discussions
+- **GitHub Issues**: Report bugs and feature requests
+
+## Commercial Support
+
+For commercial support or enterprise deployment inquiries, please contact support@lexmount.com.

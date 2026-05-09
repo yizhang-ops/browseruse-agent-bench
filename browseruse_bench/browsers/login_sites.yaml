@@ -1,0 +1,180 @@
+# Built-in login site registry for `bubench login add <site>`.
+#
+# Groups are for readability; the runtime flattens into a {site_key: url} dict.
+# Each key MUST equal what resolve_site_for_url() produces for that site's
+# target_website — otherwise auto-injection at eval time will miss the entry.
+#
+# To add a new site: pick a stable site_key (what users will type after
+# `bubench login add`), give it the canonical login URL, and (if its host has
+# a subdomain that the heuristic can't derive — e.g. tieba.baidu.com → tieba)
+# the reverse-lookup in login_contexts.py will still match it because the
+# resolver consults this registry before falling back to the heuristic.
+
+ecommerce:
+  taobao:       https://www.taobao.com
+  tmall:        https://www.tmall.com
+  jd:           https://www.jd.com
+  suning:       https://www.suning.com
+  vip:          https://www.vip.com
+  pinduoduo:    https://www.pinduoduo.com
+  dangdang:     https://www.dangdang.com
+  amazon:       https://www.amazon.com
+  ebay:         https://www.ebay.com
+  walmart:      https://www.walmart.com
+  bestbuy:      https://www.bestbuy.com
+  target:       https://www.target.com
+  aliexpress:   https://www.aliexpress.com
+  etsy:         https://www.etsy.com
+  asos:         https://www.asos.com
+  zalando:      https://www.zalando.com
+  mi:           https://www.mi.com
+  gome:         https://www.gome.com.cn
+
+social:
+  xiaohongshu:  https://www.xiaohongshu.com
+  weibo:        https://www.weibo.com
+  bilibili:     https://www.bilibili.com
+  douban:       https://www.douban.com
+  zhihu:        https://www.zhihu.com
+  tieba:        https://tieba.baidu.com
+  reddit:       https://www.reddit.com
+  twitter:      https://twitter.com
+  instagram:    https://www.instagram.com
+  facebook:     https://www.facebook.com
+  pinterest:    https://www.pinterest.com
+  tiktok:       https://www.tiktok.com
+  discord:      https://discord.com
+  v2ex:         https://www.v2ex.com
+  hupu:         https://www.hupu.com
+  smzdm:        https://www.smzdm.com
+  acfun:        https://www.acfun.cn
+  juejin:       https://juejin.cn
+
+video:
+  youtube:      https://www.youtube.com
+  youku:        https://www.youku.com
+  iqiyi:        https://www.iqiyi.com
+  mgtv:         https://www.mgtv.com
+  twitch:       https://www.twitch.tv
+  vimeo:        https://vimeo.com
+  dailymotion:  https://www.dailymotion.com
+  tubi:         https://www.tubi.tv
+  douyin:       https://www.douyin.com
+  ixigua:       https://www.ixigua.com
+  crunchyroll:  https://www.crunchyroll.com
+  sohu:         https://tv.sohu.com
+  pptv:         https://www.pptv.com
+
+music:
+  spotify:      https://open.spotify.com
+  163music:     https://music.163.com
+  kugou:        https://www.kugou.com
+
+search_maps:
+  google:       https://www.google.com
+  baidu:        https://www.baidu.com
+  amap:         https://www.amap.com
+
+finance:
+  xueqiu:       https://xueqiu.com
+  eastmoney:    https://www.eastmoney.com
+  10jqka:       https://www.10jqka.com.cn
+  bloomberg:    https://www.bloomberg.com
+  marketwatch:  https://www.marketwatch.com
+  cnbc:         https://www.cnbc.com
+
+travel:
+  ctrip:        https://www.ctrip.com
+  airbnb:       https://www.airbnb.com
+  tripadvisor:  https://www.tripadvisor.com
+  "12306":      https://www.12306.cn
+  agoda:        https://www.agoda.com
+  mafengwo:     https://www.mafengwo.cn
+
+jobs:
+  zhipin:       https://www.zhipin.com
+  lagou:        https://www.lagou.com
+  51job:        https://www.51job.com
+  linkedin:     https://www.linkedin.com
+
+storage_collab:
+  baidu_pan:    https://pan.baidu.com
+  dropbox:      https://www.dropbox.com
+  aliyundrive:  https://www.aliyundrive.com
+  jianguoyun:   https://www.jianguoyun.com
+  lanzou:       https://www.lanzou.com
+  icloud:       https://www.icloud.com
+  notion:       https://www.notion.so
+  feishu:       https://www.feishu.cn
+  dingtalk:     https://www.dingtalk.com
+  yuque:        https://www.yuque.com
+  shimo:        https://shimo.im
+  kdocs:        https://www.kdocs.cn
+  wps:          https://www.wps.com
+  office:       https://www.office.com
+  qq_docs:      https://docs.qq.com
+  qq_mail:      https://mail.qq.com
+  163mail:      https://mail.163.com
+  gmail:        https://gmail.com
+  outlook:      https://outlook.live.com
+
+project_mgmt:
+  trello:       https://trello.com
+  asana:        https://app.asana.com
+  slack:        https://app.slack.com
+  zoom:         https://zoom.us
+  monday:       https://monday.com
+  clickup:      https://clickup.com
+  airtable:     https://airtable.com
+  figma:        https://www.figma.com
+  canva:        https://www.canva.cn
+
+dev:
+  github:       https://github.com
+  gitlab:       https://gitlab.com
+  gitee:        https://gitee.com
+  stackoverflow: https://stackoverflow.com
+  codepen:      https://codepen.io
+  vercel:       https://vercel.com
+  docker:       https://hub.docker.com
+  overleaf:     https://www.overleaf.com
+
+academic:
+  cnki:         https://www.cnki.net
+  wanfang:      https://www.wanfangdata.com.cn
+  cqvip:        https://www.cqvip.com
+  scholar:      https://scholar.google.com
+  arxiv:        https://arxiv.org
+  springer:     https://link.springer.com
+  sciencedirect: https://www.sciencedirect.com
+  pubmed:       https://www.ncbi.nlm.nih.gov/pmc
+  jstor:        https://www.jstor.org
+  academia:     https://www.academia.edu
+  zotero:       https://www.zotero.org
+  wenku:        https://wenku.baidu.com
+  docin:        https://www.docin.com
+  khanacademy:  https://www.khanacademy.org
+
+review_info:
+  dianping:     https://www.dianping.com
+  yelp:         https://www.yelp.com
+  rottentomatoes: https://www.rottentomatoes.com
+  imdb:         https://www.imdb.com
+
+games:
+  steam:        https://store.steampowered.com
+  gamersky:     https://www.gamersky.com
+  3dmgame:      https://www.3dmgame.com
+  ign:          https://www.ign.com
+  gamespot:     https://www.gamespot.com
+
+real_estate:
+  ke:           https://www.ke.com
+  lianjia:      https://bj.lianjia.com
+  "58":         https://www.58.com
+
+notes:
+  yinxiang:     https://www.yinxiang.com
+  evernote:     https://www.evernote.com
+  youdao:       https://note.youdao.com
+  jianshu:      https://www.jianshu.com

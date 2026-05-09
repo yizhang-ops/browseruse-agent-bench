@@ -1,0 +1,237 @@
+{
+    "$schema": "https://mintlify.com/docs.json",
+    "theme": "mint",
+    "name": "browseruse-bench",
+    "colors": {
+        "primary": "#16A34A",
+        "light": "#07C983",
+        "dark": "#15803D"
+    },
+    "favicon": "/favicon.svg",
+    "navigation": {
+        "languages": [
+            {
+                "language": "en",
+                "tabs": [
+                    {
+                        "tab": "Guides",
+                        "groups": [
+                            {
+                                "group": "Get Started",
+                                "pages": [
+                                    "en/introduction",
+                                    "en/quickstart"
+                                ]
+                            },
+                            {
+                                "group": "Features",
+                                "pages": [
+                                    {
+                                        "group": "Agents",
+                                        "icon": "robot",
+                                        "pages": [
+                                            "en/agents/overview",
+                                            "en/agents/browser-use",
+                                            "en/agents/agent-tars",
+                                            "en/agents/skyvern",
+                                            "en/agents/claude-code",
+                                            "en/agents/custom-agent"
+                                        ]
+                                    },
+                                    {
+                                        "group": "Benchmarks",
+                                        "icon": "chart-bar",
+                                        "pages": [
+                                            "en/benchmarks/overview",
+                                            "en/benchmarks/data-loading",
+                                            "en/benchmarks/lexbench-browser",
+                                            "en/benchmarks/online-mind2web",
+                                            "en/benchmarks/browsecomp",
+                                            "en/benchmarks/custom-benchmark"
+                                        ]
+                                    },
+                                    {
+                                        "group": "Browser",
+                                        "icon": "window",
+                                        "pages": [
+                                            "en/browser/local",
+                                            "en/browser/lexmount"
+                                        ]
+                                    },
+                                    {
+                                        "group": "Leaderboard",
+                                        "icon": "trophy",
+                                        "pages": [
+                                            "en/leaderboard/overview",
+                                            "en/leaderboard/visualization",
+                                            "en/leaderboard/cost-accounting"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "Examples",
+                                "pages": [
+                                    "en/examples/complete-workflow",
+                                    "en/examples/evaluation-only"
+                                ]
+                            },
+                            {
+                                "group": "Development",
+                                "pages": [
+                                    "en/development/contributing",
+                                    "en/development/get-help"
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "tab": "API Reference",
+                        "groups": [
+                            {
+                                "group": "Overview",
+                                "pages": [
+                                    "en/api-reference/introduction"
+                                ]
+                            },
+                            {
+                                "group": "Utils",
+                                "icon": "wrench",
+                                "pages": [
+                                    "en/api-reference/utils/task_utils",
+                                    "en/api-reference/utils/eval_utils",
+                                    "en/api-reference/utils/cli_utils",
+                                    "en/api-reference/utils/stats_utils",
+                                    "en/api-reference/utils/config_loader"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "language": "zh",
+                "default": true,
+                "tabs": [
+                    {
+                        "tab": "指南",
+                        "groups": [
+                            {
+                                "group": "开始",
+                                "pages": [
+                                    "zh/introduction",
+                                    "zh/quickstart"
+                                ]
+                            },
+                            {
+                                "group": "功能",
+                                "pages": [
+                                    {
+                                        "group": "Agents",
+                                        "icon": "robot",
+                                        "pages": [
+                                            "zh/agents/overview",
+                                            "zh/agents/browser-use",
+                                            "zh/agents/agent-tars",
+                                            "zh/agents/skyvern",
+                                            "zh/agents/claude-code",
+                                            "zh/agents/custom-agent"
+                                        ]
+                                    },
+                                    {
+                                        "group": "Benchmarks",
+                                        "icon": "chart-bar",
+                                        "pages": [
+                                            "zh/benchmarks/overview",
+                                            "zh/benchmarks/data-loading",
+                                            "zh/benchmarks/lexbench-browser",
+                                            "zh/benchmarks/online-mind2web",
+                                            "zh/benchmarks/browsecomp",
+                                            "zh/benchmarks/custom-benchmark"
+                                        ]
+                                    },
+                                    {
+                                        "group": "Browser",
+                                        "icon": "window",
+                                        "pages": [
+                                            "zh/browser/local",
+                                            "zh/browser/lexmount"
+                                        ]
+                                    },
+                                    {
+                                        "group": "排行榜",
+                                        "icon": "trophy",
+                                        "pages": [
+                                            "zh/leaderboard/overview",
+                                            "zh/leaderboard/visualization",
+                                            "zh/leaderboard/cost-accounting"
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "group": "示例",
+                                "pages": [
+                                    "zh/examples/complete-workflow",
+                                    "zh/examples/evaluation-only"
+                                ]
+                            },
+                            {
+                                "group": "开发",
+                                "pages": [
+                                    "zh/development/contributing",
+                                    "zh/development/get-help"
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "tab": "API 参考",
+                        "groups": [
+                            {
+                                "group": "概览",
+                                "pages": [
+                                    "zh/api-reference/introduction"
+                                ]
+                            },
+                            {
+                                "group": "工具模块",
+                                "icon": "wrench",
+                                "pages": [
+                                    "zh/api-reference/utils/task_utils",
+                                    "zh/api-reference/utils/eval_utils",
+                                    "zh/api-reference/utils/cli_utils",
+                                    "zh/api-reference/utils/stats_utils",
+                                    "zh/api-reference/utils/config_loader"
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    "logo": {
+        "light": "/logo/light.svg",
+        "dark": "/logo/dark.svg"
+    },
+    "navbar": {
+        "links": [
+            {
+                "label": "GitHub",
+                "href": "https://github.com/lexmount/browseruse-bench"
+            }
+        ]
+    },
+    "contextual": {
+        "options": [
+            "copy",
+            "view"
+        ]
+    },
+    "footer": {
+        "socials": {
+            "github": "https://github.com/lexmount/browseruse-bench"
+        }
+    }
+}

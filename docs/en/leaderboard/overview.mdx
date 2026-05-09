@@ -1,0 +1,187 @@
+---
+title: "Leaderboard"
+description: "View and generate agent performance leaderboards"
+---
+
+browseruse-bench provides automated leaderboard generation to compare agent performance across benchmarks.
+
+## Features
+
+<CardGroup cols={2}>
+  <Card title="Multi-metric Comparison" icon="table">
+    Success rate, steps, time, token usage
+  </Card>
+  <Card title="Interactive UI" icon="mouse-pointer">
+    Filtering, sorting, and detailed views
+  </Card>
+  <Card title="Task-level Analysis" icon="list-check">
+    Inspect per-task execution details and trajectories
+  </Card>
+  <Card title="Error Analysis" icon="bug">
+    Categorize and visualize failure cases
+  </Card>
+</CardGroup>
+
+## Quickstart
+
+### Generate leaderboard
+
+```bash
+# Collect all evaluation results and generate HTML leaderboard
+bubench leaderboard
+```
+
+### Start server
+
+<CodeGroup>
+```bash Direct run
+# Foreground run for local development
+bubench server
+# Visit http://localhost:8000
+```
+
+```bash systemd service
+# Install service (recommended for production)
+sudo bubench service install
+
+# Start service
+sudo bubench service start
+
+# Enable on boot
+sudo bubench service enable
+```
+
+```bash Shortcut
+# If you have configured an alias
+start_leaderboard
+```
+</CodeGroup>
+
+### Service configuration
+
+`bubench service` reads systemd settings from `config.yaml`:
+
+```yaml
+service:
+  name: benchmark-server
+  description: BrowserUse Bench Leaderboard Server
+  user: ubuntu
+  group: ubuntu
+  host: 0.0.0.0
+  port: 8000
+  log_path: /var/log/browseruse_bench/benchmark_server.log
+  restart_sec: 10
+  limit_nofile: 65535
+```
+
+Environment variable overrides (optional):
+- `BU_SERVICE_NAME`
+- `BU_SERVICE_DESCRIPTION`
+- `BU_SERVICE_USER`
+- `BU_SERVICE_GROUP`
+- `BU_SERVICE_HOST`
+- `BU_SERVICE_PORT`
+- `BU_SERVICE_LOG_PATH`
+- `BU_SERVICE_RESTART_SEC`
+- `BU_SERVICE_LIMIT_NOFILE`
+
+## UI Preview
+
+### Overview
+
+Shows success rate, steps, and time for each Agent x Benchmark combination:
+
+- Compare multiple agents
+- Click a row to view task details
+- Click error category bars to filter failures
+
+### Task details
+
+Each task includes:
+- Task ID and description
+- Action history (expandable)
+- Trajectory screenshots (paginated)
+- Time and token statistics
+- Evaluation results and error analysis
+
+## Submission format
+
+If you want to submit your own results, use the following structure:
+
+### Directory structure
+
+```
+experiments/
+`-- <BenchmarkName>/
+    `-- <AgentName>/
+        `-- <Timestamp>/           # e.g., 20251208_114207
+            `-- tasks/
+                `-- <task_id>/
+                    |-- result.json     # Required: task run result
+                    `-- trajectory/     # Optional: screenshot sequence
+                        |-- 0_screenshot.png
+                        `-- ...
+```
+
+### result.json format
+
+```json
+{
+  "task_id": "005be9dd91c95669d6ddde9ae667125c",
+  "task": "Search for iPhone 15 on Taobao",
+  "action_history": ["Open Taobao", "Type iPhone 15", "Click search"],
+  "model_id": "gpt-4o",
+  "browser_id": "Chrome-Local",
+  "metrics": {
+    "steps": 5,
+    "end_to_end_ms": 9879,
+    "usage": {
+      "total_tokens": 1234,
+      "total_cost": 0.0123
+    }
+  },
+  "config": {
+    "timeout_seconds": 300
+  }
+}
+```
+
+### Cost documentation
+
+For detailed token and cost accounting logic (token source, pricing source, and formulas), see:
+
+- [Cost Accounting](/en/leaderboard/cost-accounting)
+
+## Evaluation output
+
+After submission, the system evaluates and generates:
+
+```
+experiments/
+`-- <BenchmarkName>/
+    `-- <AgentName>/
+        `-- <Timestamp>/
+            |-- tasks/                    # Raw data
+            `-- tasks_eval_result/        # Auto-generated
+                `-- <EvalName>_results.json
+```
+
+Added fields:
+- `predicted_label`: 1 = success, 0 = failure
+- `evaluation_details`: score, grader response, failure category
+
+## Service commands
+
+```bash
+# Check service status
+sudo bubench service status
+
+# View logs
+sudo bubench service logs
+
+# Restart service
+sudo bubench service restart
+
+# Stop service
+sudo bubench service stop
+```

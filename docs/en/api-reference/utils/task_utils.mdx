@@ -1,0 +1,227 @@
+---
+title: 'task_utils'
+description: 'Task loading, filtering and processing utilities'
+---
+
+# browseruse_bench.utils.task_utils
+
+Task processing utility functions.
+
+## Import
+
+```python
+from browseruse_bench.utils import (
+    load_tasks,
+    load_tasks_with_benchmark_support,
+    filter_tasks,
+    filter_completed_tasks,
+    is_task_completed_by_result_json,
+    resolve_tasks_json_path,
+    print_task_summary,
+)
+```
+
+---
+
+## load_tasks
+
+Load task data.
+
+```python
+def load_tasks(
+    tasks_json_path: str,
+    prompt_fmt: Optional[str] = None
+) -> List[Dict[str, Any]]
+```
+
+<ParamField path="tasks_json_path" type="str" required>
+  Path to tasks JSON file
+</ParamField>
+
+<ParamField path="prompt_fmt" type="str" default="None">
+  Optional prompt template, format like `"{task}\n...{url}..."`. If provided, a `prompt` field will be added to the task dictionary.
+</ParamField>
+
+<ResponseField name="return" type="list of dict">
+  List of tasks, each containing `task_id`, `task_text`, `url`. Includes `prompt` if `prompt_fmt` is provided.
+</ResponseField>
+
+---
+
+## load_tasks_with_benchmark_support
+
+Load tasks with support for different benchmarks (including BrowseComp).
+
+```python
+def load_tasks_with_benchmark_support(
+    tasks_json_path: Path,
+    prompt_fmt: Optional[str] = None
+) -> List[Dict[str, Any]]
+```
+
+<ParamField path="tasks_json_path" type="Path" required>
+  Path to tasks JSON file
+</ParamField>
+
+<ParamField path="prompt_fmt" type="str" default="None">
+  Optional prompt template (ignored for BrowseComp which has its own template)
+</ParamField>
+
+---
+
+## filter_tasks
+
+Filter tasks based on mode.
+
+```python
+def filter_tasks(
+    tasks: List[Dict[str, Any]],
+    mode: str,
+    count: int,
+    task_ids: Optional[List[str]],
+    task_id: Optional[str] = None
+) -> List[Dict[str, Any]]
+```
+
+<ParamField path="tasks" type="list of dict" required>
+  List of tasks
+</ParamField>
+
+<ParamField path="mode" type="str" required>
+  Filter mode:
+  - `single` - Run first task only
+  - `first_n` - Run first N tasks
+  - `sample_n` - Randomly sample N tasks
+  - `specific` - Run tasks with specified IDs
+  - `by_id` - Run single task by ID
+  - `all` - Run all tasks
+</ParamField>
+
+<ParamField path="count" type="int" required>
+  Number of tasks for `first_n` or `sample_n` mode
+</ParamField>
+
+<ParamField path="task_ids" type="list of str" default="None">
+  List of task IDs for `specific` mode
+</ParamField>
+
+<ParamField path="task_id" type="str" default="None">
+  Single task ID for `by_id` mode
+</ParamField>
+
+---
+
+## filter_completed_tasks
+
+Filter out completed tasks.
+
+```python
+def filter_completed_tasks(
+    tasks: List[Dict[str, Any]],
+    output_dir: Path,
+    check_func: Callable[[str, Path], bool]
+) -> Tuple[List[Dict[str, Any]], int]
+```
+
+<ParamField path="tasks" type="list of dict" required>
+  List of tasks
+</ParamField>
+
+<ParamField path="output_dir" type="Path" required>
+  Output directory
+</ParamField>
+
+<ParamField path="check_func" type="function" required>
+  Function to check if a task is completed
+</ParamField>
+
+<ResponseField name="return" type="tuple">
+  (List of remaining tasks, number of skipped tasks)
+</ResponseField>
+
+---
+
+## is_task_completed_by_result_json
+
+Check if task is completed (via result.json).
+
+```python
+def is_task_completed_by_result_json(
+    task_id: str,
+    output_dir: Path
+) -> bool
+```
+
+<ParamField path="task_id" type="str" required>
+  Task ID
+</ParamField>
+
+<ParamField path="output_dir" type="Path" required>
+  Output directory path
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  True if result.json exists and is not empty
+</ResponseField>
+
+---
+
+## resolve_tasks_json_path
+
+Resolve task JSON file path.
+
+```python
+def resolve_tasks_json_path(
+    tasks_json_arg: Optional[str],
+    default_tasks_json: Path,
+    env_var: str = 'TASKS_JSON'
+) -> str
+```
+
+<ParamField path="tasks_json_arg" type="str" default="None">
+  Path passed via command line
+</ParamField>
+
+<ParamField path="default_tasks_json" type="Path" required>
+  Default path
+</ParamField>
+
+<ParamField path="env_var" type="str" default="'TASKS_JSON'">
+  Environment variable name
+</ParamField>
+
+---
+
+## print_task_summary
+
+Print task execution summary.
+
+```python
+def print_task_summary(
+    total_tasks: int,
+    tasks_to_run: int,
+    success_count: int,
+    failed_count: int,
+    output_dir: Path
+) -> None
+```
+
+<ParamField path="total_tasks" type="int" required>
+  Total number of tasks
+</ParamField>
+
+<ParamField path="tasks_to_run" type="int" required>
+  Number of tasks run in this session
+</ParamField>
+
+<ParamField path="success_count" type="int" required>
+  Number of successful tasks
+</ParamField>
+
+<ParamField path="failed_count" type="int" required>
+  Number of failed tasks
+</ParamField>
+
+<ParamField path="output_dir" type="Path" required>
+  Output directory path
+</ParamField>

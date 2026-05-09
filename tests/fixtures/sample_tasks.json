@@ -1,0 +1,16 @@
+{
+    "tasks": [
+        {
+            "id": "test_task_001",
+            "website": "https://example.com",
+            "task": "Click the login button and enter test credentials",
+            "expect": "User should be logged in successfully"
+        },
+        {
+            "id": "test_task_002",
+            "website": "https://example.com/search",
+            "task": "Search for 'test product' and add to cart",
+            "expect": "Product should be in the shopping cart"
+        }
+    ]
+}

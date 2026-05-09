@@ -1,0 +1,176 @@
+---
+title: "Claude Code"
+description: "Browser automation agent powered by Claude Code CLI with Playwright MCP"
+---
+
+Claude Code is Anthropic's official CLI for Claude. When configured with the Playwright MCP server, it can control a real browser to complete web tasks — and can be benchmarked through browseruse-bench using its non-interactive (`-p`) mode.
+
+## How It Works
+
+Unlike SDK-based agents, Claude Code runs as an **external subprocess**:
+
+```
+bubench → claude -p "<task>" --output-format stream-json → Playwright MCP → Browser
+```
+
+The agent streams JSON events from the Claude Code process, extracts screenshots from `browser_take_screenshot` tool results, and writes structured logs to `api_logs/`.
+
+## Prerequisites
+
+**1. Install Claude Code**
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+**2. Authenticate**
+
+```bash
+claude auth login
+```
+
+**3. Add Playwright MCP (user scope)**
+
+Using user scope ensures the MCP server is available to Claude Code regardless of the working directory when called as a subprocess:
+
+```bash
+claude mcp add playwright --scope user -- npx @playwright/mcp@latest
+```
+
+Verify the server is connected:
+
+```bash
+claude mcp list
+# playwright: npx @playwright/mcp@latest - ✓ Connected
+```
+
+## Configuration
+
+Configure Claude Code in the root `config.yaml` under `agents.claude-code`:
+
+```yaml
+agents:
+  claude-code:
+    active_model: sonnet        # active model profile
+    models:
+      sonnet:
+        model_id: claude-sonnet-4-6
+        api_key: $ANTHROPIC_API_KEY
+      opus:
+        model_id: claude-opus-4-6
+        api_key: $ANTHROPIC_API_KEY
+    defaults:
+      max_turns: 50
+      timeout: 300
+      allowed_tools: "mcp__playwright*"
+```
+
+Set `active_model` to the profile name you want to use by default, then switch at runtime:
+
+```bash
+bubench run --agent claude-code --data LexBench-Browser --model opus
+```
+
+### Config Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `model_id` | Claude model ID | `claude-sonnet-4-6` |
+| `max_turns` | Max conversation turns (`--max-turns`) | `50` |
+| `timeout` | Task timeout in seconds | `300` |
+| `allowed_tools` | Tool name pattern passed to `--allowedTools` | `mcp__playwright*` |
+| `system_prompt` | Custom system prompt (overrides default) | See below |
+| `playwright_mcp_command` | Executable used to launch the Playwright MCP server | `npx` |
+| `playwright_mcp_args` | Arguments passed to the MCP launcher (e.g. package name + flags) | `["@playwright/mcp@latest"]` |
+
+### Default System Prompt
+
+If `system_prompt` is not set, the agent uses a built-in prompt that covers three areas:
+
+1. **Tool restriction** — Claude must use only `mcp__playwright__*` tools; Bash, WebFetch, Skill, Agent, and other built-ins are explicitly prohibited.
+2. **Task completion rules** — answer from data already visible on the page (e.g. ratings in search results) without navigating into individual items; handle CAPTCHAs and access restrictions by falling back to collected data with at most one retry.
+3. **Screenshot rules** — call `browser_take_screenshot` with `{"type": "png"}` only (no `filename` parameter, so the image is returned as inline base64 and captured by the result parser).
+
+To override, set `system_prompt` in your `config.yaml` under `agents.claude-code.defaults`.
+
+## Usage
+
+### Basic Run
+
+```bash
+# Run first 3 LexBench-Browser tasks
+bubench run \
+  --agent claude-code \
+  --data LexBench-Browser \
+  --mode first_n \
+  --count 3
+```
+
+### Run All Tasks
+
+```bash
+bubench run \
+  --agent claude-code \
+  --data LexBench-Browser \
+  --mode all \
+  --skip-completed
+```
+
+## Evaluation
+
+```bash
+bubench eval \
+  --agent claude-code \
+  --data LexBench-Browser \
+  --model-id claude-sonnet-4-6
+```
+
+## Output Structure
+
+Each completed task writes:
+
+```
+experiments/LexBench-Browser/All/claude-code/<model-id>/<timestamp>/tasks/<id>/
+├── result.json          # AgentResult: answer, status, metrics, cost
+├── stdout.txt           # Full stream-json output from claude CLI
+├── stderr.txt           # Claude Code stderr
+├── trajectory/
+│   ├── screenshot-1.png # Extracted from browser_take_screenshot tool results
+│   ├── screenshot-2.png
+│   └── ...
+└── api_logs/
+    ├── system_prompt.txt # System prompt used
+    ├── step_001.json     # Per-turn: URL, tool calls, tool results
+    ├── step_002.json
+    ├── ...
+    └── summary.md        # Human-readable step-by-step log
+```
+
+<Note>
+Screenshots are extracted from the `browser_take_screenshot` tool results in the streamed output. The tool must be called **without** a `filename` argument so the image is returned as inline base64; the default system prompt enforces this. The Playwright MCP action timeout is set to 30 seconds (up from the 5 s default) to handle pages that load external fonts slowly.
+</Note>
+
+## Supported Benchmarks
+
+- ✅ LexBench-Browser
+- ✅ Online-Mind2Web
+- ✅ BrowseComp
+
+## Troubleshooting
+
+**"Executable 'claude' not found"**
+Claude Code is not installed or not on `$PATH`. Run `npm install -g @anthropic-ai/claude-code` and verify with `claude --version`.
+
+**Permission denied on MCP tools**
+The agent runs with `--dangerously-skip-permissions` (required for non-interactive mode) and `--allowedTools` set to the configured pattern. If tools are still denied, confirm the MCP server name with `claude mcp list` and check that `allowed_tools` in config matches the prefix (e.g. `mcp__playwright*`).
+
+**No screenshots in results**
+Ensure the Playwright MCP server is connected (`claude mcp list`). The default system prompt instructs Claude Code to call `browser_take_screenshot` without a `filename` argument — if using a custom `system_prompt`, do the same so the image is returned inline and captured by the result parser. If screenshots still fail, check `stdout.txt` for `TimeoutError: browserBackend.callTool` — this indicates the page is loading external resources slowly; consider increasing `playwright_mcp_args` with a larger `--timeout-action` value.
+
+**stream-json requires --verbose**
+This flag is already included in the agent. If you see this error running `claude` manually, add `--verbose`.
+
+## Related Links
+
+- [Claude Code documentation](https://docs.anthropic.com/en/docs/claude-code)
+- [Playwright MCP (npm)](https://www.npmjs.com/package/@playwright/mcp)

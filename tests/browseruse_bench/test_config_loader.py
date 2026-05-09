@@ -1,0 +1,287 @@
+"""Tests for browseruse_bench.utils.config_loader module."""
+
+import json
+from pathlib import Path
+
+import pytest
+import yaml
+
+import browseruse_bench.utils.config_loader as config_loader_module
+from browseruse_bench.utils.config_loader import load_eval_config
+from browseruse_bench.utils import (
+    REPO_ROOT,
+    get_default_split,
+    get_default_version,
+    load_config_file,
+    load_data_info,
+    resolve_agent_entry,
+    resolve_agent_inline_config,
+)
+
+
+class TestLoadConfigFile:
+    """Tests for load_config_file function."""
+
+    def test_load_yaml_config(self, tmp_path: Path):
+        """Test loading a valid YAML config file."""
+        config_data = {
+            "agent": "browser-use",
+            "benchmark": "LexBench-Browser",
+            "timeout": 300,
+        }
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(yaml.dump(config_data))
+
+        result = load_config_file(config_file)
+
+        assert result["agent"] == "browser-use"
+        assert result["benchmark"] == "LexBench-Browser"
+        assert result["timeout"] == 300
+
+    def test_load_config_file_not_found(self, tmp_path: Path):
+        """Test loading non-existent config file."""
+        result = load_config_file(tmp_path / "nonexistent.yaml")
+        assert result == {}
+
+    def test_load_empty_config_file(self, tmp_path: Path):
+        """Test loading empty config file."""
+        config_file = tmp_path / "empty.yaml"
+        config_file.write_text("")
+
+        result = load_config_file(config_file)
+        assert result == {} or result is None
+
+
+class TestLoadEvalConfig:
+    """Tests for load_eval_config — returns shared eval settings (structural keys excluded)."""
+
+    def _patch(self, monkeypatch: pytest.MonkeyPatch, cfg: dict) -> None:
+        monkeypatch.setattr(config_loader_module, "load_config_file", lambda _: cfg)
+
+    def test_returns_shared_eval_settings(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._patch(monkeypatch, {
+            "eval": {
+                "model": "gpt-5.4",   # returned (graders read it)
+                "api_key": "sk-x",    # structural: excluded
+                "base_url": "https://x",  # structural: excluded
+                "temperature": 1.0,   # returned (graders use it, e.g. gpt-5 requires 1.0)
+                "max_tokens": 1024,   # returned (graders use it for output token limit)
+                "max_tries": 5,       # returned
+                "api_max_images": 50, # returned
+            }
+        })
+        result = load_eval_config("AnyBench")
+        assert result == {"model": "gpt-5.4", "temperature": 1.0, "max_tokens": 1024, "max_tries": 5, "api_max_images": 50}
+
+    def test_benchmark_name_ignored(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._patch(monkeypatch, {"eval": {"max_tries": 5}})
+        assert load_eval_config("LexBench-Browser") == load_eval_config("BrowseComp")
+
+    def test_returns_empty_dict_when_eval_key_absent(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._patch(monkeypatch, {})
+        assert load_eval_config("LexBench-Browser") == {}
+
+
+class TestLoadDataInfo:
+    """Tests for load_data_info function."""
+
+    def test_load_data_info_exists(self, tmp_path: Path):
+        """Test loading data_info.json when it exists."""
+        data_info = {"default_split": "All", "split": {"All": "tasks.json"}}
+        (tmp_path / "data_info.json").write_text(json.dumps(data_info))
+
+        result = load_data_info(tmp_path)
+        assert result["default_split"] == "All"
+
+    def test_load_data_info_not_exists(self, tmp_path: Path):
+        """Test loading data_info.json returns empty dict when not exists."""
+        result = load_data_info(tmp_path)
+        assert result == {}
+
+
+class TestGetDefaultSplit:
+    """Tests for get_default_split function."""
+
+    def test_get_default_split_explicit(self):
+        """Test getting explicit default_split."""
+        data_info = {"default_split": "All", "split": {"All": "tasks.json"}}
+        result = get_default_split(data_info)
+        assert result == "All"
+
+    def test_get_default_split_prefers_all(self):
+        """Test getting default split preferring All."""
+        data_info = {"split": {"All": "tasks.json", "L1": "l1.json"}}
+        result = get_default_split(data_info)
+        assert result == "All"
+
+    def test_get_default_split_sorted_fallback(self):
+        """Test getting default split from sorted keys when All is missing."""
+        data_info = {"split": {"B": "b.json", "A": "a.json"}}
+        result = get_default_split(data_info)
+        assert result == "A"
+
+    def test_get_default_split_legacy_version_split(self):
+        """Test getting default split from legacy version_split."""
+        data_info = {
+            "default_version": "20251230",
+            "version_split": {"20251230": {"All": "tasks.json"}},
+        }
+        result = get_default_split(data_info)
+        assert result == "All"
+
+
+class TestGetDefaultVersion:
+    """Tests for legacy get_default_version function."""
+
+    def test_get_default_version_explicit(self):
+        """Test getting explicit default_version."""
+        data_info = {"default_version": "20251230"}
+        result = get_default_version(data_info)
+        assert result == "20251230"
+
+
+def _write_runtime_root_config(tmp_path: Path) -> Path:
+    runtime_config = tmp_path / "config.yaml"
+    runtime_config.write_text(
+        (REPO_ROOT / "config.example.yaml").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    return runtime_config
+
+
+def test_resolve_agent_inline_config_uses_explicit_model_override(tmp_path: Path) -> None:
+    config = load_config_file(_write_runtime_root_config(tmp_path))
+
+    inline = resolve_agent_inline_config("browser-use", config, "qwen-plus")
+
+    assert inline is not None
+    assert inline.get("model_id") == "qwen3.5-plus"
+    assert inline.get("browser_id") == "lexmount"
+
+
+def test_resolve_agent_entry_uses_registry_venvs_for_builtin_agents(tmp_path: Path) -> None:
+    config = load_config_file(_write_runtime_root_config(tmp_path))
+
+    assert resolve_agent_entry("browser-use", config).get("venv") == ".venvs/browser_use"
+    assert resolve_agent_entry("skyvern", config).get("venv") == ".venvs/skyvern"
+    assert resolve_agent_entry("Agent-TARS", config).get("venv") == ".venvs/agent_tars"
+    assert resolve_agent_entry("deepbrowse", config).get("venv") == ".venvs/deepbrowse"
+
+
+class TestSkyvernConfigCanonicalization:
+    """Tests for canonicalize_skyvern_model_name + apply_skyvern_env legacy-key handling.
+
+    All 7 `openai_compatible_*` keys were renamed to their short, agent-agnostic forms
+    (`model_id`, `api_key`, `base_url`, `max_tokens`, `temperature`, `supports_vision`,
+    `request_timeout`). Legacy keys still resolve via one-shot DeprecationWarning.
+    """
+
+    # (legacy_key, new_key, sample_value, expected_env_var)
+    _RENAME_CASES = [
+        ("openai_compatible_model_name", "model_id", "gpt-5.4", "OPENAI_COMPATIBLE_MODEL_NAME"),
+        ("openai_compatible_api_key", "api_key", "sk-xyz", "OPENAI_COMPATIBLE_API_KEY"),
+        ("openai_compatible_api_base", "base_url", "https://api.example.com/v1", "OPENAI_COMPATIBLE_API_BASE"),
+        ("openai_compatible_max_tokens", "max_tokens", 8192, "OPENAI_COMPATIBLE_MAX_TOKENS"),
+        ("openai_compatible_temperature", "temperature", 0.5, "OPENAI_COMPATIBLE_TEMPERATURE"),
+        ("openai_compatible_supports_vision", "supports_vision", True, "OPENAI_COMPATIBLE_SUPPORTS_VISION"),
+        # request_timeout has no env-var mapping — only consumed inside skyvern.py.
+        ("openai_compatible_request_timeout", "request_timeout", 900, None),
+    ]
+
+    @pytest.mark.parametrize(
+        "legacy_key,new_key,sample_value,_expected_env",
+        _RENAME_CASES,
+        ids=[c[0] for c in _RENAME_CASES],
+    )
+    def test_legacy_key_copied_to_new_name_with_deprecation_warning(
+        self,
+        legacy_key: str,
+        new_key: str,
+        sample_value,
+        _expected_env,
+    ) -> None:
+        """Each legacy key aliases to its new name and emits exactly one DeprecationWarning."""
+        import warnings
+
+        cfg = {legacy_key: sample_value}
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            config_loader_module.canonicalize_skyvern_model_name(cfg)
+
+        assert cfg[new_key] == sample_value
+        depwarns = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+        assert len(depwarns) == 1
+        assert legacy_key in str(depwarns[0].message)
+        assert new_key in str(depwarns[0].message)
+
+    @pytest.mark.parametrize(
+        "_legacy_key,new_key,sample_value,_expected_env",
+        _RENAME_CASES,
+        ids=[c[1] for c in _RENAME_CASES],
+    )
+    def test_new_key_passes_through_unchanged(
+        self,
+        _legacy_key: str,
+        new_key: str,
+        sample_value,
+        _expected_env,
+    ) -> None:
+        """When the new key is already set, no warning fires and value is unchanged."""
+        import warnings
+
+        cfg = {new_key: sample_value}
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            config_loader_module.canonicalize_skyvern_model_name(cfg)
+
+        assert cfg[new_key] == sample_value
+        assert not any(issubclass(w.category, DeprecationWarning) for w in caught)
+
+    def test_new_key_wins_when_both_set(self) -> None:
+        """If a user sets both keys, new wins and no warning fires."""
+        import warnings
+
+        cfg = {"model_id": "new-id", "openai_compatible_model_name": "old-id"}
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            config_loader_module.canonicalize_skyvern_model_name(cfg)
+
+        assert cfg["model_id"] == "new-id"
+        assert not any(issubclass(w.category, DeprecationWarning) for w in caught)
+
+    @pytest.mark.parametrize(
+        "_legacy_key,new_key,sample_value,expected_env",
+        [c for c in _RENAME_CASES if c[3] is not None],
+        ids=[c[1] for c in _RENAME_CASES if c[3] is not None],
+    )
+    def test_apply_skyvern_env_routes_new_key_to_env_var(
+        self,
+        _legacy_key: str,
+        new_key: str,
+        sample_value,
+        expected_env: str,
+    ) -> None:
+        """Each new key lands in its mapped OPENAI_COMPATIBLE_* env var."""
+        env: dict[str, str] = {}
+        cfg = {new_key: sample_value, "enable_openai_compatible": True}
+        config_loader_module.apply_skyvern_env(cfg, env)
+        assert env[expected_env] == (
+            "true" if sample_value is True else "false" if sample_value is False else str(sample_value)
+        )
+
+    def test_apply_skyvern_env_still_honors_legacy_model_name(self) -> None:
+        """Spot-check: legacy `openai_compatible_model_name` still reaches the env var."""
+        import warnings
+
+        env: dict[str, str] = {}
+        cfg = {"openai_compatible_model_name": "gemini-3.1-pro-preview"}
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            config_loader_module.apply_skyvern_env(cfg, env)
+
+        assert env["OPENAI_COMPATIBLE_MODEL_NAME"] == "gemini-3.1-pro-preview"
+        assert any(
+            issubclass(w.category, DeprecationWarning)
+            and "openai_compatible_model_name" in str(w.message)
+            for w in caught
+        )

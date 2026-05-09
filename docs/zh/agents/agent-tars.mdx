@@ -1,0 +1,168 @@
+---
+title: "Agent-TARS"
+description: "由 TARS 团队开发的浏览器代理"
+---
+
+Agent-TARS 是由 TARS 团队开发的浏览器代理，以 npm CLI 包的形式发布，提供强大的浏览器自动化能力。
+
+## 安装
+
+```bash
+uv sync
+npm install -g @agent-tars/cli@0.3.0
+```
+
+使用 `bubench` 前请先激活 `.venv`（或使用 `uv run bubench ...`）。
+
+<Note>
+请确保已安装 Node.js 18+ 版本。
+</Note>
+
+## 配置
+
+在根目录 `config.yaml` 的 `agents.Agent-TARS` 下配置：
+
+```yaml
+agents:
+  Agent-TARS:
+    active_model: gpt           # 当前使用的模型配置名
+    models:
+      gpt:                      # OpenAI 模型
+        model_provider: openai
+        model_id: gpt-5.4
+        api_key: $OPENAI_API_KEY
+        browser_control: hybrid
+        timeout: 300
+      claude:                   # Anthropic 模型
+        model_provider: anthropic
+        model_id: claude-sonnet-4-6
+        api_key: $OPENAI_API_KEY
+        browser_control: hybrid
+        timeout: 300
+      gemini:                   # 通过 OpenAI 兼容接口调用 Gemini
+        model_provider: openai
+        model_id: gemini-3-pro-image-preview
+        api_key: $OPENAI_API_KEY
+        base_url: $OPENAI_BASE_URL
+        browser_control: hybrid
+        timeout: 300
+    browser:
+      browser_id: local         # 默认本地浏览器，切换到云浏览器见下方"浏览器模式"
+```
+
+将 `active_model` 设置为默认使用的模型配置名，也可在运行时通过 `--model <name>` 切换。
+
+### 配置参数说明
+
+| 参数 | 说明 | 示例值 |
+|------|------|--------|
+| `active_model` | 默认模型配置名 | `gpt`, `claude` |
+| `model_provider` | 模型提供商 | `openai`, `anthropic`, `volcengine` |
+| `model_id` | 模型 ID | `gpt-5.4`, `claude-sonnet-4-6` |
+| `api_key` | API 密钥（推荐 `$ENV_VAR` 形式） | `$OPENAI_API_KEY` |
+| `base_url` | API 地址（可选） | `$OPENAI_BASE_URL` |
+| `browser_control` | 浏览器控制模式 | `dom`, `hybrid`, `visual-grounding` |
+| `browser_id` | 浏览器后端 | `local`（默认），`lexmount` |
+| `timeout` | 任务超时时间（秒） | 默认 `300`，可通过 `--timeout` 覆盖 |
+
+### 浏览器控制模式
+
+Agent-TARS 将浏览器交互抽象为两套独立工具集——DOM 工具和视觉工具——由模型自主选择。`browser_control` 决定向模型暴露哪套工具：
+
+| 模式 | 工作方式 | 适用场景 |
+|------|---------|---------|
+| `dom` | 读取页面结构，通过 DOM API 操作（点击、填写等） | 结构清晰的标准网页，速度快且稳定 |
+| `visual-grounding` | 截图后由视觉模型识别元素坐标并点击 | canvas、动态渲染内容、无障碍树缺失的元素 |
+| `hybrid` | 同时暴露两套工具，模型逐步自主决策 | 容错性最强，DOM 失败时视觉自动兜底 |
+
+基准测试推荐使用 `hybrid`。
+
+## 浏览器模式
+
+**本地浏览器**：Agent-TARS CLI 启动本地浏览器，无需额外参数。
+
+```yaml
+browser:
+  browser_id: local
+```
+
+<Warning>
+Agent-TARS CLI 自己启 Chromium，**不**支持 `local_proxy_*`（配了会输出一次 WARNING）。需要访问裸连不可达的站点（`bloomberg.com`、`archive.org` 等）时请切到 `browser_id: lexmount`——Lexmount 国际版从大陆境外出口。各 agent 的代理支持矩阵见 [本地 Chromium 浏览器](/zh/browser/local)。
+</Warning>
+
+**Lexmount 云浏览器**：通过 CDP 连接 Lexmount。先到 [browser.lexmount.cn](https://browser.lexmount.cn)（国内）或 [browser.lexmount.com](https://browser.lexmount.com)（国外）申请 `LEXMOUNT_API_KEY`（完整流程见 [Lexmount 云浏览器](/zh/browser/lexmount)），在 `.env` 填好后在 `config.yaml` 的 `browser` 下引用：
+
+```yaml
+browser:
+  browser_id: lexmount
+  lexmount_browser_mode: normal           # normal | light
+  lexmount_api_key: $LEXMOUNT_API_KEY
+  lexmount_project_id: $LEXMOUNT_PROJECT_ID
+```
+
+```bash
+# .env
+LEXMOUNT_API_KEY=your-lexmount-api-key
+```
+
+如需配置代理：
+
+```yaml
+browser:
+  browser_id: lexmount
+  lexmount_browser_mode: normal
+  lexmount_proxy_server: http://gw.example.com:823
+  lexmount_proxy_type: external
+  lexmount_proxy_username: $LEXMOUNT_PROXY_USERNAME
+  lexmount_proxy_password: $LEXMOUNT_PROXY_PASSWORD
+```
+
+## 使用示例
+
+### 基础运行
+
+```bash
+# 运行 LexBench-Browser 前 3 个任务
+bubench run \
+  --agent Agent-TARS \
+  --data LexBench-Browser \
+  --mode first_n \
+  --count 3
+
+# 运行 Online-Mind2Web
+bubench run \
+  --agent Agent-TARS \
+  --data Online-Mind2Web \
+  --mode first_n \
+  --count 3
+```
+
+### 运行全部任务
+
+```bash
+# 运行全部任务，跳过已完成的
+bubench run \
+  --agent Agent-TARS \
+  --data LexBench-Browser \
+  --mode all \
+  --skip-completed
+```
+
+## 评估
+
+```bash
+# --model-id 填运行时使用的 model_id
+bubench eval --agent Agent-TARS --data LexBench-Browser --model-id gpt-5.4-mini
+
+bubench eval --agent Agent-TARS --data Online-Mind2Web --model-id gpt-5.4-mini
+```
+
+## 支持的 Benchmarks
+
+- ✅ LexBench-Browser
+- ✅ Online-Mind2Web
+- ✅ BrowseComp
+
+## 相关链接
+
+- [Agent-TARS npm 包](https://www.npmjs.com/package/@agent-tars/cli)

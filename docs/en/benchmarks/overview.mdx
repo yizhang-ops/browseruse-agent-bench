@@ -1,0 +1,61 @@
+---
+title: "Benchmarks Overview"
+description: "Browser evaluation benchmarks supported by browseruse-bench"
+---
+
+browseruse-bench integrates multiple mainstream browser evaluation benchmarks, covering various types of web interaction tasks.
+
+## Supported Benchmarks
+
+<CardGroup cols={1}>
+  <Card title="LexBench-Browser" icon="globe" href="lexbench-browser">
+    **Recommended** - Real-world browser-agent benchmark with 210 tasks across 107 distinct Chinese and English websites. No login required.
+  </Card>
+  <Card title="Online-Mind2Web" icon="brain" href="online-mind2web">
+    Online evaluation based on the Mind2Web dataset, testing agents' navigation and interaction capabilities on real websites.
+  </Card>
+  <Card title="BrowseComp" icon="trophy" href="browsecomp">
+    Browser operation competition tasks, evaluating agents' comprehensive browser operation capabilities.
+  </Card>
+</CardGroup>
+
+## Feature Comparison
+
+| Benchmark | Tasks | Language | Evaluation | Login Required |
+|-----------|-------|----------|------------|----------------|
+| LexBench-Browser | 210 | zh/en | LLM (visual) | No |
+| Online-Mind2Web | 300 | English | WebJudge | No |
+| BrowseComp | 1266 | English | Grader | No |
+
+## Quick Comparison Run
+
+```bash
+# LexBench-Browser (recommended; no login required)
+bubench run --agent browser-use --data LexBench-Browser --mode first_n --count 5
+
+# Online-Mind2Web
+bubench run --agent browser-use --data Online-Mind2Web --mode first_n --count 5
+
+# BrowseComp
+bubench run --agent browser-use --data BrowseComp --mode first_n --count 5
+```
+
+## Data Location
+
+All benchmark data is stored in the `benchmarks/` directory:
+
+| Benchmark | Data File Path |
+|-----------|----------------|
+| LexBench-Browser | `benchmarks/LexBench-Browser/data/` |
+| Online-Mind2Web | `benchmarks/Online-Mind2Web/data/` |
+| BrowseComp | `benchmarks/BrowseComp/data/` |
+
+For more details on data loading configuration (including HuggingFace support and private datasets), please refer to the [Data Loading](/en/benchmarks/data-loading) guide.
+
+## Planned Support
+
+- [ ] More benchmarks
+
+<Note>
+If you'd like to add a new benchmark, please refer to the [Custom Benchmark](/en/benchmarks/custom-benchmark) guide.
+</Note>

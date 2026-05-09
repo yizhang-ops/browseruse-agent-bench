@@ -1,0 +1,131 @@
+"""Tests for cli/run.py per-task lexmount routing resolution."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from browseruse_bench.browsers import login_contexts as lc
+from browseruse_bench.cli.run import resolve_lexmount_routing_for_task
+
+
+@pytest.fixture
+def tmp_index(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    path = tmp_path / "index.json"
+    monkeypatch.setattr(lc, "INDEX_PATH", path)
+    return path
+
+
+def _cfg_with_profiles() -> dict:
+    return {
+        "browser_id": "lexmount",
+        "lexmount_profiles": {
+            "zh": {"api_key": "K-zh", "project_id": "P-zh", "base_url": "https://zh"},
+            "en": {"api_key": "K-en", "project_id": "P-en", "base_url": "https://en"},
+        },
+    }
+
+
+def test_routing_picks_zh_profile_for_zh_task(tmp_index: Path) -> None:
+    profile, ctx = resolve_lexmount_routing_for_task(
+        _cfg_with_profiles(),
+        {"task_id": "1", "website_region": "zh", "login_required": False},
+    )
+    assert profile == "zh"
+    assert ctx is None
+
+
+def test_routing_picks_en_profile_for_en_task(tmp_index: Path) -> None:
+    profile, ctx = resolve_lexmount_routing_for_task(
+        _cfg_with_profiles(),
+        {"task_id": "1", "website_region": "en", "login_required": False},
+    )
+    assert profile == "en"
+    assert ctx is None
+
+
+def test_routing_no_profile_when_region_unconfigured(tmp_index: Path) -> None:
+    """A region key not present in lexmount_profiles falls through (no profile env set)."""
+    profile, ctx = resolve_lexmount_routing_for_task(
+        _cfg_with_profiles(),
+        {"task_id": "1", "website_region": "fr", "login_required": False},
+    )
+    assert profile is None
+    assert ctx is None
+
+
+def test_routing_no_profile_when_browser_not_lexmount(tmp_index: Path) -> None:
+    profile, ctx = resolve_lexmount_routing_for_task(
+        {"browser_id": "Chrome-Local", "lexmount_profiles": {"zh": {}}},
+        {"task_id": "1", "website_region": "zh", "login_required": True},
+    )
+    assert profile is None
+    assert ctx is None
+
+
+def test_routing_resolves_login_context_per_profile(tmp_index: Path) -> None:
+    lc.upsert_profile("xiaohongshu", "zh", {"context_id": "ctx_zh"})
+    lc.upsert_profile("xiaohongshu", "en", {"context_id": "ctx_en"})
+
+    profile_zh, ctx_zh = resolve_lexmount_routing_for_task(
+        _cfg_with_profiles(),
+        {
+            "task_id": "1",
+            "website_region": "zh",
+            "login_required": True,
+            "target_website": "https://www.xiaohongshu.com",
+        },
+    )
+    profile_en, ctx_en = resolve_lexmount_routing_for_task(
+        _cfg_with_profiles(),
+        {
+            "task_id": "2",
+            "website_region": "en",
+            "login_required": True,
+            "target_website": "https://www.xiaohongshu.com",
+        },
+    )
+    assert (profile_zh, ctx_zh) == ("zh", "ctx_zh")
+    assert (profile_en, ctx_en) == ("en", "ctx_en")
+
+
+def test_routing_soft_fails_when_login_context_missing(tmp_index: Path) -> None:
+    """No saved context for a login-required task → context_id is None, profile still set."""
+    profile, ctx = resolve_lexmount_routing_for_task(
+        _cfg_with_profiles(),
+        {
+            "task_id": "1",
+            "website_region": "zh",
+            "login_required": True,
+            "target_website": "https://www.xiaohongshu.com",
+        },
+    )
+    assert profile == "zh"
+    assert ctx is None
+
+
+def test_routing_returns_none_when_inline_cfg_is_none(tmp_index: Path) -> None:
+    profile, ctx = resolve_lexmount_routing_for_task(None, {"website_region": "zh"})
+    assert profile is None
+    assert ctx is None
+
+
+def test_routing_matches_profile_case_insensitively(tmp_index: Path) -> None:
+    """Profile keys written in mixed case (or with whitespace) in config still match."""
+    cfg = {
+        "browser_id": "lexmount",
+        "lexmount_profiles": {
+            "ZH": {"api_key": "K-zh"},
+            " en ": {"api_key": "K-en"},
+        },
+    }
+    profile, _ = resolve_lexmount_routing_for_task(
+        cfg, {"task_id": "1", "website_region": "zh", "login_required": False}
+    )
+    assert profile == "zh"
+
+    profile, _ = resolve_lexmount_routing_for_task(
+        cfg, {"task_id": "2", "website_region": "EN", "login_required": False}
+    )
+    assert profile == "en"

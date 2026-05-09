@@ -1,0 +1,134 @@
+---
+title: 'cli_utils'
+description: 'CLI argument parsing utilities'
+---
+
+# browseruse_bench.utils.cli_utils
+
+Command-line argument parsing and error handling utilities.
+
+## Import
+
+```python
+from browseruse_bench.utils import (
+    handle_cli_errors,
+    create_run_parser,
+    create_eval_parser,
+    create_base_agent_parser,
+)
+```
+
+---
+
+## handle_cli_errors
+
+CLI error handling decorator for unified exception and exit code handling.
+
+```python
+def handle_cli_errors(func: Callable[..., int]) -> Callable[..., None]
+```
+
+### Usage Example
+
+```python
+from browseruse_bench.utils import handle_cli_errors
+
+@handle_cli_errors
+def main() -> int:
+    # Your logic
+    return 0  # Success
+
+if __name__ == "__main__":
+    main()
+```
+
+### Behavior
+
+| Condition | Exit Code |
+|-----------|-----------|
+| Normal return | Function return value |
+| KeyboardInterrupt | 130 |
+| Other exceptions | 1 |
+
+---
+
+## create_run_parser
+
+Create argument parser for the main run script.
+
+```python
+def create_run_parser() -> argparse.ArgumentParser
+```
+
+### Included Arguments
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--mode` | choice | `all` | Test mode: `single`, `first_n`, `specific`, `sample_n`, `by_id`, `all` |
+| `--count` | int | 1 | Number of tasks for `first_n` or `sample_n` mode |
+| `--task-ids` | list | - | Task ID list for `specific` mode |
+| `--id` | str | - | Single task ID for `by_id` mode |
+| `--timeout` | int | - | Timeout per task (seconds) |
+| `--skip-completed` | flag | False | Skip completed tasks |
+| `--dry-run` | flag | False | Show command only, do not execute |
+
+---
+
+## create_eval_parser
+
+Create argument parser for the evaluation script.
+
+```python
+def create_eval_parser() -> argparse.ArgumentParser
+```
+
+### Included Arguments
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--mode` | str | - | Evaluation mode |
+| `--model` | str | - | Evaluation model |
+| `--score-threshold` | int | - | Score threshold (LexBench-Browser=60, others=3) |
+| `--num-worker` | int | 1 | Number of worker processes |
+| `--api-key` | str | - | API Key |
+| `--base-url` | str | - | API Base URL |
+| `--dry-run` | flag | False | Show command only, do not execute |
+
+---
+
+## create_base_agent_parser
+
+Create base argument parser for Agent run.py.
+
+```python
+def create_base_agent_parser(
+    description: str,
+    default_tasks_json: str,
+    default_output_dir: str
+) -> argparse.ArgumentParser
+```
+
+<ParamField path="description" type="str" required>
+  Parser description
+</ParamField>
+
+<ParamField path="default_tasks_json" type="str" required>
+  Default tasks JSON file path
+</ParamField>
+
+<ParamField path="default_output_dir" type="str" required>
+  Default output directory
+</ParamField>
+
+### Usage Example
+
+```python
+from browseruse_bench.utils import create_base_agent_parser
+
+parser = create_base_agent_parser(
+    description="Browser-Use Agent Runner",
+    default_tasks_json="data/tasks.json",
+    default_output_dir="output/"
+)
+args = parser.parse_args()
+```

@@ -1,0 +1,59 @@
+---
+title: 'API Reference'
+description: 'browseruse_bench module reference documentation'
+---
+
+# API Reference
+
+This section provides the complete module reference for the `browseruse_bench` package.
+
+## Package Structure
+
+```
+browseruse_bench/
+
+└── utils/                # Utility modules
+│   ├── task_utils.py     # Task processing
+│   ├── eval_utils.py     # Evaluation tools
+│   ├── cli_utils.py      # CLI argument parsing
+│   ├── stats_utils.py    # Statistics tools
+│   └── config_loader.py  # Configuration loading
+```
+
+## Quick Import
+
+```python
+# Import utility functions
+from browseruse_bench.utils import (
+    REPO_ROOT,
+    load_tasks,
+    filter_tasks,
+    EvaluationModel,
+    load_evaluation_model,
+    create_run_parser,
+    create_eval_parser,
+    generate_evaluation_summary,
+    load_config_file,
+)
+```
+
+## Module Navigation
+
+<CardGroup cols={2}>
+
+  <Card title="Task Utils" icon="list-check" href="/en/api-reference/utils/task_utils">
+    Task loading, filtering and processing
+  </Card>
+  <Card title="Eval Utils" icon="star" href="/en/api-reference/utils/eval_utils">
+    Evaluation model and scoring tools
+  </Card>
+  <Card title="CLI Utils" icon="terminal" href="/en/api-reference/utils/cli_utils">
+    Command-line argument parsing
+  </Card>
+  <Card title="Stats Utils" icon="chart-line" href="/en/api-reference/utils/stats_utils">
+    Statistics calculation and summary generation
+  </Card>
+  <Card title="Config Loader" icon="gear" href="/en/api-reference/utils/config_loader">
+    YAML configuration loading
+  </Card>
+</CardGroup>

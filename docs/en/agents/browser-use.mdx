@@ -1,0 +1,178 @@
+---
+title: "browser-use"
+description: "Python-based programmable browser agent"
+---
+
+browser-use is a Python-based browser agent that provides programmable browser automation capabilities. It supports local Chrome, Lexmount cloud browsers, and AgentBay cloud browsers.
+
+## Installation
+
+```bash
+# Create and activate the project virtual environment
+uv venv
+source .venv/bin/activate
+
+# Install browseruse-bench
+uv pip install -e .
+```
+
+`bubench run` will create the agent venv defined in `config.yaml` (default `.venvs/browser_use`) and install the `browser-use`
+extra on first use.
+
+Activate `.venv` (or use `uv run bubench ...`) before running `bubench` commands.
+
+## Configuration
+
+Configure browser-use in the root `config.yaml` under `agents.browser-use`:
+
+```yaml
+agents:
+  browser-use:
+    active_model: browser-use   # active model profile
+    models:
+      browser-use:              # Browser Use official API
+        model_type: BROWSER_USE
+        model_id: bu-2-0
+        api_key: $BROWSER_USE_API_KEY
+      gpt:                      # OpenAI-compatible model
+        model_type: OPENAI
+        model_id: gpt-5.4
+        api_key: $OPENAI_API_KEY
+        base_url: $OPENAI_BASE_URL
+    browser:
+      browser_id: lexmount
+      lexmount_browser_mode: normal
+      lexmount_api_key: $LEXMOUNT_API_KEY
+      lexmount_project_id: $LEXMOUNT_PROJECT_ID
+    defaults:
+      use_vision: false
+      max_steps: 40
+      flash_mode: true
+      timeout: 600
+```
+
+Set `active_model` to the profile name you want to use by default, then switch at runtime with `--model <name>`.
+
+### Supported Model Types
+
+| `model_type` | Description | Additional Keys |
+|-------------|-------------|-----------------|
+| `BROWSER_USE` | Browser Use official API | `api_key` (`$BROWSER_USE_API_KEY`) |
+| `OPENAI` | OpenAI-compatible models | `api_key`, `base_url` |
+| `GEMINI` | Gemini models | `api_key`, `base_url` |
+
+### Configuration Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `active_model` | Default model profile | `browser-use`, `gpt` |
+| `model_type` | Model provider type | `BROWSER_USE`, `OPENAI`, `GEMINI` |
+| `model_id` | Model ID | `bu-2-0`, `gpt-4.1` |
+| `api_key` | API key (use `$ENV_VAR` form) | `$BROWSER_USE_API_KEY` |
+| `browser_id` | Browser backend | `Chrome-Local`, `lexmount`, `agentbay` |
+| `use_vision` | Pass screenshots to the LLM alongside DOM state | `true`, `false` |
+| `max_steps` | Max steps per task | `40` |
+| `timeout` | Task timeout (seconds) | `600` |
+| `lexmount_browser_mode` | Lexmount browser mode | `normal` (default), `light` |
+| `agentbay_api_key` | AgentBay API key (use `$ENV_VAR` form) | `$AGENTBAY_API_KEY` |
+| `agentbay_image_id` | AgentBay session image | Default `browser_latest` |
+| `agentbay_enable_browser_replay` | Enable AgentBay replay | `true` (default), `false` |
+| `agentbay_browser_use_stealth` | Enable AgentBay stealth | `false` (default), `true` |
+
+<Note>
+**Why no `browser_control`?**
+
+browser-use always operates with DOM and vision running in parallel internally — there is no separate "DOM-only" or "vision-only" mode to expose. `use_vision` only controls whether screenshots are included in the LLM's context; the underlying interaction strategy is fixed by the framework itself.
+</Note>
+
+## Browser Modes
+
+**Local Browser**: Use local Chrome, suitable for development and debugging. No extra parameters required.
+
+```yaml
+browser:
+  browser_id: Chrome-Local
+```
+
+**Lexmount Cloud Browser**: Suitable for large-scale evaluation. Set `LEXMOUNT_API_KEY` / `LEXMOUNT_PROJECT_ID` in `.env`, then reference them under `browser` in `config.yaml`:
+
+```yaml
+browser:
+  browser_id: lexmount
+  lexmount_browser_mode: normal           # normal | light
+  lexmount_api_key: $LEXMOUNT_API_KEY
+  lexmount_project_id: $LEXMOUNT_PROJECT_ID
+  # lexmount_base_url: $LEXMOUNT_BASE_URL  # optional; override per region:
+                                          #   https://api.lexmount.cn            (mainland China / 国内, default)
+                                          #   https://api.lexmount.com           (international / 国外)
+```
+
+See [Lexmount Cloud Browser](/en/browser/lexmount) for detailed configuration.
+
+**AgentBay Cloud Browser**: Suitable for large-scale evaluation. Set `AGENTBAY_API_KEY` in `.env`, then reference it under `browser` in `config.yaml`:
+
+```yaml
+browser:
+  browser_id: agentbay
+  agentbay_api_key: $AGENTBAY_API_KEY
+  # agentbay_image_id: browser_latest
+  # agentbay_enable_browser_replay: true
+  # agentbay_browser_use_stealth: false
+```
+
+Runtime notes:
+
+- AgentBay SDK is treated as an optional dependency. Missing packages or incompatible exports fail only when `browser_id: agentbay`; other browser modes continue to work.
+- Session cleanup failures in AgentBay backend are logged and do not mask task execution errors.
+
+## Usage Examples
+
+### Basic Run
+
+```bash
+# Run top 3 tasks of LexBench-Browser
+bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+  --mode first_n \
+  --count 3
+
+# Run all tasks (skip completed)
+bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+  --mode all \
+  --skip-completed
+```
+
+### Run Specific Tasks
+
+```bash
+# Run tasks by ID
+bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+  --mode specific \
+  --task-ids task_id_1 task_id_2
+```
+
+## Evaluation
+
+```bash
+# Evaluate results (--model-id matches the model_id used at run time)
+bubench eval --agent browser-use --data LexBench-Browser --model-id bu-2-0
+
+# Custom score threshold
+bubench eval --agent browser-use --data LexBench-Browser --model-id bu-2-0 --score-threshold 70
+```
+
+## Supported Benchmarks
+
+- ✅ LexBench-Browser
+- ✅ Online-Mind2Web
+- ✅ BrowseComp
+
+## Related Links
+
+- [browser-use Official Docs](https://docs.browser-use.com)
+- [GitHub Repository](https://github.com/browser-use/browser-use)

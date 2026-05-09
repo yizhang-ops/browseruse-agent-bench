@@ -1,0 +1,64 @@
+browser-use:
+  path: browseruse_bench/agents
+  entrypoint: browseruse_bench/runner/agent_runner.py
+  venv: .venvs/browser_use
+  supported_benchmarks:
+    - Online-Mind2Web
+    - BrowseComp
+    - LexBench-Browser
+    - WebVoyager
+
+skyvern:
+  path: browseruse_bench/agents
+  entrypoint: browseruse_bench/runner/agent_runner.py
+  venv: .venvs/skyvern
+  supported_benchmarks:
+    - Online-Mind2Web
+    - BrowseComp
+    - LexBench-Browser
+    - WebVoyager
+
+Agent-TARS:
+  path: browseruse_bench/agents
+  entrypoint: browseruse_bench/runner/agent_runner.py
+  venv: .venvs/agent_tars
+  supported_benchmarks:
+    - Online-Mind2Web
+    - BrowseComp
+    - LexBench-Browser
+    - WebVoyager
+
+claude-code:
+  path: browseruse_bench/agents
+  entrypoint: browseruse_bench/runner/agent_runner.py
+  venv: .venv
+  supported_benchmarks:
+    - Online-Mind2Web
+    - BrowseComp
+    - LexBench-Browser
+    - WebVoyager
+
+deepbrowse:
+  path: browseruse_bench/agents
+  entrypoint: browseruse_bench/runner/agent_runner.py
+  venv: .venvs/deepbrowse
+  # Requires a local DeepBrowse checkout at ../deepbrowse.
+  # Example:
+  #   git clone <deepbrowse-repo-url> ../deepbrowse
+  install_targets:
+    - ../deepbrowse
+  supported_benchmarks:
+    - Online-Mind2Web
+    - BrowseComp
+    - LexBench-Browser
+    - WebVoyager
+
+openai-cua:
+  path: browseruse_bench/agents
+  entrypoint: browseruse_bench/runner/agent_runner.py
+  venv: .venvs/openai_cua
+  supported_benchmarks:
+    - Online-Mind2Web
+    - BrowseComp
+    - LexBench-Browser
+    - WebVoyager

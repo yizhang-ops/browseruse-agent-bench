@@ -1,0 +1,346 @@
+---
+title: "Quickstart"
+description: "Install and run browseruse-bench in 5 minutes"
+icon: "rocket"
+---
+
+## Prerequisites
+
+- Python 3.11+
+- Node.js 18+ (only for Agent-TARS)
+- [uv](https://docs.astral.sh/uv/) (recommended Python package manager)
+
+## Installation
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/lexmount/browseruse-bench.git
+    cd browseruse-bench
+    ```
+  </Step>
+  <Step title="Install Python dependencies">
+    ```bash
+    # Install core dependencies and register the bubench CLI
+    uv sync
+    ```
+
+    Activate the venv so `bubench` is on PATH:
+
+    ```bash
+    source .venv/bin/activate
+    ```
+
+    Windows PowerShell:
+
+    ```bash
+    .venv\Scripts\Activate.ps1
+    ```
+
+    `bubench run` will create the agent venv defined in `config.yaml` (built-in defaults:
+    `.venvs/browser_use`, `.venvs/skyvern`, `.venvs/agent_tars`) and install the matching
+    dependencies on first use. Agent `venv` must be configured explicitly (no fallback to `.venv`).
+    If `uv` is not available, creation/install falls back to `python -m venv` and `pip`.
+  </Step>
+  <Step title="Configure environment (.env)">
+    ```bash
+    cp .env.example .env
+    ```
+
+    Edit `.env` — `.env.example` is the source of truth; keys below are the common ones.
+    `$VAR` placeholders in `config.yaml` are resolved from this file at runtime.
+
+    ```bash
+    ### OpenAI API (used by agents and the eval pipeline)
+    OPENAI_API_KEY=your-openai-api-key-here
+    # OPENAI_BASE_URL=https://api.openai.com/v1    # Optional: custom / OpenAI-compatible gateway
+
+    ### OpenAI-compatible gateway (Skyvern, and any agent using openai_compatible_*)
+    # OPENAI_COMPATIBLE_API_KEY=your-gateway-api-key
+    # OPENAI_COMPATIBLE_API_BASE=https://your-gateway.example.com/v1
+
+    ### Anthropic API (Claude Code agent)
+    ANTHROPIC_API_KEY=your-anthropic-api-key-here
+    # ANTHROPIC_BASE_URL=https://api.anthropic.com
+
+    ### Lexmount cloud browser
+    LEXMOUNT_API_KEY=your-lexmount-api-key
+    LEXMOUNT_PROJECT_ID=your-project-id
+    # LEXMOUNT_BASE_URL=https://api.lexmount.cn   # Optional. Official endpoints:
+    #   https://api.lexmount.cn               — production (mainland China / 国内)
+    #   https://api.lexmount.com              — production (international / 国外)
+
+    ### Browser Use API (only when models.*.model_type: BROWSER_USE)
+    BROWSER_USE_API_KEY=your-browser-use-api-key
+
+    ### AgentBay (only when browser_id: agentbay)
+    # AGENTBAY_API_KEY=your-agentbay-api-key
+
+    ### HuggingFace mirror (optional, faster downloads in China)
+    # HF_ENDPOINT=https://hf-mirror.com
+    ```
+
+    > **Lexmount credentials**: Apply for `LEXMOUNT_API_KEY` and `LEXMOUNT_PROJECT_ID` at [browser.lexmount.cn](https://browser.lexmount.cn) (mainland China) or [browser.lexmount.com](https://browser.lexmount.com) (international). See [Lexmount Cloud Browser](/en/browser/lexmount) for the full setup.
+  </Step>
+  <Step title="Configure config.yaml">
+    ```bash
+    cp config.example.yaml config.yaml
+    ```
+
+    The root `config.yaml` is the canonical runtime config. `$VAR` placeholders are
+    resolved from `.env` at runtime. Three parts to set up:
+
+    **1. Agent (model)** — pick the active model for each agent under `agents.<agent>`:
+
+    ```yaml
+    agents:
+      browser-use:
+        active_model: gpt-5.4         # pick any key from models below
+        models:
+          gpt-5.4:
+            model_type: OPENAI        # OPENAI | GEMINI | ANTHROPIC | AZURE | BROWSER_USE
+            model_id: gpt-5.4
+            api_key: $OPENAI_API_KEY
+            base_url: $OPENAI_BASE_URL
+          browser-use:
+            model_type: BROWSER_USE
+            model_id: bu-2-0
+            api_key: $BROWSER_USE_API_KEY
+    ```
+
+    <Tip>
+      Override the active model per run with `--model <name>` — no need to edit the file.
+    </Tip>
+
+    **2. Browser backend** — set `browser_id` under `agents.<agent>.browser`. Only one
+    backend is active at a time; fill in its required keys and leave others commented:
+
+    ```yaml
+    agents:
+      browser-use:
+        browser:
+          browser_id: lexmount          # lexmount | Chrome-Local | agentbay | browser-use-cloud | cdp
+          # --- lexmount ---
+          lexmount_browser_mode: normal
+          lexmount_api_key: $LEXMOUNT_API_KEY
+          lexmount_project_id: $LEXMOUNT_PROJECT_ID
+          # --- Chrome-Local ---
+          # browser_id: Chrome-Local
+          # local_proxy_server: ""     # http://127.0.0.1:7890 etc. — local Chromium does NOT inherit OS / clash / v2ray proxy
+          # --- agentbay ---
+          # browser_id: agentbay       # set AGENTBAY_API_KEY in .env
+    ```
+
+    See [Local Chromium Browser](/en/browser/local) and [Lexmount Cloud Browser](/en/browser/lexmount), plus each agent's page, for backend-specific options. **Important**: the local Chromium does NOT pick up your OS / clash / v2ray proxy — set `local_proxy_server` if you need to reach sites the bare-connect can't (e.g. `bloomberg.com`, `archive.org`).
+
+    **3. Eval model** — used by `bubench eval` for LLM-as-judge scoring:
+
+    ```yaml
+    eval:
+      model: gpt-5.4
+      api_key: $OPENAI_API_KEY
+      base_url: $OPENAI_BASE_URL   # remove if using api.openai.com directly
+    ```
+
+  </Step>
+  <Step title="Install Agent-TARS CLI (optional)">
+    ```bash
+    npm install -g @agent-tars/cli@0.3.0
+    ```
+  </Step>
+  <Step title="Install skills (optional)">
+    ```bash
+    bubench skills
+    ```
+  </Step>
+</Steps>
+
+## Quick Run
+
+### Run your first benchmark
+
+<CodeGroup>
+```bash LexBench-Browser
+# Run the first 3 tasks of LexBench-Browser
+bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+  --mode first_n \
+  --count 3
+```
+
+```bash Online-Mind2Web
+# Run the first 3 tasks of Online-Mind2Web
+bubench run \
+  --agent Agent-TARS \
+  --data Online-Mind2Web \
+  --mode first_n \
+  --count 3
+```
+
+```bash BrowseComp
+# Run the first 3 tasks of BrowseComp
+bubench run \
+  --agent browser-use \
+  --data BrowseComp \
+  --mode first_n \
+  --count 3
+```
+</CodeGroup>
+
+### Smoke test (recommended)
+
+Add `--dry-run` to validate config loading and task resolution without executing tasks:
+
+```bash
+bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+  --mode single \
+  --dry-run
+```
+
+<Note>
+  `--dry-run` checks that `config.yaml` / `.env` parse cleanly and that at least one
+  task matches your `--data` / `--split` / `--mode`. It does **not** create the
+  agent venv, call model APIs, or open a browser — those only happen on a real run.
+</Note>
+
+### Evaluate results
+
+```bash
+# Uses active_model's model_id from config.yaml by default
+bubench eval --agent browser-use --data LexBench-Browser
+
+# Override with --model-id when evaluating a non-active model's run
+bubench eval --agent browser-use --data LexBench-Browser --model-id gpt-5.4
+
+# Custom score threshold
+bubench eval --agent browser-use --data LexBench-Browser --score-threshold 70
+```
+
+<Tip>
+  `--model-id` tells `eval` which output subdirectory to score
+  (`experiments/<benchmark>/<split>/<agent>/<model_id>/`). Omitting it falls back to
+  the `model_id` of `agents.<agent>.active_model` in `config.yaml`, matching what
+  `bubench run` writes by default.
+</Tip>
+
+> **Logs**: Script execution logs are saved in `output/logs/`.
+> - `run.py`: `output/logs/run/`
+> - `eval.py`: `output/logs/eval/`
+> - `leaderboard`: `output/logs/leaderboard/`
+
+### Generate leaderboard
+
+```bash
+# Collect all evaluation results and generate the HTML leaderboard
+bubench leaderboard
+
+# Start a local server to view it
+bubench server
+# Visit http://localhost:8000
+```
+
+## Run Modes
+
+| Mode | Description | Example |
+|------|-------------|---------|
+| `single` | Run the first task (sanity check) | `--mode single` |
+| `first_n` | Run the first N tasks | `--mode first_n --count 5` |
+| `sample_n` | Randomly sample N tasks | `--mode sample_n --count 10` |
+| `specific` | Run specified task IDs | `--mode specific --task-ids id1 id2` |
+| `by_id` | Run one task by numeric ID field | `--mode by_id --id 123` |
+| `all` | Run all tasks | `--mode all` |
+
+> **Note**: `--task-ids` expects a space-separated list.
+
+## Common Parameters
+
+```bash
+bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+  --mode first_n \
+  --count 5 \
+  --timeout 600 \
+  --skip-completed \
+  --dry-run
+```
+
+Additional flags:
+- `--data-source`: `local` or `huggingface`.
+- `--force-download`: Force re-download in HuggingFace mode.
+- `--agent-config`: Optional path to an alternate root-config YAML (same shape as `config.yaml`). Defaults to repo root `config.yaml`.
+- `--timestamp`: Resume or run in a specific directory (`YYYYMMDD_HHmmss`).
+
+`--timeout` overrides `TIMEOUT` in the agent config.
+
+## Resume an Interrupted Run
+
+If a run is interrupted, use `--timestamp` to point to the same output directory and `--skip-completed` to skip tasks that already have results:
+
+```bash
+bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+  --timestamp 20260101_120000 \
+  --skip-completed \
+  --mode all
+```
+
+> **Tip**: Find your timestamp under `experiments/{benchmark}/{split}/{agent}/`.
+
+## Running Multiple Agents in Parallel
+
+`bubench run` uses the venv specified by the agent entry in `config.yaml` and will auto-create/install dependencies
+on first use. By default each built-in agent has a dedicated venv:
+- `browser-use` -> `.venvs/browser_use`
+- `skyvern` -> `.venvs/skyvern`
+- `Agent-TARS` -> `.venvs/agent_tars`
+
+If an agent entry does not define `venv`, `bubench run` exits with an error instead of falling back to `.venv`.
+
+If you need to run conflicting agents at the same time, open two terminals and run each agent with its own venv.
+
+### Parallel Task Execution (Split by Task IDs)
+
+To speed up a large benchmark, split tasks across multiple terminals using `--mode specific --task-ids`:
+
+```bash
+# Terminal 1
+bubench run --agent browser-use --data LexBench-Browser \
+  --mode specific --task-ids task_001 task_002 task_003
+
+# Terminal 2
+bubench run --agent browser-use --data LexBench-Browser \
+  --mode specific --task-ids task_004 task_005 task_006
+```
+
+Use the same `--timestamp` in both terminals to write results to the same output directory.
+
+### Node.js Agents (No Conflicts)
+
+**Agent-TARS** runs via a Node.js CLI and does not share Python dependencies with other agents.
+You can run it in any terminal after installing the CLI.
+
+```bash
+bubench run --agent Agent-TARS ...
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Supported Agents" icon="robot" href="/en/agents/overview">
+    Explore available browser agents
+  </Card>
+  <Card title="Benchmarks" icon="chart-bar" href="/en/benchmarks/overview">
+    Learn about each benchmark
+  </Card>
+  <Card title="Cloud Browser Setup" icon="cloud" href="/en/browser/lexmount">
+    Configure Lexmount cloud browser
+  </Card>
+  <Card title="View Leaderboard" icon="trophy" href="/en/leaderboard/overview">
+    Compare agent performance
+  </Card>
+</CardGroup>

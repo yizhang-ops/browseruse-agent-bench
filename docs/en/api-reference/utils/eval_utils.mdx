@@ -1,0 +1,181 @@
+---
+title: 'eval_utils'
+description: 'Evaluation model and scoring utilities'
+---
+
+# browseruse_bench.utils.eval_utils
+
+Evaluation-related utility functions and classes.
+
+## Import
+
+```python
+from browseruse_bench.utils import (
+    EvaluationModel,
+    load_evaluation_model,
+    encode_image,
+    extract_score_from_response,
+    calculate_success,
+    normalized_results_file,
+)
+```
+
+---
+
+## EvaluationModel
+
+OpenAI model wrapper class for task evaluation.
+
+```python
+class EvaluationModel:
+    def __init__(
+        self,
+        model: str = "gpt-4o",
+        api_key: str = None,
+        base_url: str = None
+    )
+```
+
+<ParamField path="model" type="str" default="gpt-4o">
+  Model name
+</ParamField>
+
+<ParamField path="api_key" type="str" default="None">
+  API Key, defaults to environment variable
+</ParamField>
+
+<ParamField path="base_url" type="str" default="None">
+  API Base URL, defaults to environment variable
+</ParamField>
+
+### generate
+
+Generate evaluation response with automatic retry.
+
+```python
+def generate(
+    self,
+    messages: List[Dict],
+    max_tokens: int = 2048,
+    temperature: float = 0.3,
+    **kwargs
+) -> str
+```
+
+---
+
+## load_evaluation_model
+
+Load evaluation model with environment variable fallback.
+
+```python
+def load_evaluation_model(
+    model: str = None,
+    api_key: str = None,
+    base_url: str = None
+) -> EvaluationModel
+```
+
+### Configuration
+
+The eval model is configured in the root `config.yaml` under the `eval:` section:
+
+```yaml
+eval:
+  model: gpt-5.4
+  api_key: $OPENAI_API_KEY
+  base_url: $OPENAI_BASE_URL
+```
+
+`api_key` and `base_url` accept `$VAR` placeholders resolved from `.env`.
+
+---
+
+## encode_image
+
+Convert a PIL image to base64 string.
+
+```python
+def encode_image(
+    image: PIL.Image,
+    scale_factor: float = 1.0
+) -> str
+```
+
+<ParamField path="image" type="PIL.Image" required>
+  PIL Image object
+</ParamField>
+
+<ParamField path="scale_factor" type="float" default="1.0">
+  Image scale factor (between 0.0 and 1.0), e.g., 0.5 means 50% size
+</ParamField>
+
+---
+
+## extract_score_from_response
+
+Extract numerical score from evaluation response.
+
+```python
+def extract_score_from_response(response: str) -> int
+```
+
+<ParamField path="response" type="str" required>
+  Evaluation response text
+</ParamField>
+
+<ResponseField name="return" type="int">
+  Extracted score (0 if not found)
+</ResponseField>
+
+---
+
+## calculate_success
+
+Determine if task is successful based on score threshold.
+
+```python
+def calculate_success(
+    score: int,
+    threshold: int = 60
+) -> bool
+```
+
+<ParamField path="score" type="int" required>
+  Task score
+</ParamField>
+
+<ParamField path="threshold" type="int" default="60">
+  Success threshold
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  True if score meets or exceeds threshold
+</ResponseField>
+
+---
+
+## normalized_results_file
+
+Context manager that yields a path guaranteed to be JSONL format.
+
+```python
+@contextmanager
+def normalized_results_file(results_file: Path) -> Generator[Path, None, None]
+```
+
+<ParamField path="results_file" type="Path" required>
+  Results file path
+</ParamField>
+
+### Usage Example
+
+```python
+from browseruse_bench.utils import normalized_results_file
+
+with normalized_results_file(Path("results.json")) as jsonl_path:
+    # jsonl_path is guaranteed to be JSONL format
+    with open(jsonl_path) as f:
+        for line in f:
+            record = json.loads(line)
+```

@@ -1,0 +1,155 @@
+---
+title: "Lexmount Cloud Browser"
+description: "Use Lexmount cloud browser for large-scale automated evaluation"
+---
+
+Lexmount provides cloud-based browser instances for running browser automation tasks. Supports session persistence, login state management, and large-scale parallel execution.
+
+## Service Endpoints
+
+Lexmount offers two production regions. Choose the one closest to where your evaluation is running:
+
+| Environment | Console | API base URL |
+| --- | --- | --- |
+| Production (mainland China) | [browser.lexmount.cn](https://browser.lexmount.cn) | `https://api.lexmount.cn` |
+| Production (international) | [browser.lexmount.com](https://browser.lexmount.com) | `https://api.lexmount.com` |
+
+The API base URL is optional — the SDK defaults to the mainland China endpoint. Override it via `LEXMOUNT_BASE_URL` in `.env` or `lexmount_base_url` in `config.yaml` when running from outside mainland China.
+
+## Prerequisites
+
+<Steps>
+  <Step title="Get API Key">
+    Register at the Lexmount console ([browser.lexmount.cn](https://browser.lexmount.cn) for mainland China, [browser.lexmount.com](https://browser.lexmount.com) for international) and apply for an API Key.
+  </Step>
+  <Step title="Get Project ID">
+    Create a project in the same console to get the Project ID.
+  </Step>
+</Steps>
+
+## Configuration
+
+Add credentials to `.env`:
+
+```bash
+LEXMOUNT_API_KEY=your_api_key
+LEXMOUNT_PROJECT_ID=your_project_id
+```
+
+Copy the example config (`cp config.example.yaml config.yaml`), then configure the cloud browser for the target agent in the root `config.yaml`:
+
+```yaml
+# config.yaml
+agents:
+  browser-use:
+    browser:
+      browser_id: lexmount
+      lexmount_browser_mode: normal   # normal | light
+      lexmount_api_key: $LEXMOUNT_API_KEY
+      lexmount_project_id: $LEXMOUNT_PROJECT_ID
+```
+
+## Login Contexts
+
+For tasks requiring login, use the `bubench login` subcommand to create a **persistent Lexmount context** that stores the login state. At evaluation time the runtime auto-forks this context based on each task's `target_website` — one login serves many concurrent runs.
+
+### Step 1: Save a Login
+
+```bash
+# Xiaohongshu
+bubench login add xiaohongshu
+
+# Taobao
+bubench login add taobao
+
+# Custom URL (sites not in the built-in registry)
+bubench login add my_site --website https://example.com/login
+```
+
+The command prints an **Inspect URL** — open it in your local browser, complete the login, then return to the terminal and press **Enter** to persist cookies into the context.
+
+<Tip>
+Nearly 100 common sites are built in (e-commerce, social, video, office/collab, etc.). Run `bubench login add help` to list them all, or edit `browseruse_bench/browsers/login_sites.yaml` to add your own.
+</Tip>
+
+### Step 2: Login Flow
+
+<Steps>
+  <Step title="Run the command">
+    `bubench login add <site>` creates the context, opens a remote session, and prints an Inspect URL
+  </Step>
+  <Step title="Log in via the browser">
+    Open the Inspect URL locally — the remote Chrome is already navigated to the target site. Log in normally
+  </Step>
+  <Step title="Confirm & save">
+    Press **Enter** in the terminal. The session closes cleanly and cookies persist into the base context
+  </Step>
+</Steps>
+
+The mapping is recorded in `browser_data/login_contexts/index.json`.
+
+### Step 3: Other Commands
+
+```bash
+# List all saved login contexts
+bubench login list
+
+# Remove local mapping only (keep remote context)
+bubench login remove xiaohongshu
+
+# Also delete the remote Lexmount context
+bubench login remove xiaohongshu --delete-remote
+```
+
+## Running Tasks with Login
+
+Any task with `login_required: true` whose `target_website` resolves to a saved site will auto-mount the matching context — no extra flags needed:
+
+<Steps>
+  <Step title="Ensure login exists">
+    Run `bubench login list` to confirm the target site is saved
+  </Step>
+  <Step title="Use Normal mode">
+    ```yaml
+    # config.yaml
+    agents:
+      browser-use:
+        browser:
+          browser_id: lexmount
+          lexmount_browser_mode: normal
+    ```
+  </Step>
+  <Step title="Run tasks">
+    ```bash
+    bubench run \
+      --agent browser-use \
+      --data LexBench-Browser \
+      --mode first_n --count 5
+    ```
+  </Step>
+</Steps>
+
+## Advantages
+
+<CardGroup cols={2}>
+  <Card title="No Local Browser" icon="laptop-slash">
+    Runs in server environments without Chrome installed
+  </Card>
+  <Card title="Session Persistence" icon="database">
+    Login state persists across tasks, no repeated logins
+  </Card>
+  <Card title="Parallel Execution" icon="layer-group">
+    Supports multiple browser instances running in parallel
+  </Card>
+  <Card title="Stable & Reliable" icon="shield-check">
+    Cloud-isolated environment avoids local resource conflicts
+  </Card>
+</CardGroup>
+
+## Notes
+
+<Warning>
+- Cloud browser usage incurs costs — use responsibly
+- Normal mode sessions have an expiry time — check login state regularly
+- Do not expose your API Key in public environments
+</Warning>

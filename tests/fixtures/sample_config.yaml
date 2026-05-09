@@ -1,0 +1,31 @@
+# Test configuration file
+default:
+  agent: browser-use
+  benchmark: Online-Mind2Web
+
+agents:
+  browser-use:
+    path: agents/browser-use
+    entrypoint: src/run.py
+    venv: .venvs/browser_use
+    supported_benchmarks:
+      - Online-Mind2Web
+      - LexBench-Browser
+
+  Agent-TARS:
+    path: agents/Agent-TARS
+    entrypoint: src/run.py
+    venv: .venvs/agent_tars
+    supported_benchmarks:
+      - Online-Mind2Web
+
+benchmarks:
+  Online-Mind2Web:
+    path: benchmarks/Online-Mind2Web
+    output_base: experiments/Online-Mind2Web
+    evaluation_script: eval/src/run.py
+
+  LexBench-Browser:
+    path: benchmarks/LexBench-Browser
+    output_base: experiments/LexBench-Browser
+    evaluation_script: eval/src/run.py

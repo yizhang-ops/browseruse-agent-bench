@@ -1,0 +1,135 @@
+---
+title: "贡献指南"
+description: "如何为 browseruse-bench 项目做出贡献"
+icon: "code-pull-request"
+---
+
+欢迎为 browseruse-bench 项目做出贡献！本指南将帮助你了解如何参与项目开发。
+
+## 开发环境设置
+
+<Steps>
+  <Step title="Fork 仓库">
+    在 GitHub 上 Fork browseruse-bench 仓库
+  </Step>
+  <Step title="克隆代码">
+    ```bash
+    git clone https://github.com/your-username/browseruse-bench.git
+    cd browseruse-bench
+    ```
+  </Step>
+  <Step title="安装依赖">
+    ```bash
+    # 使用 uv（推荐）
+    uv sync --all-extras
+
+    # 或使用 pip
+    pip install -e ".[all,dev]"
+    ```
+  </Step>
+  <Step title="创建分支">
+    ```bash
+    git checkout -b feature/your-feature-name
+    ```
+  </Step>
+</Steps>
+
+
+
+## 贡献类型
+
+### 添加新 Agent
+
+完整的实现步骤、目录结构和注册方式详见 [接入自定义 Agent](/zh/agents/custom-agent)。
+
+### 添加新 Benchmark
+
+1. 在 `benchmarks/` 目录下创建新 Benchmark 目录
+2. 准备任务数据和 `data_info.json`
+3. 实现评估器（可选）
+4. 更新文档
+
+详见 [自定义 Benchmark](/zh/benchmarks/custom-benchmark)
+
+### 修复 Bug
+
+1. 创建 Issue 描述问题
+2. 提交包含修复的 PR
+3. 确保测试通过
+
+### 改进文档
+
+1. 修改 `docs/` 目录下的文档
+2. 提交 PR
+
+## 代码规范
+
+### 格式化
+
+```bash
+# 使用 ruff 格式化
+ruff format .
+
+# 检查代码风格
+ruff check .
+```
+
+### 类型检查
+
+```bash
+# 使用 mypy 进行类型检查
+mypy browseruse_bench
+```
+
+### 测试
+
+```bash
+# 运行所有测试
+pytest tests/
+
+# 运行特定测试
+pytest tests/test_eval.py -v
+```
+
+## 提交 PR
+
+<Steps>
+  <Step title="确保测试通过">
+    ```bash
+    pytest tests/
+    ruff check .
+    ```
+  </Step>
+  <Step title="提交更改">
+    ```bash
+    git add .
+    git commit -m "feat: add your feature description"
+    ```
+  </Step>
+  <Step title="推送分支">
+    ```bash
+    git push origin feature/your-feature-name
+    ```
+  </Step>
+  <Step title="创建 PR">
+    在 GitHub 上创建 Pull Request，描述你的更改
+  </Step>
+</Steps>
+
+## Commit 规范
+
+使用 [Conventional Commits](https://www.conventionalcommits.org/) 格式：
+
+- `feat:` 新功能
+- `fix:` Bug 修复
+- `docs:` 文档更新
+- `refactor:` 代码重构
+- `test:` 添加测试
+- `chore:` 其他更改
+
+示例：
+```
+feat: add WebArena benchmark support
+fix: resolve timeout issue in browser-use agent
+docs: update quickstart guide
+```

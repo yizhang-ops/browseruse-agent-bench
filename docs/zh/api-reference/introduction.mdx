@@ -1,0 +1,59 @@
+---
+title: "API 参考"
+description: "browseruse_bench 模块参考文档"
+---
+
+# API 参考
+
+本节提供 `browseruse_bench` 包的完整模块参考。
+
+## 包结构
+
+```
+browseruse_bench/
+
+└── utils/                # 工具模块
+│   ├── task_utils.py     # 任务处理
+│   ├── eval_utils.py     # 评估工具
+│   ├── cli_utils.py      # 命令行参数解析
+│   ├── stats_utils.py    # 统计工具
+│   └── config_loader.py  # 配置加载
+```
+
+## 快速导入
+
+```python
+# 导入工具函数
+from browseruse_bench.utils import (
+    REPO_ROOT,
+    load_tasks,
+    filter_tasks,
+    EvaluationModel,
+    load_evaluation_model,
+    create_run_parser,
+    create_eval_parser,
+    generate_evaluation_summary,
+    load_config_file,
+)
+```
+
+## 模块导航
+
+<CardGroup cols={2}>
+
+  <Card title="Task Utils" icon="list-check" href="/zh/api-reference/utils/task_utils">
+    任务加载、过滤与处理
+  </Card>
+  <Card title="Eval Utils" icon="star" href="/zh/api-reference/utils/eval_utils">
+    评估模型与打分工具
+  </Card>
+  <Card title="CLI Utils" icon="terminal" href="/zh/api-reference/utils/cli_utils">
+    命令行参数解析
+  </Card>
+  <Card title="Stats Utils" icon="chart-line" href="/zh/api-reference/utils/stats_utils">
+    统计计算与汇总生成
+  </Card>
+  <Card title="Config Loader" icon="gear" href="/zh/api-reference/utils/config_loader">
+    YAML 配置加载
+  </Card>
+</CardGroup>

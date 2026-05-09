@@ -1,0 +1,159 @@
+---
+title: "Custom Benchmark"
+description: "How to add your own benchmark to browseruse-bench"
+---
+
+This page explains how to integrate a new benchmark into browseruse-bench.
+
+## Directory structure
+
+Each benchmark should follow this layout:
+
+```
+benchmarks/
+`-- <YourBenchmark>/
+    |-- README.md           # Benchmark documentation
+    |-- data/
+    |   `-- tasks.json      # Task data
+    |-- data_info.json      # Split metadata
+    `-- evaluator.py        # Optional evaluator
+```
+
+## Step 1: Create task data
+
+### tasks.json format
+
+```json
+[
+  {
+    "task_id": "your_task_001",
+    "task": "Task description shown to the agent",
+    "website": "example.com",
+    "category": "information_retrieval",
+    "expected_result": "Expected result description",
+    "requires_login": false,
+    "difficulty": "easy"
+  },
+  {
+    "task_id": "your_task_002",
+    "task": "Another task description",
+    "website": "example.org",
+    "category": "form_filling",
+    "expected_result": "Form submission successful",
+    "requires_login": true,
+    "difficulty": "medium"
+  }
+]
+```
+
+### Required fields
+
+| Field | Type | Description |
+|------|------|-------------|
+| `task_id` | string | Unique task ID |
+| `task` | string | Task description |
+
+### Optional fields
+
+| Field | Type | Description |
+|------|------|-------------|
+| `website` | string | Target website |
+| `category` | string | Task category |
+| `expected_result` | string | Expected outcome |
+| `requires_login` | boolean | Whether login is required |
+| `difficulty` | string | Difficulty level |
+
+## Step 2: Create the data info file
+
+### data_info.json
+
+```json
+{
+  "name": "YourBenchmark",
+  "description": "Your benchmark description",
+  "default_split": "All",
+  "split": {
+    "All": "tasks.json",
+    "Easy": "tasks_easy.json",
+    "Medium": "tasks_medium.json",
+    "Hard": "tasks_hard.json"
+  }
+}
+```
+
+### Split file strategy
+
+- Pre-generate subset files (e.g., `tasks_easy.json`) and list them under `split`.
+- Each split entry points to a file relative to the benchmark `data/` directory.
+
+## Step 3: Create an evaluator (optional)
+
+If you need custom evaluation logic, add `evaluator.py`:
+
+```python
+from browseruse_bench.eval.base_evaluator import BaseEvaluator
+
+class YourBenchmarkEvaluator(BaseEvaluator):
+    """Custom evaluator."""
+
+    def evaluate_task(self, task_id: str, result: dict) -> dict:
+        """
+        Evaluate a single task.
+
+        Args:
+            task_id: Task ID
+            result: Agent result
+
+        Returns:
+            Evaluation result containing predicted_label and score.
+        """
+        score = self._calculate_score(result)
+
+        return {
+            "predicted_label": 1 if score >= 60 else 0,
+            "score": score,
+            "evaluation_details": {
+                "grader_response": "Evaluation details..."
+            }
+        }
+```
+
+## Step 4: Register the benchmark
+
+Register in `browseruse_bench/benchmarks/__init__.py`:
+
+```python
+BENCHMARKS = {
+    "LexBench-Browser": ...,
+    "Online-Mind2Web": ...,
+    "BrowseComp": ...,
+    "YourBenchmark": {
+        "data_dir": "benchmarks/YourBenchmark",
+        "evaluator": "browseruse_bench.eval.your_evaluator:YourBenchmarkEvaluator"
+    }
+}
+```
+
+## Step 5: Test
+
+```bash
+# Test run
+bubench run \
+  --agent browser-use \
+  --data YourBenchmark \
+  --mode first_n --count 3
+
+# Test evaluation
+bubench eval \
+  --agent browser-use \
+  --data YourBenchmark \
+  --model-id bu-2-0
+```
+
+## Full examples
+
+Reference existing benchmarks:
+
+- `benchmarks/LexBench-Browser/` - Full benchmark implementation
+- `benchmarks/Online-Mind2Web/` - Mind2Web integration example
+- `benchmarks/BrowseComp/` - Simple benchmark example

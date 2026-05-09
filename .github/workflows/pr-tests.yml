@@ -1,0 +1,546 @@
+name: PR CI
+
+on:
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "README*"
+      - "docs.json"
+  workflow_dispatch:
+    inputs:
+      run_agent_smoke:
+        description: "Run per-agent dependency smoke checks"
+        type: boolean
+        default: false
+      agent:
+        description: "Agent name"
+        type: string
+        default: "browser-use"
+      benchmark:
+        description: "Benchmark name"
+        type: string
+        default: "Online-Mind2Web"
+      split:
+        description: "Dataset split"
+        type: string
+        default: "All"
+      mode:
+        description: "Run mode"
+        type: string
+        default: "sample_n"
+      count:
+        description: "Task count"
+        type: string
+        default: "1"
+      timeout:
+        description: "Task timeout (seconds)"
+        type: string
+        default: "600"
+      run_model_type:
+        description: "Run model type (OPENAI, GEMINI, BROWSER_USE)"
+        type: string
+        default: ""
+      run_model_name:
+        description: "Run model name (required)"
+        type: string
+        default: ""
+      run_model_base_url:
+        description: "Run model base URL (optional)"
+        type: string
+        default: ""
+      browser_id:
+        description: "Browser ID (Chrome-Local, lexmount, browser-use-cloud)"
+        type: string
+        default: "lexmount"
+      lexmount_browser_mode:
+        description: "Lexmount browser mode"
+        type: string
+        default: "normal"
+      lexmount_base_url:
+        description: "Lexmount base URL (optional)"
+        type: string
+        default: ""
+      use_vision:
+        description: "Enable vision"
+        type: string
+        default: "false"
+      max_steps:
+        description: "Max steps per task"
+        type: string
+        default: "40"
+      eval_model_name:
+        description: "Eval model name (required)"
+        type: string
+        default: ""
+      eval_model_base_url:
+        description: "Eval model base URL (optional)"
+        type: string
+        default: ""
+      eval_mode:
+        description: "Eval mode override (optional)"
+        type: string
+        default: ""
+      score_threshold:
+        description: "Score threshold override (optional)"
+        type: string
+        default: ""
+      gemini3_thinking_level:
+        description: "Gemini 3 thinking level (low, medium, high)"
+        type: string
+        default: ""
+      num_worker:
+        description: "Eval worker count"
+        type: string
+        default: "1"
+  schedule:
+    - cron: "0 2 * * 1"
+
+permissions:
+  contents: read
+  pull-requests: read
+  packages: read
+
+concurrency:
+  group: pr-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_SYNC_MAX_ATTEMPTS: "4"
+  UV_SYNC_INITIAL_BACKOFF_SECONDS: "15"
+  UV_HTTP_TIMEOUT: "120"
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+          version: "0.9.28"
+      - name: Report uv version
+        run: uv --version
+      - name: Install dependencies
+        shell: bash
+        env:
+          UV_SYNC_ARGS: "--extra dev --extra browser-use"
+        run: &uv_sync_with_retry |
+          set -euo pipefail
+          for ((attempt=1; attempt<=UV_SYNC_MAX_ATTEMPTS; attempt++)); do
+            if uv sync $UV_SYNC_ARGS; then
+              exit 0
+            fi
+            if [ "$attempt" -eq "$UV_SYNC_MAX_ATTEMPTS" ]; then
+              echo "uv sync failed after ${UV_SYNC_MAX_ATTEMPTS} attempts" >&2
+              exit 1
+            fi
+            sleep_seconds=$((UV_SYNC_INITIAL_BACKOFF_SECONDS * attempt))
+            echo "uv sync failed, retrying in ${sleep_seconds}s..."
+            sleep "$sleep_seconds"
+          done
+      - name: Resolve run parameters
+        id: params
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            agent="browser-use"
+            benchmark="Online-Mind2Web"
+            split="All"
+            mode="sample_n"
+            count="1"
+            browser_id="lexmount"
+          else
+            agent="${{ inputs.agent }}"
+            if [ -z "$agent" ]; then agent="${{ vars.CI_AGENT }}"; fi
+            if [ -z "$agent" ]; then agent="browser-use"; fi
+
+            benchmark="${{ inputs.benchmark }}"
+            if [ -z "$benchmark" ]; then benchmark="${{ vars.CI_BENCHMARK }}"; fi
+            if [ -z "$benchmark" ]; then benchmark="LexBench-Browser"; fi
+
+            split="${{ inputs.split }}"
+            if [ -z "$split" ]; then split="${{ vars.CI_SPLIT }}"; fi
+            if [ -z "$split" ]; then split="All"; fi
+
+            mode="${{ inputs.mode }}"
+            if [ -z "$mode" ]; then mode="${{ vars.CI_MODE }}"; fi
+            if [ -z "$mode" ]; then mode="first_n"; fi
+
+            count="${{ inputs.count }}"
+            if [ -z "$count" ]; then count="${{ vars.CI_COUNT }}"; fi
+            if [ -z "$count" ]; then count="1"; fi
+
+            browser_id="lexmount"
+          fi
+
+          echo "agent=$agent" >> "$GITHUB_OUTPUT"
+          echo "benchmark=$benchmark" >> "$GITHUB_OUTPUT"
+          echo "split=$split" >> "$GITHUB_OUTPUT"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "browser_id=$browser_id" >> "$GITHUB_OUTPUT"
+
+          timeout="${{ inputs.timeout }}"
+          if [ -z "$timeout" ]; then timeout="${{ vars.CI_TIMEOUT }}"; fi
+          if [ -z "$timeout" ]; then timeout="600"; fi
+          echo "timeout=$timeout" >> "$GITHUB_OUTPUT"
+
+          run_model_type="${{ inputs.run_model_type }}"
+          if [ -z "$run_model_type" ]; then run_model_type="${{ vars.CI_RUN_MODEL_TYPE }}"; fi
+          if [ -z "$run_model_type" ]; then run_model_type="OPENAI"; fi
+          echo "run_model_type=$run_model_type" >> "$GITHUB_OUTPUT"
+
+          run_model_name="${{ inputs.run_model_name }}"
+          if [ -z "$run_model_name" ]; then run_model_name="${{ vars.CI_RUN_MODEL_NAME }}"; fi
+          # For PR dry-runs: model is not actually called; use placeholder so model_id check passes
+          if [ -z "$run_model_name" ] && [ "${{ github.event_name }}" = "pull_request" ]; then run_model_name="gpt-4o"; fi
+          echo "run_model_name=$run_model_name" >> "$GITHUB_OUTPUT"
+
+          run_model_base_url="${{ inputs.run_model_base_url }}"
+          if [ -z "$run_model_base_url" ]; then run_model_base_url="${{ vars.CI_RUN_MODEL_BASE_URL }}"; fi
+          echo "run_model_base_url=$run_model_base_url" >> "$GITHUB_OUTPUT"
+
+          lexmount_browser_mode="${{ inputs.lexmount_browser_mode }}"
+          if [ -z "$lexmount_browser_mode" ]; then lexmount_browser_mode="${{ vars.CI_LEXMOUNT_BROWSER_MODE }}"; fi
+          if [ -z "$lexmount_browser_mode" ]; then lexmount_browser_mode="normal"; fi
+          echo "lexmount_browser_mode=$lexmount_browser_mode" >> "$GITHUB_OUTPUT"
+
+          lexmount_base_url="${{ inputs.lexmount_base_url }}"
+          if [ -z "$lexmount_base_url" ]; then lexmount_base_url="${{ vars.CI_LEXMOUNT_BASE_URL }}"; fi
+          echo "lexmount_base_url=$lexmount_base_url" >> "$GITHUB_OUTPUT"
+
+          use_vision="${{ inputs.use_vision }}"
+          if [ -z "$use_vision" ]; then use_vision="${{ vars.CI_USE_VISION }}"; fi
+          if [ -z "$use_vision" ]; then use_vision="false"; fi
+          echo "use_vision=$use_vision" >> "$GITHUB_OUTPUT"
+
+          max_steps="${{ inputs.max_steps }}"
+          if [ -z "$max_steps" ]; then max_steps="${{ vars.CI_MAX_STEPS }}"; fi
+          if [ -z "$max_steps" ]; then max_steps="40"; fi
+          echo "max_steps=$max_steps" >> "$GITHUB_OUTPUT"
+
+          gemini3_thinking_level="${{ inputs.gemini3_thinking_level }}"
+          if [ -z "$gemini3_thinking_level" ]; then gemini3_thinking_level="${{ vars.CI_GEMINI3_THINKING_LEVEL }}"; fi
+          if [ -z "$gemini3_thinking_level" ]; then gemini3_thinking_level="high"; fi
+          echo "gemini3_thinking_level=$gemini3_thinking_level" >> "$GITHUB_OUTPUT"
+
+      - name: Bootstrap config.yaml
+        run: cp config.example.yaml config.yaml
+
+      - name: Dry-run benchmark
+        run: |
+          uv run bubench run \
+            --agent "${{ steps.params.outputs.agent }}" \
+            --data "${{ steps.params.outputs.benchmark }}" \
+            --mode "${{ steps.params.outputs.mode }}" \
+            --count "${{ steps.params.outputs.count }}" \
+            --timeout "${{ steps.params.outputs.timeout }}" \
+            --dry-run
+
+
+  self-hosted-ci:
+    needs: [dry-run]
+    if: >-
+      ${{
+        needs.dry-run.result == 'success' &&
+        (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
+      }}
+    runs-on: self-hosted
+    container:
+      # `latest` is auto-tagged by ghcr-publish.yml on every main push, so
+      # this stays in sync with main's Dockerfile (which preinstalls
+      # git/ca-certificates/curl and chowns /app to uid 1000).
+      image: ghcr.io/lexmount/browseruse-bench:latest
+      options: --shm-size=2g --user 1000:1000
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      VIRTUAL_ENV: /app/.venv
+      UV_PROJECT_ENVIRONMENT: /app/.venv
+    defaults:
+      run:
+        working-directory: /app
+    steps:
+      # The container image must ship `git`, `ca-certificates`, and `curl`
+      # preinstalled. Since #313 made the container run as uid 1000 (non-root)
+      # we can no longer `apt-get install` here — the runner step would EACCES
+      # on /var/lib/apt/lists/lock.
+      - uses: actions/checkout@v4
+      - name: Sync PR code into /app
+        shell: bash
+        run: |
+          mkdir -p /app
+          if [ -d /app/.venv ]; then
+            find /app -mindepth 1 -maxdepth 1 ! -name .venv -exec rm -rf {} +
+          else
+            rm -rf /app/*
+          fi
+          tar -C "$GITHUB_WORKSPACE" --exclude=.git --exclude=.venv -cf - . | tar -C /app -xf -
+      - name: Bootstrap config.yaml
+        run: cp config.example.yaml config.yaml
+      - name: Report uv version
+        run: uv --version
+      - name: Detect agent dependency changes
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            agent_deps:
+              - "agents/**"
+              - "pyproject.toml"
+              - "scripts/**"
+      - name: Resolve agent smoke gate
+        id: set
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "agent_deps=${{ steps.filter.outputs.agent_deps }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "agent_deps=${{ inputs.run_agent_smoke }}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install dependencies
+        shell: bash
+        env:
+          UV_SYNC_ARGS: "--active --extra dev --extra browser-use"
+        run: *uv_sync_with_retry
+      - name: Run tests
+        run: uv run --active pytest -q
+      - name: Agent dependency smoke checks
+        if: steps.set.outputs.agent_deps == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          venv=".venv"
+          uv venv "$venv" --python 3.11 --seed --allow-existing
+          for ((attempt=1; attempt<=UV_SYNC_MAX_ATTEMPTS; attempt++)); do
+            if VIRTUAL_ENV="$venv" uv sync --active --extra dev --extra browser-use; then
+              break
+            fi
+            if [ "$attempt" -eq "$UV_SYNC_MAX_ATTEMPTS" ]; then
+              echo "uv sync failed after ${UV_SYNC_MAX_ATTEMPTS} attempts" >&2
+              exit 1
+            fi
+            sleep_seconds=$((UV_SYNC_INITIAL_BACKOFF_SECONDS * attempt))
+            echo "uv sync failed, retrying in ${sleep_seconds}s..."
+            sleep "$sleep_seconds"
+          done
+          VIRTUAL_ENV="$venv" uv run --active python -m pip check
+      - name: Resolve run parameters
+        id: params
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            agent="browser-use"
+            benchmark="Online-Mind2Web"
+            split="All"
+            mode="sample_n"
+            count="1"
+            browser_id="lexmount"
+          else
+            agent="${{ inputs.agent }}"
+            if [ -z "$agent" ]; then agent="${{ vars.CI_AGENT }}"; fi
+            if [ -z "$agent" ]; then agent="browser-use"; fi
+
+            benchmark="${{ inputs.benchmark }}"
+            if [ -z "$benchmark" ]; then benchmark="${{ vars.CI_BENCHMARK }}"; fi
+            if [ -z "$benchmark" ]; then benchmark="LexBench-Browser"; fi
+
+            split="${{ inputs.split }}"
+            if [ -z "$split" ]; then split="${{ vars.CI_SPLIT }}"; fi
+            if [ -z "$split" ]; then split="All"; fi
+
+            mode="${{ inputs.mode }}"
+            if [ -z "$mode" ]; then mode="${{ vars.CI_MODE }}"; fi
+            if [ -z "$mode" ]; then mode="first_n"; fi
+
+            count="${{ inputs.count }}"
+            if [ -z "$count" ]; then count="${{ vars.CI_COUNT }}"; fi
+            if [ -z "$count" ]; then count="1"; fi
+
+            browser_id="lexmount"
+          fi
+
+          echo "agent=$agent" >> "$GITHUB_OUTPUT"
+          echo "benchmark=$benchmark" >> "$GITHUB_OUTPUT"
+          echo "split=$split" >> "$GITHUB_OUTPUT"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "browser_id=$browser_id" >> "$GITHUB_OUTPUT"
+
+          timeout="${{ inputs.timeout }}"
+          if [ -z "$timeout" ]; then timeout="${{ vars.CI_TIMEOUT }}"; fi
+          if [ -z "$timeout" ]; then timeout="600"; fi
+          echo "timeout=$timeout" >> "$GITHUB_OUTPUT"
+
+          run_model_type="${{ inputs.run_model_type }}"
+          if [ -z "$run_model_type" ]; then run_model_type="${{ vars.CI_RUN_MODEL_TYPE }}"; fi
+          if [ -z "$run_model_type" ]; then run_model_type="OPENAI"; fi
+          echo "run_model_type=$run_model_type" >> "$GITHUB_OUTPUT"
+
+          run_model_name="${{ inputs.run_model_name }}"
+          if [ -z "$run_model_name" ]; then run_model_name="${{ vars.CI_RUN_MODEL_NAME }}"; fi
+          echo "run_model_name=$run_model_name" >> "$GITHUB_OUTPUT"
+
+          run_model_base_url="${{ inputs.run_model_base_url }}"
+          if [ -z "$run_model_base_url" ]; then run_model_base_url="${{ vars.CI_RUN_MODEL_BASE_URL }}"; fi
+          echo "run_model_base_url=$run_model_base_url" >> "$GITHUB_OUTPUT"
+
+          lexmount_browser_mode="${{ inputs.lexmount_browser_mode }}"
+          if [ -z "$lexmount_browser_mode" ]; then lexmount_browser_mode="${{ vars.CI_LEXMOUNT_BROWSER_MODE }}"; fi
+          if [ -z "$lexmount_browser_mode" ]; then lexmount_browser_mode="normal"; fi
+          echo "lexmount_browser_mode=$lexmount_browser_mode" >> "$GITHUB_OUTPUT"
+
+          lexmount_base_url="${{ inputs.lexmount_base_url }}"
+          if [ -z "$lexmount_base_url" ]; then lexmount_base_url="${{ vars.CI_LEXMOUNT_BASE_URL }}"; fi
+          echo "lexmount_base_url=$lexmount_base_url" >> "$GITHUB_OUTPUT"
+
+          use_vision="${{ inputs.use_vision }}"
+          if [ -z "$use_vision" ]; then use_vision="${{ vars.CI_USE_VISION }}"; fi
+          if [ -z "$use_vision" ]; then use_vision="false"; fi
+          echo "use_vision=$use_vision" >> "$GITHUB_OUTPUT"
+
+          max_steps="${{ inputs.max_steps }}"
+          if [ -z "$max_steps" ]; then max_steps="${{ vars.CI_MAX_STEPS }}"; fi
+          if [ -z "$max_steps" ]; then max_steps="40"; fi
+          echo "max_steps=$max_steps" >> "$GITHUB_OUTPUT"
+
+          gemini3_thinking_level="${{ inputs.gemini3_thinking_level }}"
+          if [ -z "$gemini3_thinking_level" ]; then gemini3_thinking_level="${{ vars.CI_GEMINI3_THINKING_LEVEL }}"; fi
+          if [ -z "$gemini3_thinking_level" ]; then gemini3_thinking_level="high"; fi
+          echo "gemini3_thinking_level=$gemini3_thinking_level" >> "$GITHUB_OUTPUT"
+
+          eval_model_name="${{ inputs.eval_model_name }}"
+          if [ -z "$eval_model_name" ]; then eval_model_name="${{ vars.CI_EVAL_MODEL_NAME }}"; fi
+          echo "eval_model_name=$eval_model_name" >> "$GITHUB_OUTPUT"
+
+          eval_model_base_url="${{ inputs.eval_model_base_url }}"
+          if [ -z "$eval_model_base_url" ]; then eval_model_base_url="${{ vars.CI_EVAL_MODEL_BASE_URL }}"; fi
+          echo "eval_model_base_url=$eval_model_base_url" >> "$GITHUB_OUTPUT"
+
+          eval_mode="${{ inputs.eval_mode }}"
+          if [ -z "$eval_mode" ]; then eval_mode="${{ vars.CI_EVAL_MODE }}"; fi
+          echo "eval_mode=$eval_mode" >> "$GITHUB_OUTPUT"
+
+          score_threshold="${{ inputs.score_threshold }}"
+          if [ -z "$score_threshold" ]; then score_threshold="${{ vars.CI_SCORE_THRESHOLD }}"; fi
+          echo "score_threshold=$score_threshold" >> "$GITHUB_OUTPUT"
+
+          num_worker="${{ inputs.num_worker }}"
+          if [ -z "$num_worker" ]; then num_worker="${{ vars.CI_EVAL_NUM_WORKER }}"; fi
+          if [ -z "$num_worker" ]; then num_worker="1"; fi
+          echo "num_worker=$num_worker" >> "$GITHUB_OUTPUT"
+
+      - name: Check CI prerequisites
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.fork }}" = "true" ]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "missing=fork_pr" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          missing=()
+          agent="${{ steps.params.outputs.agent }}"
+          if [ "$agent" != "browser-use" ]; then
+            missing+=("unsupported_agent:$agent")
+          fi
+          if [ -z "${{ secrets.OPENAI_API_KEY }}" ]; then
+            missing+=("OPENAI_API_KEY")
+          fi
+          if [ "${{ steps.params.outputs.run_model_type }}" = "GEMINI" ] && [ -z "${{ secrets.GEMINI_API_KEY }}" ]; then
+            missing+=("GEMINI_API_KEY")
+          fi
+          if [ -z "${{ steps.params.outputs.run_model_name }}" ]; then
+            missing+=("RUN_MODEL_NAME")
+          fi
+          if [ -z "${{ steps.params.outputs.eval_model_name }}" ]; then
+            missing+=("EVAL_MODEL_NAME")
+          fi
+
+          browser_id="${{ steps.params.outputs.browser_id }}"
+          if [ "$browser_id" = "browser-use-cloud" ] && [ -z "${{ secrets.BROWSER_USE_API_KEY }}" ]; then
+            missing+=("BROWSER_USE_API_KEY")
+          fi
+          if [ "$browser_id" = "lexmount" ] && [ -z "${{ secrets.LEXMOUNT_API_KEY }}" ]; then
+            missing+=("LEXMOUNT_API_KEY")
+          fi
+          if [ "$browser_id" = "lexmount" ] && [ -z "${{ secrets.LEXMOUNT_PROJECT_ID }}" ]; then
+            missing+=("LEXMOUNT_PROJECT_ID")
+          fi
+
+          if [ "${#missing[@]}" -ne 0 ]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "missing=${missing[*]}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+
+      - name: Report skipped run
+        if: steps.gate.outputs.should_run != 'true'
+        run: |
+          echo "Skipping real regression run."
+          echo "Missing requirements: ${{ steps.gate.outputs.missing }}"
+
+      - name: Install dependencies
+        if: steps.gate.outputs.should_run == 'true'
+        shell: bash
+        env:
+          UV_SYNC_ARGS: "--active --extra dev --extra ${{ steps.params.outputs.agent }}"
+        run: *uv_sync_with_retry
+
+      - name: Run benchmark (1 task)
+        if: steps.gate.outputs.should_run == 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ steps.params.outputs.run_model_base_url }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_BASE_URL: ${{ steps.params.outputs.run_model_base_url }}
+          BROWSER_USE_API_KEY: ${{ secrets.BROWSER_USE_API_KEY }}
+          LEXMOUNT_API_KEY: ${{ secrets.LEXMOUNT_API_KEY }}
+          LEXMOUNT_PROJECT_ID: ${{ secrets.LEXMOUNT_PROJECT_ID }}
+          LEXMOUNT_BASE_URL: ${{ steps.params.outputs.lexmount_base_url }}
+        run: |
+          uv run --active bubench run \
+            --agent "${{ steps.params.outputs.agent }}" \
+            --data "${{ steps.params.outputs.benchmark }}" \
+            --mode "${{ steps.params.outputs.mode }}" \
+            --count "${{ steps.params.outputs.count }}" \
+            --timeout "${{ steps.params.outputs.timeout }}"
+      - name: Evaluate results
+        if: steps.gate.outputs.should_run == 'true'
+        shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ steps.params.outputs.eval_model_base_url }}
+          EVAL_MODEL_NAME: ${{ steps.params.outputs.eval_model_name }}
+          EVAL_MODEL_BASE_URL: ${{ steps.params.outputs.eval_model_base_url }}
+        run: |
+          cmd=(uv run --active bubench eval \
+            --agent "${{ steps.params.outputs.agent }}" \
+            --data "${{ steps.params.outputs.benchmark }}" \
+            --model-id "${{ steps.params.outputs.run_model_name }}" \
+            --num-worker "${{ steps.params.outputs.num_worker }}")
+          if [ -n "${{ steps.params.outputs.eval_mode }}" ]; then
+            cmd+=(--mode "${{ steps.params.outputs.eval_mode }}")
+          fi
+          if [ -n "${{ steps.params.outputs.score_threshold }}" ]; then
+            cmd+=(--score-threshold "${{ steps.params.outputs.score_threshold }}")
+          fi
+          "${cmd[@]}"
+
+      - name: Upload artifacts
+        if: steps.gate.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-artifacts
+          path: |
+            output/logs/**
+            experiments/**
+

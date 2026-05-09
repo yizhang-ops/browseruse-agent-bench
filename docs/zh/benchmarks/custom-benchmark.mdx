@@ -1,0 +1,160 @@
+---
+title: "自定义 Benchmark"
+description: "如何添加自己的 Benchmark 到 browseruse-bench"
+---
+
+本页介绍如何将新的 Benchmark 集成到 browseruse-bench 框架中。
+
+## 目录结构
+
+每个 Benchmark 需要以下目录结构：
+
+```
+benchmarks/
+└── <YourBenchmark>/
+    ├── README.md           # Benchmark 说明文档
+    ├── data/
+    │   └── tasks.json      # 任务数据
+    ├── data_info.json      # 数据分割信息
+    └── evaluator.py        # 评估脚本（可选）
+```
+
+## Step 1: 创建任务数据
+
+### tasks.json 格式
+
+```json
+[
+  {
+    "task_id": "your_task_001",
+    "task": "任务描述，Agent 将看到这个描述",
+    "website": "example.com",
+    "category": "信息获取",
+    "expected_result": "期望的结果描述",
+    "requires_login": false,
+    "difficulty": "easy"
+  },
+  {
+    "task_id": "your_task_002",
+    "task": "另一个任务描述",
+    "website": "example.org",
+    "category": "表单填写",
+    "expected_result": "表单提交成功",
+    "requires_login": true,
+    "difficulty": "medium"
+  }
+]
+```
+
+### 必需字段
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `task_id` | string | 唯一任务 ID |
+| `task` | string | 任务描述 |
+
+### 可选字段
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `website` | string | 目标网站 |
+| `category` | string | 任务类别 |
+| `expected_result` | string | 期望结果 |
+| `requires_login` | boolean | 是否需要登录 |
+| `difficulty` | string | 难度等级 |
+
+## Step 2: 创建数据信息文件
+
+### data_info.json
+
+```json
+{
+  "name": "YourBenchmark",
+  "description": "你的 Benchmark 描述",
+  "default_split": "All",
+  "split": {
+    "All": "tasks.json",
+    "Easy": "tasks_easy.json",
+    "Medium": "tasks_medium.json",
+    "Hard": "tasks_hard.json"
+  }
+}
+```
+
+### Split 文件策略
+
+- 预先生成子集文件（如 `tasks_easy.json`），并在 `split` 中声明。
+- 每个 split 条目指向 benchmark `data/` 目录下的相对路径。
+
+## Step 3: 创建评估器（可选）
+
+如果需要自定义评估逻辑，创建 `evaluator.py`：
+
+```python
+from browseruse_bench.eval.base_evaluator import BaseEvaluator
+
+class YourBenchmarkEvaluator(BaseEvaluator):
+    """自定义评估器"""
+    
+    def evaluate_task(self, task_id: str, result: dict) -> dict:
+        """
+        评估单个任务
+        
+        Args:
+            task_id: 任务 ID
+            result: Agent 返回的结果
+            
+        Returns:
+            评估结果字典，包含 predicted_label 和 score
+        """
+        # 你的评估逻辑
+        score = self._calculate_score(result)
+        
+        return {
+            "predicted_label": 1 if score >= 60 else 0,
+            "score": score,
+            "evaluation_details": {
+                "grader_response": "评估详情..."
+            }
+        }
+```
+
+## Step 4: 注册 Benchmark
+
+在 `browseruse_bench/benchmarks/__init__.py` 中注册：
+
+```python
+BENCHMARKS = {
+    "LexBench-Browser": ...,
+    "Online-Mind2Web": ...,
+    "BrowseComp": ...,
+    "YourBenchmark": {
+        "data_dir": "benchmarks/YourBenchmark",
+        "evaluator": "browseruse_bench.eval.your_evaluator:YourBenchmarkEvaluator"
+    }
+}
+```
+
+## Step 5: 测试
+
+```bash
+# 测试运行
+bubench run \
+  --agent browser-use \
+  --data YourBenchmark \
+  --mode first_n --count 3
+
+# 测试评估
+bubench eval \
+  --agent browser-use \
+  --data YourBenchmark \
+  --model-id bu-2-0
+```
+
+## 完整示例
+
+查看现有 Benchmark 作为参考：
+
+- `benchmarks/LexBench-Browser/` - 完整的 Benchmark 实现
+- `benchmarks/Online-Mind2Web/` - Mind2Web 集成示例
+- `benchmarks/BrowseComp/` - 简单 Benchmark 示例

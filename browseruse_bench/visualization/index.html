@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Agent Analyzer</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="stylesheet" href="css/style.css?v=5">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <h1 id="btn-home" class="home-link">Browser Agent Analyzer</h1>
+        </div>
+        <div class="header-right">
+            <div class="judge-mode-group">
+                <label for="judge-mode-select">Judge</label>
+                <select id="judge-mode-select" class="judge-select"></select>
+            </div>
+            <button id="btn-stats" class="action-btn">Statistics</button>
+            <button id="btn-refresh" class="action-btn icon-btn refresh-btn" title="Regenerate index" aria-label="Refresh">&#x21bb;</button>
+            <button id="btn-theme" class="action-btn icon-btn theme-btn" title="Toggle light/dark mode" aria-label="Toggle theme">&#9788;</button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Left Sidebar - Runs -->
+        <aside class="sidebar sidebar-left" id="sidebar-left">
+            <div class="filter-section" id="runs-section">
+                <h3>Runs</h3>
+                <div id="runs-list" class="filter-list"></div>
+            </div>
+            <div class="filter-section" id="exp-sets-section" style="display:none">
+                <h3>Judge Experiment Sets</h3>
+                <div id="exp-sets-list" class="filter-list"></div>
+            </div>
+            <div class="sidebar-resize-handle sidebar-resize-handle-left" id="sidebar-left-resize"></div>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="content">
+            <!-- Task Info Header -->
+            <div id="task-header" class="task-header hidden">
+                <div class="task-info">
+                    <div class="task-title-row">
+                        <h2 id="task-title">Task #--</h2>
+                        <span id="task-status-badge" class="status-badge hidden"></span>
+                    </div>
+                    <p id="task-description" class="task-desc"></p>
+                </div>
+                <div class="task-meta">
+                    <div class="task-meta-top">
+                        <span id="current-run-badge" class="run-badge"></span>
+                    </div>
+                    <div id="task-judge-summary" class="task-judge-summary"></div>
+                </div>
+            </div>
+
+            <!-- Section: Agent Replay -->
+            <div id="replay-section" class="content-section hidden">
+                <div class="section-toolbar">
+                    <div class="section-label">Agent Replay</div>
+                    <div class="view-mode-toggle">
+                        <button id="btn-step-first" class="mode-btn active">Step-first</button>
+                        <button id="btn-screenshot-first" class="mode-btn">Screenshot-first</button>
+                    </div>
+                </div>
+
+                <!-- GIF Banner (compact thumbnail) -->
+                <div id="gif-banner" class="gif-banner hidden">
+                    <div class="gif-preview" id="gif-preview" title="Click to view full GIF">
+                        <img id="gif-thumb" src="" alt="Agent History GIF">
+                    </div>
+                    <div class="gif-info">
+                        <span class="gif-label">Agent History</span>
+                        <span class="gif-meta" id="gif-meta"></span>
+                        <button id="btn-play-gif" class="gif-play-btn">View Full GIF</button>
+                    </div>
+                </div>
+
+                <!-- Step-first View -->
+                <div id="step-first-view" class="view-container">
+                    <div id="steps-container" class="steps-container"></div>
+                </div>
+
+                <!-- Screenshot-first View -->
+                <div id="screenshot-first-view" class="view-container hidden">
+                <div class="screenshot-viewer">
+                    <div class="screenshot-nav">
+                        <button id="prev-screenshot" class="nav-btn">&lt;</button>
+                        <span id="screenshot-counter">0 / 0</span>
+                        <button id="next-screenshot" class="nav-btn">&gt;</button>
+                    </div>
+                    <div class="screenshot-main">
+                        <img id="main-screenshot" src="" alt="Screenshot">
+                    </div>
+                    <div id="screenshot-step-info" class="step-info-panel"></div>
+                </div>
+            </div>
+            </div><!-- /replay-section -->
+
+            <!-- Compare View -->
+            <div id="compare-view" class="view-container hidden">
+                <div id="compare-header" class="compare-header">
+                    <div class="compare-controls">
+                        <label>Select runs to compare:</label>
+                        <div id="compare-run-selectors"></div>
+                    </div>
+                </div>
+                <div id="compare-content" class="compare-content"></div>
+            </div>
+
+            <!-- Statistics View (inline, same level as replay-section) -->
+            <div id="stats-view" class="content-section hidden">
+                <div class="section-toolbar">
+                    <div class="section-label">Statistics</div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Success Rate by Run</h3>
+                        <canvas id="chart-success-rate"></canvas>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Success / Fail Distribution</h3>
+                        <canvas id="chart-score-dist"></canvas>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Average Steps</h3>
+                        <canvas id="chart-steps"></canvas>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Average Cost ($)</h3>
+                        <canvas id="chart-cost"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Evaluation Panel -->
+            <div id="eval-panel" class="content-section eval-panel hidden">
+                <div class="eval-panel-title">Evaluation Details</div>
+                <div class="eval-summary">
+                    <div class="eval-score-block">
+                        <span class="eval-score-label">Score</span>
+                        <span id="eval-score-value" class="eval-score-number">--</span>
+                    </div>
+                    <div class="eval-threshold-block hidden" id="eval-threshold-block">
+                        <span class="eval-score-label">Threshold</span>
+                        <span id="eval-threshold-value" class="eval-score-number eval-threshold-number">--</span>
+                    </div>
+                    <div class="eval-verdict" id="eval-verdict"></div>
+                </div>
+                <div class="eval-tabs">
+                    <button class="eval-tab active" data-eval-tab="response">LexJudge Response</button>
+                    <button class="eval-tab" data-eval-tab="rubric">Task Rubric</button>
+                </div>
+                <div id="eval-tab-content" class="eval-tab-content"></div>
+            </div>
+
+            <!-- Experiment Set View -->
+            <div id="exp-set-view" class="exp-set-view hidden">
+                <div id="exp-set-overview"></div>
+                <div id="exp-set-task-comparison" class="hidden"></div>
+            </div>
+
+            <!-- Welcome Screen -->
+            <div id="welcome-screen" class="welcome-screen">
+                <h2>Browser Agent Analyzer</h2>
+                <p>Select a run or judge experiment set from the sidebar to get started.</p>
+                <div class="quick-stats" id="quick-stats"></div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar - Tasks (hidden until a run is selected) -->
+        <aside id="sidebar-right" class="sidebar sidebar-right hidden">
+            <div class="filter-section">
+                <h3>Tasks</h3>
+                <div class="filter-controls">
+                    <input type="text" id="task-search" placeholder="Search task ID...">
+                </div>
+                <div id="tasks-list" class="filter-list"></div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Image Lightbox -->
+    <div id="lightbox" class="lightbox hidden">
+        <span class="lightbox-close">&times;</span>
+        <img id="lightbox-img" src="" alt="Full size screenshot">
+    </div>
+
+    <!-- GIF Lightbox -->
+    <div id="gif-lightbox" class="lightbox hidden">
+        <span class="lightbox-close">&times;</span>
+        <img id="gif-lightbox-img" src="" alt="Agent History GIF">
+    </div>
+
+    <!-- API Log Modal -->
+    <div id="api-log-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">API Log - Step N</h3>
+                <button class="close-btn" id="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="conversation-tabs">
+                    <button class="tab-btn active" data-tab="memory">Memory & Action</button>
+                    <button class="tab-btn" data-tab="full">Full API Call</button>
+                    <button class="tab-btn" data-tab="system">System Prompt</button>
+                    <button class="tab-btn" data-tab="browser">Browser State</button>
+                </div>
+                <div id="conversation-content" class="conversation-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/data-loader.js?v=5"></script>
+    <script src="js/app.js?v=5"></script>
+</body>
+</html>

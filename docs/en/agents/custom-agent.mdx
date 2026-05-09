@@ -1,0 +1,369 @@
+---
+title: 'Custom Agent'
+description: 'How to integrate a new Agent into the browseruse-bench framework'
+---
+
+browseruse-bench integrates agents through a `BaseAgent` interface. The framework handles task loading, CLI parsing, workspaces, and result persistence — you only need to implement `run_task()` and register your agent.
+
+## How existing agents are integrated
+
+### 1. browser-use — Python SDK (in-process)
+
+**Interface**: directly `import browser_use` Python package, runs async in-process.
+
+```
+task → BrowserUseAgent.run_task()
+      → create LLM instance (OpenAI/Gemini/Anthropic, etc.)
+      → open_browser_session() open browser session
+      → browser_use.Agent(task, llm, browser).run()
+      → parse history, return AgentResult
+```
+
+**Advantage**: deepest integration — provides token usage, per-step screenshots, and full action history.
+
+---
+
+### 2. Skyvern — Python SDK + embedded service
+
+**Interface**: `import skyvern`, requires local PostgreSQL for auth, supports both local and cloud modes.
+
+```
+task → SkyvernAgent.prepare() (init DB auth)
+      → SkyvernAgent.run_task()
+      → Skyvern.local() or Skyvern(api_key=...)
+      → skyvern.run_task(prompt, engine, ...)
+      → poll run_id until complete
+      → collect screenshots from artifacts dir, return AgentResult
+```
+
+**Note**: heaviest dependency (requires PostgreSQL), but allows substituting your own LLM for Skyvern's cloud model.
+
+---
+
+### 3. Agent-TARS / Claude Code — CLI subprocess
+
+**Interface**: invoke a CLI tool, fully black-box.
+
+```
+task → CliAgent.run_task()
+      → assemble CLI args
+      → subprocess.Popen(["agent-tars", "run", ...])
+      → wait for process exit (with timeout)
+      → parse output (event-stream.jsonl or JSON stdout)
+      → return AgentResult
+```
+
+**Advantage**: lightest weight — no need to understand agent internals, only requires an executable CLI.
+
+---
+
+## Integration modes
+
+| Mode | When to use | Examples |
+|------|-------------|---------|
+| **SDK** | Agent is a Python library | browser-use, Skyvern |
+| **API** | Agent exposes an HTTP endpoint | OpenAI CUA, Anthropic Computer Use |
+| **CLI** | Agent ships as a binary or npm package | Agent-TARS, Claude Code |
+
+---
+
+## Integration steps
+
+### 1. Implement the agent
+
+Create `browseruse_bench/agents/my_agent.py`. The only required method is `run_task()`.
+
+**Use `BaseAgent` helpers** to read config — never parse `agent_config` by hand:
+
+| Helper | Reads | Env fallback |
+|--------|-------|-------------|
+| `self.build_task_prompt(task_info)` | `task_text` + `url` | — |
+| `self.get_system_prompt(agent_config)` | `system_prompt` | class default |
+| `self.get_model_id(agent_config)` | `model_id` → `model` | — |
+| `self.get_timeout(agent_config, default=300)` | `timeout_seconds` → `timeout` → `TIMEOUT` | — |
+| `self.get_max_steps(agent_config, default=40)` | `max_steps` → `max_turns` → `max_iterations` | — |
+| `self.get_api_key(agent_config, env_var="X")` | `api_key` | `os.getenv("X")` |
+| `self.get_base_url(agent_config, env_var="X")` | `base_url` | `os.getenv("X")` |
+| `self.save_screenshot(b64, index, dir)` | — | returns `bool` |
+
+Skeleton:
+
+```python
+from datetime import UTC, datetime
+from browseruse_bench.agents.base import BaseAgent
+from browseruse_bench.agents.registry import register_agent
+from browseruse_bench.schemas import AgentMetrics, AgentResult
+
+@register_agent
+class MyAgent(BaseAgent):
+    name = "my-agent"
+
+    def run_task(self, task_info, agent_config, task_workspace):
+        task_prompt = self.build_task_prompt(task_info)
+        timeout     = self.get_timeout(agent_config)
+        # ... call your agent ...
+        return AgentResult(
+            task_id=task_info["task_id"],
+            timestamp=datetime.now(UTC),
+            env_status="success",   # "success" | "failed"
+            agent_done="done",      # "done" | "timeout" | "max_steps" | "error"
+            agent_success=True,     # True/False only when agent_done=="done", else None
+            answer="...",
+            metrics=AgentMetrics(end_to_end_ms=elapsed_ms, steps=n),
+        )
+```
+
+<Tabs>
+  <Tab title="SDK">
+    Call the Python library in-process. Use `asyncio.run()` for async SDKs (assumes synchronous runner context; use `nest_asyncio` if needed). Do lazy imports inside `run_task` or the `prepare()` hook.
+  </Tab>
+  <Tab title="API">
+    POST to create a task, then poll until it reaches a terminal state (`completed` / `failed`). Catch `requests.RequestException` specifically.
+  </Tab>
+  <Tab title="CLI">
+    Use `subprocess.run()` with `timeout=` and `capture_output=True`. Parse JSON from stdout; fall back to raw text if the output is not JSON.
+  </Tab>
+</Tabs>
+
+<Note>
+For complete copy-paste templates with full error handling, use the `custom-agent-creator` skill in Claude Code.
+</Note>
+
+### 2. Register the module
+
+Add one import to `browseruse_bench/agents/__init__.py`:
+
+```python
+from browseruse_bench.agents import my_agent  # noqa: F401
+```
+
+### 3. Register in config
+
+In the root `config.yaml` under `agents`:
+
+```yaml
+agents:
+  my-agent:
+    active_model: default
+    models:
+      default:
+        model_id: your-model-id
+        api_key: $YOUR_API_KEY
+    defaults:
+      timeout: 300
+      max_steps: 40
+```
+
+Also add metadata to `configs/agent_registry.yaml`:
+
+```yaml
+my-agent:
+  path: browseruse_bench/agents
+  entrypoint: browseruse_bench/runner/agent_runner.py
+  venv: .venv
+  supported_benchmarks:
+    - LexBench-Browser
+```
+
+### 4. Smoke test
+
+```bash
+bubench run --agent my-agent --data LexBench-Browser --mode first_n --count 1
+```
+
+---
+
+## Common Third-Party SDK Pitfalls
+
+This section focuses on integration pitfalls that are useful to most readers. Lower-level implementation choices,
+such as whether to wrap an SDK's inference engine instead of patching the package directly, are intentionally kept in
+the `custom-agent-creator` skill rather than expanded here as user-doc sections.
+
+### 1. SDKs may claim provider support but still enforce a model whitelist
+
+Some SDKs say they support OpenAI or Gemini, but still reject any model ID outside a small hardcoded allowlist during initialization.  
+Do not expose that limitation directly to browseruse-bench users when you can avoid it.
+
+A more robust pattern is:
+
+- initialize the SDK with a provider-native bootstrap model
+- after SDK initialization, replace the SDK's internal inference client / engine with your own wrapper
+- use the configured `model_id`, `api_key`, and `base_url` only at actual inference time
+
+This is especially useful for:
+
+- newer or non-default model IDs from your actual runtime configuration
+- custom gateways
+- OpenAI-compatible models
+
+### 2. Keep config field semantics, even if env var values are shared
+
+If your team uses a single internal gateway, that does not mean every provider profile should use the same YAML field names.
+
+Recommended pattern:
+
+- keep `api_key` / `base_url` for an `OPENAI` profile
+- keep `openai_compatible_api_key` / `openai_compatible_api_base` for an `OPENAI_COMPATIBLE` profile
+- but allow both to reference the same env vars such as `$OPENAI_API_KEY` / `$OPENAI_BASE_URL`
+
+This preserves provider intent while still supporting a unified gateway setup.
+
+### 3. If the SDK only reads credentials from env vars, inject them narrowly
+
+Some SDKs do not accept explicit credentials and only read from environment variables.  
+In that case:
+
+- set only the provider-specific env vars needed for the current run
+- do it inside the agent, close to SDK startup
+- restore the previous values in `finally`
+
+Do not leave global process-wide env mutations behind after a task finishes.
+
+### 4. Many SDKs assume artifact subdirectories already exist
+
+Third-party SDKs often write files directly under paths like:
+
+- `screenshots/`
+- `dom/`
+- `playwright_traces/`
+- `accessibility/`
+
+but never create those directories first.
+
+If your agent writes under a task-local workspace, proactively create expected subdirectories:
+
+- once right after SDK initialization
+- and again before repeated callbacks if the SDK is fragile
+
+### 5. Missing screenshots or traces should not automatically kill the task
+
+Some SDKs continue passing a screenshot path downstream even after screenshot capture failed.  
+Without a guard, that usually becomes a later `FileNotFoundError`.
+
+Prefer this behavior instead:
+
+- check whether the screenshot file exists before passing it into the model layer
+- if missing, degrade to a text-only / no-image request
+- keep a log entry, but let the task continue when possible
+
+### 6. Inspect resolved config before blaming the SDK
+
+Many “unsupported model” or “provider routing is broken” errors are actually just config typos.
+
+A good debugging order is:
+
+1. inspect the resolved `model_type`, `model_id`, credential source, and `base_url`
+2. confirm which bootstrap model reaches SDK initialization
+3. confirm which real model and gateway reach the inference layer
+
+This helps separate:
+
+- config typos
+- provider-routing mistakes
+- SDK initialization allowlist problems
+- actual gateway request failures
+
+### 7. Model family and provider routing are not the same thing
+
+Do not assume that a model name automatically tells you which provider path to use.
+
+Common failure mode:
+
+- the configured model uses a Gemini-family name pattern such as `gemini-*`
+- the user intends to call it through an OpenAI-compatible internal gateway
+- the router infers `Vertex` or `Google Gemini` from the model name and silently takes the wrong path
+
+If you use LiteLLM or another router with model-name inference:
+
+- treat provider routing as an explicit config decision
+- force the provider when needed instead of trusting auto-detection
+- for an OpenAI-compatible gateway, pass the explicit OpenAI-compatible provider setting even if the model name looks like Gemini
+- with LiteLLM, that often means setting `custom_llm_provider="openai"` instead of relying on model-name inference alone
+
+Otherwise you may see confusing errors such as:
+
+- `vertexai` import failures
+- invalid Google / Gemini API key errors
+- requests bypassing your intended gateway
+
+### 8. Check SDK loggers if every log line appears twice
+
+Some SDKs configure their own console logger and also propagate the same records to the root logger.
+When that happens, every message appears twice in benchmark output even though the agent only executed once.
+
+Typical fix:
+
+- inspect the SDK logger's handlers
+- disable `propagate` when appropriate
+- remove duplicate `StreamHandler`s while keeping file handlers if you still want SDK-local logs
+
+This is easy to misread as duplicated actions or retries, so it is worth fixing early during integration.
+
+### 9. Match provider-specific dependencies to the actual routing path
+
+Some dependency failures are caused by installing too little for the real provider path, while others are caused by
+installing the wrong provider stack for a request that is routed somewhere else.
+
+Two common cases:
+
+- if you really route through direct Gemini / Vertex multimodal paths, the runtime may need extra packages such as
+  `Pillow`, `vertexai`, or other Google SDK dependencies
+- if the request is intentionally routed through an OpenAI-compatible gateway, do not install Gemini / Vertex-specific
+  dependencies just because the model name looks like `gemini-*`
+
+Recommended rule:
+
+- decide the provider path first
+- add only the dependencies required by that actual path
+- if the model goes through an OpenAI-compatible gateway, force the OpenAI-compatible route and avoid unrelated
+  provider SDK dependencies
+
+This helps avoid both kinds of failure:
+
+- runtime import errors such as missing `PIL` / `vertexai`
+- confusing environments bloated with unused provider packages
+
+---
+
+## Reference: `AgentResult`
+
+`AgentResult` uses `extra="forbid"` — unknown fields raise a `ValidationError`. Required fields:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `task_id` | `str` | Must match `task_info["task_id"]` |
+| `timestamp` | `datetime` | `datetime.now(UTC)` |
+| `env_status` | `"success"` \| `"failed"` | Was the environment (browser/service) healthy? |
+| `agent_done` | `"done"` \| `"timeout"` \| `"max_steps"` \| `"error"` | How did the agent finish? |
+| `metrics` | `AgentMetrics` | `AgentMetrics(end_to_end_ms=..., steps=...)` |
+
+`agent_success` (`bool | None`) records the agent's self-reported outcome — set only when `agent_done == "done"`, otherwise `None`.
+
+Optional but recommended: `answer` (`str`) — the agent's final answer string, used by evaluators to score the task.
+
+---
+
+## Reference: inputs and workspace
+
+**`task_info`** is loaded from the benchmark dataset. Standard fields: `task_id`, `task_text`, `url`, `prompt` (optional).
+
+**`agent_config`** comes from `agents.<agent>.models[active_model]` in root `config.yaml`. The framework injects `timeout_seconds` at runtime.
+
+**`task_workspace`** is the per-task output directory (`<output_dir>/tasks/<task_id>/`). The framework writes `result.json` there; you can write screenshots, logs, or any artifacts alongside it.
+
+---
+
+## Reference: browser backend (SDK and CLI agents)
+
+Use `open_browser_session()` instead of hardcoding Chrome:
+
+```python
+from browseruse_bench.browsers import open_browser_session
+
+browser_id = agent_config.get("browser_id") or "Chrome-Local"
+with open_browser_session(browser_id=browser_id, agent_name=self.name, agent_config=agent_config) as ctx:
+    # ctx.cdp_url, ctx.transport, ctx.backend_id
+    ...
+```
+
+Provider lifecycle code lives in `browseruse_bench/browsers/providers/`. Cleanup failures must be logged and tolerated — they must not mask task execution errors.

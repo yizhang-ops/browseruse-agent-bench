@@ -1,0 +1,146 @@
+---
+title: "可视化工具"
+description: "交互式实验浏览器，支持轨迹回放、评测详情查看和逐步 API 日志检索"
+---
+
+browseruse-bench 内置交互式可视化服务器，用于在任务粒度上浏览实验结果——对静态排行榜的补充，提供轨迹回放、API 日志查看和评测详情展示。
+
+## 功能
+
+<CardGroup cols={2}>
+  <Card title="轨迹回放" icon="film">
+    逐步浏览每个任务的截图序列
+  </Card>
+  <Card title="评测详情" icon="magnifying-glass">
+    查看评测 prompt、分数、verdict 和评分标准
+  </Card>
+  <Card title="API 日志检索" icon="terminal">
+    检查每步的 API 调用记录和 system prompt
+  </Card>
+  <Card title="Judge 对比实验" icon="flask">
+    跨任务对比多种评测方法，识别高方差和结论翻转的任务
+  </Card>
+</CardGroup>
+
+## 快速开始
+
+### 启动服务器
+
+```bash
+# 生成索引并启动服务器（文件变化时自动重新生成）
+bubench viz --watch
+
+# 访问 http://localhost:8080
+```
+
+### 参数说明
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--host` | `127.0.0.1` | 监听地址（内网共享请传 `0.0.0.0`） |
+| `--port` | `8080` | 服务端口 |
+| `--watch` | 关闭 | 实验文件变化时自动重新生成索引 |
+| `--watch-interval` | `3.0` | 轮询间隔（秒） |
+| `--generate-only` | 关闭 | 仅生成 `experiments.json` 后退出，不启动服务器 |
+
+> **安全提示：** 服务器默认只绑定 `127.0.0.1`，仅本机可访问。`/api/regenerate` 接口无鉴权，`/experiments/*` 直接返回原始文件（日志、截图、配置）。仅在可信网络上传 `--host 0.0.0.0`——具体参见下方[内网共享](#内网共享)章节。
+
+### 仅生成索引
+
+```bash
+bubench viz --generate-only
+```
+
+扫描 `experiments/` 目录并写入 `browseruse_bench/visualization/data/experiments.json`。适用于 CI 或提前预生成数据。
+
+## 实验目录结构
+
+可视化服务器读取与排行榜相同的实验目录格式：
+
+```
+experiments/{benchmark}/{split}/{agent}/{timestamp}/
+  tasks/{task_id}/
+    result.json              # 必需
+    trajectory/*.png         # 每步截图（可选）
+    api_logs/step_*.json     # 每步 API 日志（可选）
+    agent_history.gif        # 动画回放（可选）
+  tasks_eval_result/         # 评测结果（可选）
+    *_eval_results.json
+    *summary.json
+```
+
+也支持带有明确 model 目录的五层结构：
+
+```
+experiments/{benchmark}/{split}/{agent}/{model_id}/{timestamp}/
+```
+
+## 内网共享
+
+在 tmux 后台运行服务器，断开 SSH 后服务依然可访问：
+
+**安装 tmux（如未安装）：**
+
+<CodeGroup>
+```bash macOS
+brew install tmux
+```
+
+```bash Ubuntu/Debian
+sudo apt install tmux
+```
+
+```bash CentOS/RHEL
+sudo yum install tmux
+```
+</CodeGroup>
+
+**后台启动服务器：**
+
+```bash
+tmux new-session -d -s viz "bubench viz --host 0.0.0.0 --port 8090 --watch"
+```
+
+**常用 tmux 操作：**
+
+```bash
+tmux attach -t viz          # 查看日志（Ctrl+b d 挂起回后台）
+tmux kill-session -t viz    # 停止服务
+```
+
+**获取服务器 IP：** 绑定到 `0.0.0.0` 时，启动日志首行会打印服务器探测到的局域网 URL——用 `tmux attach -t viz` 接入即可查看。如果需要手动查询 IP：
+
+<CodeGroup>
+```bash macOS
+ipconfig getifaddr en0
+```
+
+```bash Linux
+hostname -I | awk '{print $1}'
+```
+</CodeGroup>
+
+随后在浏览器访问 `http://<服务器IP>:8090/`。
+
+**防火墙（其他机器无法访问时）：**
+
+<CodeGroup>
+```bash Ubuntu/Debian
+sudo ufw allow 8090/tcp
+```
+
+```bash CentOS/RHEL
+sudo firewall-cmd --permanent --add-port=8090/tcp && sudo firewall-cmd --reload
+```
+</CodeGroup>
+
+## 排行榜 vs. 可视化工具
+
+| | 排行榜 | 可视化工具 |
+|-|--------|------------|
+| **目的** | Agent 横向排名对比 | 任务级别详细分析 |
+| **输出** | 单文件 HTML，可直接分享 | 本地动态 SPA，需启动服务器 |
+| **粒度** | Run 级别聚合指标 | 每任务轨迹、日志、评测详情 |
+| **共享方式** | 直接发送 HTML 文件 | 在共享主机上运行服务器 |
+
+排行榜适合对外快速发布结果；可视化工具适合开发过程中的深度分析。

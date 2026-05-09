@@ -1,0 +1,167 @@
+---
+title: "Agent-TARS"
+description: "Browser agent developed by the TARS team"
+---
+
+Agent-TARS is a browser agent developed by the TARS team, distributed as an npm CLI package with powerful browser automation capabilities.
+
+## Installation
+
+```bash
+uv sync
+npm install -g @agent-tars/cli@0.3.0
+```
+
+Activate `.venv` (or use `uv run bubench ...`) before running `bubench` commands.
+
+<Note>
+Requires Node.js 18+.
+</Note>
+
+## Configuration
+
+Configure Agent-TARS in the root `config.yaml` under `agents.Agent-TARS`:
+
+```yaml
+agents:
+  Agent-TARS:
+    active_model: gpt           # active model profile
+    models:
+      gpt:                      # OpenAI model
+        model_provider: openai
+        model_id: gpt-5.4
+        api_key: $OPENAI_API_KEY
+        browser_control: hybrid
+        timeout: 300
+      claude:                   # Anthropic model
+        model_provider: anthropic
+        model_id: claude-sonnet-4-6
+        api_key: $OPENAI_API_KEY
+        browser_control: hybrid
+        timeout: 300
+      gemini:                   # Gemini via OpenAI-compatible endpoint
+        model_provider: openai
+        model_id: gemini-3-pro-image-preview
+        api_key: $OPENAI_API_KEY
+        base_url: $OPENAI_BASE_URL
+        browser_control: hybrid
+        timeout: 300
+    browser:
+      browser_id: local         # default local browser; see "Browser Modes" below to switch to cloud
+```
+
+Set `active_model` to the profile name you want to use by default, then switch at runtime with `--model <name>`.
+
+### Config Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `active_model` | Default model profile | `gpt`, `claude` |
+| `model_provider` | Model provider | `openai`, `anthropic`, `volcengine` |
+| `model_id` | Model ID | `gpt-5.4`, `claude-sonnet-4-6` |
+| `api_key` | API key (use `$ENV_VAR` form) | `$OPENAI_API_KEY` |
+| `base_url` | API base URL (optional) | `$OPENAI_BASE_URL` |
+| `browser_control` | Browser control mode | `dom`, `hybrid`, `visual-grounding` |
+| `browser_id` | Browser backend | `local` (default), `lexmount` |
+| `timeout` | Task timeout (seconds) | Default `300`, overridable via `--timeout` |
+
+### Browser Control Modes
+
+Agent-TARS exposes browser interaction as two independent tool sets — DOM tools and vision tools — that the model can select from. `browser_control` determines which tool sets are available:
+
+| Mode | How it works | When to use |
+|------|-------------|-------------|
+| `dom` | Reads page structure and operates via DOM APIs (click, fill, etc.) | Fast and stable for standard web pages with accessible DOM |
+| `visual-grounding` | Takes a screenshot, uses a vision model to locate elements by coordinates | Handles canvas, dynamic content, and elements missing from the accessibility tree |
+| `hybrid` | Both tool sets exposed simultaneously; the model chooses per step | Best fault tolerance — DOM is tried first, vision acts as fallback |
+
+`hybrid` is the recommended default for benchmarking.
+
+## Browser Modes
+
+**Local Browser**: Agent-TARS CLI launches a local browser. No extra parameters required.
+
+```yaml
+browser:
+  browser_id: local
+```
+
+<Warning>
+The Agent-TARS CLI launches Chromium itself and does **NOT** honour `local_proxy_*` (a one-time WARNING is logged if you set them). If you need to reach sites your bare connection can't (`bloomberg.com`, `archive.org`, etc.), switch to `browser_id: lexmount` — the international Lexmount region egresses outside mainland China. See [Local Chromium Browser](/en/browser/local) for the agent-by-agent support matrix.
+</Warning>
+
+**Lexmount Cloud Browser**: Connects to Lexmount via CDP. Apply for `LEXMOUNT_API_KEY` at [browser.lexmount.cn](https://browser.lexmount.cn) (mainland China) or [browser.lexmount.com](https://browser.lexmount.com) (international) — see [Lexmount Cloud Browser](/en/browser/lexmount) for the full flow — set it in `.env`, then reference it under `browser` in `config.yaml`:
+
+```yaml
+browser:
+  browser_id: lexmount
+  lexmount_browser_mode: normal           # normal | light
+  lexmount_api_key: $LEXMOUNT_API_KEY
+  lexmount_project_id: $LEXMOUNT_PROJECT_ID
+```
+
+```bash
+# .env
+LEXMOUNT_API_KEY=your-lexmount-api-key
+```
+
+To add a proxy:
+
+```yaml
+browser:
+  browser_id: lexmount
+  lexmount_browser_mode: normal
+  lexmount_proxy_server: http://gw.example.com:823
+  lexmount_proxy_type: external
+  lexmount_proxy_username: $LEXMOUNT_PROXY_USERNAME
+  lexmount_proxy_password: $LEXMOUNT_PROXY_PASSWORD
+```
+
+## Usage
+
+### Basic Run
+
+```bash
+# Run first 3 LexBench-Browser tasks
+bubench run \
+  --agent Agent-TARS \
+  --data LexBench-Browser \
+  --mode first_n \
+  --count 3
+
+# Run Online-Mind2Web
+bubench run \
+  --agent Agent-TARS \
+  --data Online-Mind2Web \
+  --mode first_n \
+  --count 3
+```
+
+### Run All Tasks
+
+```bash
+bubench run \
+  --agent Agent-TARS \
+  --data LexBench-Browser \
+  --mode all \
+  --skip-completed
+```
+
+## Evaluation
+
+```bash
+# --model-id matches the model_id used at run time
+bubench eval --agent Agent-TARS --data LexBench-Browser --model-id gpt-5.4-mini
+
+bubench eval --agent Agent-TARS --data Online-Mind2Web --model-id gpt-5.4-mini
+```
+
+## Supported Benchmarks
+
+- ✅ LexBench-Browser
+- ✅ Online-Mind2Web
+- ✅ BrowseComp
+
+## Related Links
+
+- [Agent-TARS npm package](https://www.npmjs.com/package/@agent-tars/cli)

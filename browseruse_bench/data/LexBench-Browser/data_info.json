@@ -1,0 +1,68 @@
+{
+  "default_split": "All",
+  "split": {
+    "All": "task.jsonl",
+    "lexmount": "task_lexmount.jsonl",
+    "global": "task_global.jsonl"
+  },
+  "version_info": {
+    "LexBench-Browser": {
+      "total_tasks": 210,
+      "version": "1.0",
+      "description": "v1.0 - Initial public release: 210 tasks across 107 distinct websites, no login required. Slice the data via the `login_required`, `domain`, or `risk_control` fields.",
+      "robustness_tags": {
+        "categories": 6,
+        "tag_count": 16,
+        "categories_detail": {
+          "popup_interference": ["login_popup", "cookie_consent", "ad_overlay"],
+          "sequence_complexity": ["long_sequence", "deep_navigation", "multi_site"],
+          "content_dynamics": ["realtime_data", "lazy_load_scroll", "iframe_embed"],
+          "anti_crawl": ["captcha_verification", "anti_bot", "rate_limiting"],
+          "localization": ["chinese_rendering", "cross_language"],
+          "complex_interaction": ["filter_sort", "data_extraction"]
+        },
+        "notes": "拒绝场景任务的鲁棒性标签仅保留语言相关项（chinese_rendering / cross_language）。"
+      },
+      "label_system": {
+        "task_type": ["T1", "T2"],
+        "reasoning_type": [
+          "single_step",
+          "multi_step",
+          "cross_platform",
+          "deep_analysis"
+        ],
+        "domain": [
+          "tools_education",
+          "social_lifestyle",
+          "ecommerce",
+          "video_platform",
+          "finance_gaming",
+          "general"
+        ],
+        "difficulty": ["easy", "medium", "hard"],
+        "language": ["zh", "en"],
+        "robustness_tags": [
+          "login_popup", "cookie_consent", "ad_overlay",
+          "long_sequence", "deep_navigation", "multi_site",
+          "realtime_data", "lazy_load_scroll", "iframe_embed",
+          "captcha_verification", "anti_bot", "rate_limiting",
+          "chinese_rendering", "cross_language",
+          "filter_sort", "data_extraction"
+        ]
+      },
+      "features": [
+        "所有任务的 reference_answer.steps 字段均逐条手工编写",
+        "JSONL 格式，便于流式处理",
+        "支持按 login_required / domain / risk_control / robustness_tags 多维度切片"
+      ],
+      "last_updated": "2026-04-30"
+    }
+  },
+  "huggingface": {
+    "LexBench-Browser": {
+      "repo_id": "Lexmount/LexBench-Browser",
+      "private": false,
+      "path_prefix": "LexBench-Browser"
+    }
+  }
+}

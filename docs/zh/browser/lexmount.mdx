@@ -1,0 +1,155 @@
+---
+title: "Lexmount 云浏览器"
+description: "使用 Lexmount 云浏览器进行大规模自动化评测"
+---
+
+Lexmount 提供基于云的浏览器实例，用于运行浏览器自动化任务。支持会话保持、登录态管理和大规模并行执行。
+
+## 服务地址
+
+Lexmount 提供两个生产环境，按评测实际运行所在地区选择：
+
+| 环境 | 管理后台 | API base URL |
+| --- | --- | --- |
+| 生产（国内） | [browser.lexmount.cn](https://browser.lexmount.cn) | `https://api.lexmount.cn` |
+| 生产（国外） | [browser.lexmount.com](https://browser.lexmount.com) | `https://api.lexmount.com` |
+
+API base URL 可选 —— SDK 默认使用国内地址。在 `.env` 中配置 `LEXMOUNT_BASE_URL`，或在 `config.yaml` 中设置 `lexmount_base_url` 即可覆盖默认值（国外用户建议切换到 `.com`）。
+
+## 前置条件
+
+<Steps>
+  <Step title="获取 API Key">
+    到 Lexmount 管理后台注册账号（国内用 [browser.lexmount.cn](https://browser.lexmount.cn)，国外用 [browser.lexmount.com](https://browser.lexmount.com)），申请 API Key。
+  </Step>
+  <Step title="获取 Project ID">
+    在同一后台创建项目，获取 Project ID。
+  </Step>
+</Steps>
+
+## 配置
+
+在 `.env` 中添加凭证：
+
+```bash
+LEXMOUNT_API_KEY=your_api_key
+LEXMOUNT_PROJECT_ID=your_project_id
+```
+
+先复制示例配置（`cp config.example.yaml config.yaml`），再在根目录 `config.yaml` 中为对应 Agent 配置云浏览器：
+
+```yaml
+# config.yaml
+agents:
+  browser-use:
+    browser:
+      browser_id: lexmount
+      lexmount_browser_mode: normal   # normal | light
+      lexmount_api_key: $LEXMOUNT_API_KEY
+      lexmount_project_id: $LEXMOUNT_PROJECT_ID
+```
+
+## 登录态管理（Login Contexts）
+
+对于需要登录的任务，使用 `bubench login` 子命令在 Lexmount 上创建**持久化 Context** 并保存登录态。评测运行时会根据任务的 `target_website` 自动 fork 该 Context，一次登录可供多次并发评测复用。
+
+### Step 1: 创建登录态
+
+```bash
+# 小红书
+bubench login add xiaohongshu
+
+# 淘宝
+bubench login add taobao
+
+# 自定义 URL（未内置的站点）
+bubench login add my_site --website https://example.com/login
+```
+
+执行后终端会输出 Inspect URL。在本地浏览器打开该 URL，完成登录后回到终端按 **Enter** 保存 Cookie 到 Context。
+
+<Tip>
+内置近百个常见站点（电商、社交、视频、办公协作等）。运行 `bubench login add help` 可查看全部站点清单，或编辑 `browseruse_bench/browsers/login_sites.yaml` 追加新站点。
+</Tip>
+
+### Step 2: 登录流程
+
+<Steps>
+  <Step title="运行命令">
+    `bubench login add <site>` 会创建 Context → 打开远程会话 → 打印 Inspect URL
+  </Step>
+  <Step title="在浏览器中登录">
+    复制终端输出的 Inspect URL，在本地浏览器打开，远程 Chrome 页面已自动跳转到目标站点
+  </Step>
+  <Step title="确认保存">
+    登录完成后，回到终端按 **Enter**。脚本会关闭会话，Cookie 自动持久化到 Context
+  </Step>
+</Steps>
+
+登录态记录保存在 `browser_data/login_contexts/index.json`。
+
+### Step 3: 其他命令
+
+```bash
+# 查看所有已保存的登录态
+bubench login list
+
+# 删除本地映射（保留远端 Context）
+bubench login remove xiaohongshu
+
+# 同时删除远端 Lexmount Context
+bubench login remove xiaohongshu --delete-remote
+```
+
+## 运行需要登录的任务
+
+只要任务的 `login_required: true` 且 `target_website` 能解析到已登录站点，运行时会自动挂载对应 Context，无需额外参数：
+
+<Steps>
+  <Step title="确保已登录">
+    `bubench login list` 查看目标站点是否已在列表中
+  </Step>
+  <Step title="使用 Normal 模式">
+    ```yaml
+    # config.yaml
+    agents:
+      browser-use:
+        browser:
+          browser_id: lexmount
+          lexmount_browser_mode: normal
+    ```
+  </Step>
+  <Step title="运行任务">
+    ```bash
+    bubench run \
+      --agent browser-use \
+      --data LexBench-Browser \
+      --mode first_n --count 5
+    ```
+  </Step>
+</Steps>
+
+## 优势
+
+<CardGroup cols={2}>
+  <Card title="无需本地浏览器" icon="laptop-slash">
+    在服务器环境运行，无需安装 Chrome
+  </Card>
+  <Card title="会话持久化" icon="database">
+    登录状态跨任务保持，无需重复登录
+  </Card>
+  <Card title="并行执行" icon="layer-group">
+    支持多个浏览器实例并行运行
+  </Card>
+  <Card title="稳定可靠" icon="shield-check">
+    云端隔离环境，避免本地资源冲突
+  </Card>
+</CardGroup>
+
+## 注意事项
+
+<Warning>
+- 云浏览器会产生费用，请合理使用
+- Normal 模式的会话有过期时间，请定期检查登录状态
+- 不要在公开环境暴露 API Key
+</Warning>

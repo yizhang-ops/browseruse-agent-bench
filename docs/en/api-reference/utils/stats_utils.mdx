@@ -1,0 +1,157 @@
+---
+title: 'stats_utils'
+description: 'Statistics calculation and summary generation utilities'
+---
+
+# browseruse_bench.utils.stats_utils
+
+Statistics-related utility functions.
+
+## Import
+
+```python
+from browseruse_bench.utils import (
+    calculate_metric_stats,
+    calculate_all_metrics_stats,
+    filter_tasks_by_label,
+    generate_evaluation_summary,
+)
+```
+
+---
+
+## calculate_metric_stats
+
+Calculate statistics for a specific metric.
+
+```python
+def calculate_metric_stats(
+    tasks: List[Dict[str, Any]],
+    metric: str,
+    path: str = "evaluation_details"
+) -> Dict[str, float]
+```
+
+<ParamField path="tasks" type="list of dict" required>
+  List of task results
+</ParamField>
+
+<ParamField path="metric" type="str" required>
+  Metric name, e.g., `ttft_ms`, `end_to_end_ms`, `steps`
+</ParamField>
+
+<ParamField path="path" type="str" default="evaluation_details">
+  Path to metric in task dictionary
+</ParamField>
+
+<ResponseField name="return" type="dict">
+  Statistics dictionary containing `count`, `mean`, `min`, `max`, `median`
+</ResponseField>
+
+---
+
+## calculate_all_metrics_stats
+
+Calculate statistics for multiple metrics.
+
+```python
+def calculate_all_metrics_stats(
+    tasks: List[Dict[str, Any]],
+    metrics: Optional[List[str]] = None,
+    path: str = "evaluation_details"
+) -> Dict[str, Dict[str, float]]
+```
+
+<ParamField path="metrics" type="list of str" default="see below">
+  List of metric names
+</ParamField>
+
+### Return Structure
+
+```python
+{
+    "ttft_ms": {"count": 10, "mean": 1234.5, ...},
+    "end_to_end_ms": {"count": 10, "mean": 5678.9, ...},
+    "steps": {"count": 10, "mean": 3.2, ...},
+    "usage": {
+        "total_tokens": {"count": 10, "mean": 1500, ...},
+        "total_cost": {"count": 10, "mean": 0.05, ...},
+        ...
+    }
+}
+```
+
+---
+
+## filter_tasks_by_label
+
+Filter tasks by label.
+
+```python
+def filter_tasks_by_label(
+    tasks: List[Dict[str, Any]],
+    key: str = "predicted_label",
+    val: int = 1
+) -> List[Dict[str, Any]]
+```
+
+<ParamField path="tasks" type="list of dict" required>
+  List of task results
+</ParamField>
+
+<ParamField path="key" type="str" default="predicted_label">
+  Label key name
+</ParamField>
+
+<ParamField path="val" type="int" default="1">
+  Label value (1 = success, 0 = failure)
+</ParamField>
+
+---
+
+## generate_evaluation_summary
+
+Generate evaluation summary.
+
+```python
+def generate_evaluation_summary(
+    results: List[Dict[str, Any]],
+    total: int,
+    metrics: Optional[List[str]] = None
+) -> Dict[str, Any]
+```
+
+<ParamField path="results" type="list of dict" required>
+  List of evaluation results
+</ParamField>
+
+<ParamField path="total" type="int" required>
+  Total number of tasks
+</ParamField>
+
+<ParamField path="metrics" type="list of str" default="see below">
+  List of metrics to calculate
+</ParamField>
+
+### Return Structure
+
+```python
+{
+    "overall_statistics": {
+        "total_tasks": 100,
+        "evaluated_tasks": 95,
+        "successful_tasks": 70,
+        "failed_tasks": 25,
+        "success_rate": 73.68,
+        "failure_rate": 26.32
+    },
+    "metrics_statistics": {...},
+    "successful_tasks_metrics": {...},
+    "failed_tasks_metrics": {...},
+    "failure_category_statistics": {...},
+    "task_list": {
+        "successful_task_ids": [...],
+        "failed_task_ids": [...]
+    }
+}
+```

@@ -1,0 +1,387 @@
+---
+title: "独立评估"
+description: "使用标准化评估流程评估自定义 Agent 结果"
+icon: "check-double"
+---
+
+如果您已有来自其他来源的 Agent 执行结果,可以使用我们的标准化评估服务来评估性能。
+
+## 概述
+
+**使用场景**:
+- 您有自定义 Agent 实现的结果
+- 您希望使用标准化评估指标
+- 您准备提交到排行榜
+
+**我们提供**:
+- 针对每个 Benchmark 的标准化评估流程
+- 统一的评分指标
+- 详细的性能报告
+
+---
+
+## 通用数据要求
+
+### 目录结构
+
+所有 Benchmark 都需要这个基本结构:
+
+```
+your_results_dir/
+├── task_1/
+│   ├── result.json                    # 必需
+│   └── trajectory/                    # LexBench-Browser 和 Online-Mind2Web 需要
+│       ├── 0.png
+│       ├── 1.png
+│       └── ...
+├── task_2/
+│   ├── result.json
+│   └── trajectory/
+└── ...
+```
+
+### 通用 result.json 格式
+
+所有 Benchmark 都需要这些基础字段:
+
+```json
+{
+  "task_id": "string",       // 必需:必须与 Benchmark 任务 ID 匹配
+  "task": "string",          // 必需:任务描述
+  "answer": "string",        // 必需:Agent 的最终答案
+  "model_id": "string",      // 推荐:模型标识符
+  "browser_id": "string",    // 推荐:浏览器标识符
+  "metrics": {               // 可选:性能指标
+    "steps": 5,
+    "end_to_end_ms": 12000,
+    "ttft_ms": 800
+  }
+}
+```
+
+**字段说明**:
+- `task_id`: 与 Benchmark 匹配的唯一任务标识符
+- `task`: 人类可读的任务描述
+- `answer`: Agent 的最终响应或答案
+- `model_id`: 使用的 LLM 模型(例如 "gpt-4o", "claude-3.5")
+- `browser_id`: 浏览器配置(例如 "Chrome-Local")
+- `metrics`: 可选的性能指标
+
+---
+
+## 各 Benchmark 特定要求
+
+### LexBench-Browser
+
+**评估方式**: 使用截图序列进行视觉评估  
+**评分标准**: 0-100 分,默认阈值: 60
+
+#### 额外要求
+
+✅ **必需**: `trajectory/` 目录下的截图文件  
+✅ **格式**: PNG 或 JPG 图像  
+✅ **命名**: 顺序编号(例如 `0.png`, `1.png`, ...)
+
+#### result.json 示例
+
+```json
+{
+  "task_id": "task_001",
+  "task": "查找邮编 90028 最近的 Trader Joe's 商店位置和营业时间，并将其设置为我的主门店",
+  "answer": "最近的商店是 Hollywood (206),地址为 1600 N Vine St, Los Angeles, CA 90028。营业时间:周一至周日 8:00 AM - 9:00 PM",
+  "model_id": "gpt-4o",
+  "browser_id": "Chrome-Local",
+  "metrics": {
+    "steps": 8,
+    "end_to_end_ms": 45000,
+    "ttft_ms": 1200
+  }
+}
+```
+
+#### 必需的目录结构
+
+```
+task_001/
+├── result.json
+└── trajectory/
+    ├── 0.png                      # 初始页面截图
+    ├── 1.png                      # 第一个操作后
+    ├── 2.png                      # 第二个操作后
+    └── ...
+```
+
+#### 评估命令
+
+```bash
+bubench eval \
+  --data LexBench-Browser \
+  --agent your-agent-name \
+  --model-id <your-model-id> \
+```
+
+**注意**: 将您的结果放在标准实验目录中:
+```
+experiments/LexBench-Browser/All/your-agent-name/{timestamp}/tasks/
+```
+
+---
+
+### Online-Mind2Web
+
+**评估方式**: WebJudge 多轮评估  
+**评分标准**: 3 分制,默认阈值: 3
+
+#### 额外要求
+
+✅ **必需**: result.json 中的 `action_history` 字段  
+✅ **必需**: `trajectory/` 目录下的截图文件  
+✅ **格式**: 动作历史为字符串数组
+
+#### result.json 示例
+
+```json
+{
+  "task_id": "b7258ee05d75e6c50673a59914db412e_110325",
+  "task": "查找邮编 90028 最近的 Trader Joe's 商店位置和营业时间,并将其设为我的主门店",
+  "answer": "最近的商店是 Hollywood (206),地址为 1600 N Vine St, Los Angeles, CA 90028,已设为您的主门店。",
+  "action_history": [
+    "<a href='https://www.traderjoes.com/'> -> NAVIGATE",
+    "<vision> -> VISION_CONTROL: 点击'Select your store'链接",
+    "<vision> -> VISION_CONTROL: 在输入框中输入'90028'",
+    "<vision> -> VISION_CONTROL: 点击'SEARCH'按钮",
+    "<vision> -> VISION_CONTROL: 点击'SET AS MY STORE'按钮"
+  ],
+  "model_id": "gpt-4o",
+  "browser_id": "Chrome-Local",
+  "metrics": {
+    "steps": 6,
+    "end_to_end_ms": 48904,
+    "ttft_ms": 1991
+  }
+}
+```
+
+#### 必需的目录结构
+
+```
+b7258ee05d75e6c50673a59914db412e_110325/
+├── result.json                # 必须包含 action_history
+└── trajectory/
+    ├── 0.png
+    ├── 1.png
+    └── ...
+```
+
+#### 评估命令
+
+```bash
+bubench eval \
+  --data Online-Mind2Web \
+  --agent your-agent-name \
+  --model-id <your-model-id> \
+```
+
+**注意**: 将您的结果放在:
+```
+experiments/Online-Mind2Web/20251214/All/your-agent-name/{timestamp}/tasks/
+```
+
+---
+
+### BrowseComp
+
+**评估方式**: 文本答案准确性比较  
+**评分标准**: 二分类(正确/错误)
+
+#### 额外要求
+
+❌ **不需要**: 截图(仅文本评估)  
+✅ **必需**: 完整的 `answer` 字段和完整响应
+
+#### result.json 示例
+
+```json
+{
+  "task_id": "task_browse_001",
+  "task": "截至 2023 年东京的人口是多少?",
+  "answer": "截至 2023 年,东京市区人口约为 1400 万人,大都市区人口约为 3700 万人。",
+  "model_id": "gpt-4o",
+  "browser_id": "Chrome-Local",
+  "metrics": {
+    "steps": 3,
+    "end_to_end_ms": 15000
+  }
+}
+```
+
+#### 最小目录结构
+
+```
+task_browse_001/
+└── result.json                # 不需要 trajectory/
+```
+
+#### 评估命令
+
+```bash
+bubench eval \
+  --data BrowseComp \
+  --agent your-agent-name \
+  --model-id <your-model-id> \
+```
+
+**注意**: 将您的结果放在:
+```
+experiments/BrowseComp/All/your-agent-name/{timestamp}/tasks/
+```
+
+---
+
+## 评估流程
+
+### 步骤 1: 准备数据
+
+1. **整理结果**: 根据上述要求组织您的数据
+2. **放置在标准位置**: 复制到相应的实验目录
+3. **验证格式**: 确保所有必需字段都存在
+
+### 步骤 2: 运行评估
+
+执行评估命令:
+
+```bash
+bubench eval \
+  --data <BENCHMARK_NAME> \
+  --agent <YOUR_AGENT_NAME> \
+  --model-id <MODEL_ID> \
+```
+
+**可选参数**:
+- `--model`: 评估 LLM（覆盖 `config.yaml` 中的 `eval.model`）
+- `--score-threshold`: 自定义成功阈值
+- `--force-reeval`: 强制重新评估现有结果
+
+### 步骤 3: 查看结果
+
+评估在 `tasks_eval_result/` 目录中生成两个输出文件:
+
+**1. 详细结果** (`*_eval_results.json`):
+```json
+{
+  "task_id": "task_001",
+  "task": "...",
+  "predicted_label": 1,           // 0 = 失败, 1 = 成功
+  "evaluation_details": {
+    "score": 85,                   // Benchmark 特定分数
+    "grader_response": "...",      // LLM 评估推理
+    // ... Benchmark 特定字段
+  },
+  "model_id": "gpt-4o",
+  "browser_id": "Chrome-Local"
+}
+```
+
+**2. 汇总统计** (`*_summary.json`):
+```json
+{
+  "overall_statistics": {
+    "success_rate": 75.5,
+    "total_tasks": 100,
+    "successful_tasks": 75,
+    "failed_tasks": 25
+  },
+  "metrics_statistics": {
+    "steps": {
+      "mean": 8.5,
+      "median": 7,
+      "min": 2,
+      "max": 25
+    },
+    "end_to_end_ms": {
+      "mean": 45000,
+      "median": 42000
+    }
+  },
+  "evaluation_cost": {
+    "total_prompt_tokens": 125000,
+    "total_completion_tokens": 8500,
+    "costs": {
+      "total": 3.25,
+      "input": 2.50,
+      "output": 0.75
+    }
+  }
+}
+```
+
+---
+
+## 对比表格
+
+| 特性 | LexBench-Browser | Online-Mind2Web | BrowseComp |
+|------|------------------|-----------------|------------|
+| **需要截图** | ✅ 是 | ✅ 是 | ❌ 否 |
+| **需要动作历史** | ❌ 否 | ✅ 是 | ❌ 否 |
+| **评估类型** | 视觉(LLM) | 多轮(LLM) | 文本比较(LLM) |
+| **评分范围** | 0-100 | 1-3 | 二分类 |
+| **默认阈值** | 60 | 3 | 无 |
+
+---
+
+## 与排行榜的区别
+
+| 功能 | 评估服务 | 排行榜 |
+|------|---------|--------|
+| **目的** | 评估工具 | 结果展示 |
+| **功能** | 处理数据 → 生成指标 | 浏览和比较结果 |
+| **交互** | 提交数据以进行评估 | 只读查看 |
+| **输出** | 详细评估报告 | 排名和趋势 |
+
+> 💡 **提示**: 评估后,您可以将结果提交到[排行榜](/zh/leaderboard/overview)与其他模型进行公开比较。
+
+---
+
+## 最佳实践
+
+### ✅ 应该做的
+
+- **验证格式**: 评估前仔细检查所有必需字段
+- **使用一致的 ID**: 确保 `task_id` 与 Benchmark 任务完全匹配
+- **包含指标**: 添加性能指标以进行更丰富的分析
+- **记录模型**: 指定 `model_id` 和 `browser_id` 以确保可重现性
+
+### ❌ 不应该做的
+
+- **不要混合格式**: 每个 Benchmark 都有特定要求
+- **不要跳过截图**: LexBench-Browser 和 Online-Mind2Web 需要它们
+- **不要修改 Benchmark 数据**: 使用原始任务定义
+- **不要忽略错误**: 在继续之前解决验证错误
+
+---
+
+## 故障排除
+
+### "Task ID not found in benchmark"
+**原因**: 您的 `task_id` 与任何 Benchmark 任务都不匹配  
+**解决**: 使用 Benchmark 的 `tasks.json` 中的确切任务 ID
+
+### "Missing action_history field"
+**原因**: Online-Mind2Web 需要动作历史  
+**解决**: 将 `action_history` 数组添加到您的 result.json
+
+### "No screenshots found"
+**原因**: trajectory/ 目录丢失或为空  
+**解决**: 确保截图在 `task_dir/trajectory/*.png` 中
+
+### "Evaluation failed with API error"
+**原因**: 评估 LLM API 问题  
+**解决**: 检查 `OPENAI_API_KEY` 和网络连接
+
+---
+
+## 下一步
+
+- **查看示例**: 查看[完整工作流](/zh/examples/complete-workflow)获取端到端指南
+- **提交到排行榜**: 公开分享结果([指南](/zh/leaderboard/overview))
+- **自定义 Benchmark**: 创建您自己的评估任务([文档](/zh/benchmarks/custom-benchmark))

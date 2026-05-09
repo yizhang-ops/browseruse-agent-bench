@@ -1,0 +1,142 @@
+---
+title: "Skyvern"
+description: "Browser automation agent powered by the Skyvern SDK"
+---
+
+Skyvern is a Python-based browser automation agent built on the Skyvern SDK. It supports multiple execution engines (`skyvern_v1`, `skyvern_v2`, `openai-cua`, `anthropic-cua`, `ui-tars`) and browser backends (`local`, `cdp`, `lexmount`, `skyvern-cloud`).
+
+## Installation
+
+```bash
+# Install core dependencies and register the bubench CLI
+uv sync
+```
+
+<Note>
+The `skyvern` and `browser-use` extras conflict. Use a separate venv (default `.venvs/skyvern` for skyvern, and `.venvs/browser_use` for browser-use in `config.yaml`).
+`bubench run` will auto-create that venv and install the `skyvern` extra on first use.
+</Note>
+
+Activate `.venv` (or use `uv run bubench ...`) before running `bubench` commands.
+
+## Configuration
+
+Configure Skyvern in the root `config.yaml` under `agents.skyvern`:
+
+```yaml
+agents:
+  skyvern:
+    active_model: gemini        # active model profile
+    models:
+      gemini:
+        enable_openai_compatible: true
+        model_id: gemini-3-flash-preview
+        max_tokens: 16000
+        temperature: 0.0
+        supports_vision: true
+        api_key: $OPENAI_COMPATIBLE_API_KEY
+    browser:
+      browser_id: local
+      headless: false
+    defaults:
+      engine: skyvern_v2
+      max_steps: 25
+      timeout: 600
+      max_screenshot_scrolls: 5
+      include_action_history_in_verification: true
+      max_consecutive_repeats: 3
+      max_action_occurrences: 5
+```
+
+Store sensitive keys (e.g. `OPENAI_COMPATIBLE_API_KEY`, `SKYVERN_API_KEY`) in the repo root `.env`.
+
+### Engine Options
+
+| ENGINE | Description |
+|--------|-------------|
+| `skyvern_v1` | Skyvern v1 engine |
+| `skyvern_v2` | Skyvern v2 engine |
+| `openai-cua` | OpenAI CUA engine |
+| `anthropic-cua` | Anthropic CUA engine |
+| `ui-tars` | UI-TARS engine |
+
+### Browser Backends
+
+| `browser_id` | Description |
+|------------|-------------|
+| `local` | Local browser |
+| `cdp` | Connect to an external CDP browser (set `CDP_ADDRESS`) |
+| `lexmount` | Lexmount cloud browser (set `LEXMOUNT_BROWSER_MODE`) |
+| `skyvern-cloud` | Skyvern cloud browser |
+
+### Common Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `enable_openai_compatible` | Enable OpenAI-compatible mode | `true` |
+| `model_id` | LLM model name | `gemini-3-flash-preview` |
+| `api_key` | LLM API key (use `$ENV_VAR` form) | `$OPENAI_COMPATIBLE_API_KEY` |
+| `base_url` | LLM API base URL | `$OPENAI_BASE_URL` |
+| `max_tokens` | Max output tokens | `16000` |
+| `temperature` | Temperature | `0.0` |
+| `supports_vision` | Model supports vision | `true` |
+| `request_timeout` | LiteLLM per-request timeout (seconds) | `600` |
+| `execution_engine` | Skyvern execution engine | `skyvern_v2` (default) |
+| `headless` | Headless mode for local browser | `true` / `false` |
+| `timeout` | Task timeout (seconds) | `600` |
+| `max_steps` | Max steps per task | `25` |
+| `max_screenshot_scrolls` | Max scroll screenshots | `5` |
+| `include_action_history_in_verification` | Include action history in verification | `true` |
+| `max_consecutive_repeats` | Max consecutive repeats | `3` |
+| `max_action_occurrences` | Max occurrences of one action | `5` |
+
+<Note>
+**Renamed keys (legacy still honored)**
+
+The `openai_compatible_*` prefix on per-model config keys was dropped so Skyvern matches every other agent (`model_id`, `api_key`, `base_url`, `max_tokens`, `temperature`, `supports_vision`, `request_timeout`). The old names still work — you'll see a one-shot `DeprecationWarning` per key, then the value is aliased onto the new key. The underlying env vars passed to the Skyvern subprocess (`OPENAI_COMPATIBLE_*`) are unchanged.
+</Note>
+
+<Note>
+**Why no `browser_control`?**
+
+Skyvern is a fully managed service: the decision of when to use DOM inspection versus visual grounding is made internally by the Skyvern execution engine (configurable via `execution_engine`). The benchmark only submits tasks via API and does not control the internal interaction strategy.
+</Note>
+
+## Usage Examples
+
+### Basic Run
+
+```bash
+bubench run \
+  --agent skyvern \
+  --data LexBench-Browser \
+  --mode first_n \
+  --count 3
+```
+
+### Run All Tasks
+
+```bash
+bubench run \
+  --agent skyvern \
+  --data LexBench-Browser \
+  --mode all \
+  --skip-completed
+```
+
+## Evaluation
+
+```bash
+# --model-id matches the model_id used at run time
+bubench eval --agent skyvern --data LexBench-Browser --model-id gemini-3.1-pro-preview
+```
+
+## Supported Benchmarks
+
+- ✅ LexBench-Browser
+- ✅ Online-Mind2Web
+- ✅ BrowseComp
+
+## Links
+
+- [Skyvern GitHub Repository](https://github.com/Skyvern-AI/Skyvern)

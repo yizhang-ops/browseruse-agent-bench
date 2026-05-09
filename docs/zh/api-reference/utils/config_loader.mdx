@@ -1,0 +1,127 @@
+---
+title: "config_loader"
+description: "YAML 配置加载工具"
+---
+
+# browseruse_bench.utils.config_loader
+
+配置文件加载工具。
+
+## 导入
+
+```python
+from browseruse_bench.utils import (
+    load_config_file,
+    resolve_benchmark_config,
+    load_data_info,
+    get_default_split,
+)
+```
+
+---
+
+## load_config_file
+
+加载 YAML 配置文件。
+
+```python
+def load_config_file(path: Path) -> Dict[str, Any]
+```
+
+<ParamField path="path" type="Path" required>
+  配置文件路径
+</ParamField>
+
+<ResponseField name="return" type="dict">
+  配置字典（文件不存在时返回空字典）
+</ResponseField>
+
+<Note>
+如果未安装 `pyyaml`，会使用内置的简化 YAML 解析器（仅支持基础的 key-value）。
+</Note>
+
+---
+
+## resolve_benchmark_config
+
+获取 Benchmark 配置。
+
+```python
+def resolve_benchmark_config(
+    config: Dict[str, Any],
+    benchmark: str
+) -> Dict[str, Any]
+```
+
+<ParamField path="config" type="dict" required>
+  主配置字典
+</ParamField>
+
+<ParamField path="benchmark" type="str" required>
+  Benchmark 名称
+</ParamField>
+
+<ResponseField name="return" type="dict">
+  对应 benchmark 的配置字典
+</ResponseField>
+
+<Warning>
+benchmark 不存在时会抛出 `SystemExit`。
+</Warning>
+
+### 使用示例
+
+```python
+from browseruse_bench.utils import load_config_file, resolve_benchmark_config
+
+config = load_config_file(Path("config.yaml"))
+bench_config = resolve_benchmark_config(config, "lexbench-browser")
+```
+
+---
+
+## load_data_info
+
+加载 benchmark 的 `data_info.json`。
+
+```python
+def load_data_info(benchmark_path: Path) -> Dict[str, Any]
+```
+
+<ParamField path="benchmark_path" type="Path" required>
+  Benchmark 目录路径
+</ParamField>
+
+<ResponseField name="return" type="dict">
+  `data_info.json` 内容（文件不存在时返回空字典）
+</ResponseField>
+
+---
+
+## get_default_split
+
+获取默认 split。
+
+```python
+def get_default_split(data_info: Dict[str, Any]) -> Optional[str]
+```
+
+优先使用 `data_info` 中的 `default_split`；否则优先选择 `All`，再退回到第一个 split key。
+
+<ParamField path="data_info" type="dict" required>
+  `data_info.json` 内容
+</ParamField>
+
+<ResponseField name="return" type="str or None">
+  默认 split 名称，无法确定时返回 None
+</ResponseField>
+
+### 使用示例
+
+```python
+from browseruse_bench.utils import load_data_info, get_default_split
+from pathlib import Path
+
+data_info = load_data_info(Path("benchmarks/lexbench-browser"))
+split = get_default_split(data_info)  # 例如 "All"
+```

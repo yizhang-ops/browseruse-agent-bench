@@ -1,0 +1,135 @@
+---
+title: "Contribution Guide"
+description: "How to contribute to the browseruse-bench project"
+icon: "code-pull-request"
+---
+
+Welcome to contribute to the browseruse-bench project! This guide will help you understand how to participate in project development.
+
+## Development Environment Setup
+
+<Steps>
+  <Step title="Fork Repository">
+    Fork the browseruse-bench repository on GitHub
+  </Step>
+  <Step title="Clone Code">
+    ```bash
+    git clone https://github.com/your-username/browseruse-bench.git
+    cd browseruse-bench
+    ```
+  </Step>
+  <Step title="Install Dependencies">
+    ```bash
+    # Using uv (Recommended)
+    uv sync --all-extras
+
+    # Or using pip
+    pip install -e ".[all,dev]"
+    ```
+  </Step>
+  <Step title="Create Branch">
+    ```bash
+    git checkout -b feature/your-feature-name
+    ```
+  </Step>
+</Steps>
+
+
+
+## Contribution Types
+
+### Adding New Agents
+
+See [Custom Agent Integration](/en/agents/custom-agent) for full implementation details, directory structure, and registration steps.
+
+### Adding New Benchmarks
+
+1. Create a new Benchmark directory in `benchmarks/`
+2. Prepare task data and `data_info.json`
+3. Implement evaluator (optional)
+4. Update documentation
+
+See [Custom Benchmark](/en/benchmarks/custom-benchmark) for details.
+
+### Fixing Bugs
+
+1. Create an Issue to describe the problem
+2. Submit a PR with the fix
+3. Ensure tests pass
+
+### Improving Documentation
+
+1. Modify documentation in `docs/` directory
+2. Submit PR
+
+## Code Standards
+
+### Formatting
+
+```bash
+# Use ruff to format
+ruff format .
+
+# Check code style
+ruff check .
+```
+
+### Type Checking
+
+```bash
+# Use mypy for type checking
+mypy browseruse_bench
+```
+
+### Testing
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run specific test
+pytest tests/test_eval.py -v
+```
+
+## Submitting PR
+
+<Steps>
+  <Step title="Ensure Tests Pass">
+    ```bash
+    pytest tests/
+    ruff check .
+    ```
+  </Step>
+  <Step title="Commit Changes">
+    ```bash
+    git add .
+    git commit -m "feat: add your feature description"
+    ```
+  </Step>
+  <Step title="Push Branch">
+    ```bash
+    git push origin feature/your-feature-name
+    ```
+  </Step>
+  <Step title="Create PR">
+    Create a Pull Request on GitHub and describe your changes
+  </Step>
+</Steps>
+
+## Commit Convention
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+- `feat:` New feature
+- `fix:` Bug fix
+- `docs:` Documentation update
+- `refactor:` Code refactoring
+- `test:` Add test
+- `chore:` Other changes
+
+Example:
+```
+feat: add WebArena benchmark support
+fix: resolve timeout issue in browser-use agent
+docs: update quickstart guide
+```

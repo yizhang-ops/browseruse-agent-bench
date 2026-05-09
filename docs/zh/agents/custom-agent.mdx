@@ -1,0 +1,365 @@
+---
+title: '自定义 Agent'
+description: '如何将新 Agent 集成到 browseruse-bench 框架中'
+---
+
+browseruse-bench 通过 `BaseAgent` 接口集成 Agent。框架负责任务加载、CLI 解析、工作目录和结果保存，你只需实现 `run_task()` 并注册即可。
+
+## 现有 Agent 的接入方式
+
+### 1. browser-use — Python SDK 直接调用
+
+**接口**：直接 `import browser_use` Python 包，在进程内异步运行。
+
+```
+任务 → BrowserUseAgent.run_task()
+      → 创建 LLM 实例（OpenAI/Gemini/Anthropic 等）
+      → open_browser_session() 打开浏览器会话
+      → browser_use.Agent(task, llm, browser).run()
+      → 解析 history，返回 AgentResult
+```
+
+**优点**：最深度集成，能拿到 token 用量、每步截图、完整 action history。
+
+---
+
+### 2. Skyvern — Python SDK + 内嵌服务
+
+**接口**：`import skyvern`，需要本地 PostgreSQL 做认证，支持本地和云端两种模式。
+
+```
+任务 → SkyvernAgent.prepare()（初始化 DB 认证）
+      → SkyvernAgent.run_task()
+      → Skyvern.local() 或 Skyvern(api_key=...)
+      → skyvern.run_task(prompt, engine, ...)
+      → 轮询 run_id 直到完成
+      → 从 artifacts 目录收集截图，返回 AgentResult
+```
+
+**注意**：依赖最重（需要 PostgreSQL），但可以替换 Skyvern 云端模型为自己的 LLM。
+
+---
+
+### 3. Agent-TARS / Claude Code — CLI 子进程
+
+**接口**：调用 CLI 工具，完全黑盒。
+
+```
+任务 → CliAgent.run_task()
+      → 组装 CLI 参数
+      → subprocess.Popen(["agent-tars", "run", ...])
+      → 等待进程退出（带超时）
+      → 解析输出（event-stream.jsonl 或 JSON stdout）
+      → 返回 AgentResult
+```
+
+**优点**：最轻量，无需了解 Agent 内部，只需要一个可执行的 CLI。
+
+---
+
+## 接入模式
+
+| 模式 | 适用场景 | 典型例子 |
+|------|----------|---------|
+| **SDK** | Agent 以 Python 库的形式分发 | browser-use、Skyvern |
+| **API** | Agent 暴露 HTTP 接口 | OpenAI CUA、Anthropic Computer Use |
+| **CLI** | Agent 以二进制或 npm 包分发 | Agent-TARS、Claude Code |
+
+---
+
+## 接入步骤
+
+### 1. 实现 Agent
+
+新建 `browseruse_bench/agents/my_agent.py`，唯一必须实现的方法是 `run_task()`。
+
+**使用 `BaseAgent` 辅助方法**读取配置，不要手动解析 `agent_config`：
+
+| 辅助方法 | 读取的配置键 | 环境变量回退 |
+|----------|------------|------------|
+| `self.build_task_prompt(task_info)` | `task_text` + `url` | — |
+| `self.get_system_prompt(agent_config)` | `system_prompt` | 类默认值 |
+| `self.get_model_id(agent_config)` | `model_id` → `model` | — |
+| `self.get_timeout(agent_config, default=300)` | `timeout_seconds` → `timeout` → `TIMEOUT` | — |
+| `self.get_max_steps(agent_config, default=40)` | `max_steps` → `max_turns` → `max_iterations` | — |
+| `self.get_api_key(agent_config, env_var="X")` | `api_key` | `os.getenv("X")` |
+| `self.get_base_url(agent_config, env_var="X")` | `base_url` | `os.getenv("X")` |
+| `self.save_screenshot(b64, index, dir)` | — | 返回 `bool` |
+
+骨架代码：
+
+```python
+from datetime import UTC, datetime
+from browseruse_bench.agents.base import BaseAgent
+from browseruse_bench.agents.registry import register_agent
+from browseruse_bench.schemas import AgentMetrics, AgentResult
+
+@register_agent
+class MyAgent(BaseAgent):
+    name = "my-agent"
+
+    def run_task(self, task_info, agent_config, task_workspace):
+        task_prompt = self.build_task_prompt(task_info)
+        timeout     = self.get_timeout(agent_config)
+        # ... 调用你的 Agent ...
+        return AgentResult(
+            task_id=task_info["task_id"],
+            timestamp=datetime.now(UTC),
+            env_status="success",   # "success" | "failed"
+            agent_done="done",      # "done" | "timeout" | "max_steps" | "error"
+            agent_success=True,     # 仅 agent_done=="done" 时为 True/False，否则为 None
+            answer="...",
+            metrics=AgentMetrics(end_to_end_ms=elapsed_ms, steps=n),
+        )
+```
+
+<Tabs>
+  <Tab title="SDK">
+    在进程内直接调用 Python 库。异步 SDK 使用 `asyncio.run()`（假设运行器是同步上下文；如从异步上下文调用，请使用 `nest_asyncio`）。重依赖包在 `run_task` 或 `prepare()` 钩子内懒加载。
+  </Tab>
+  <Tab title="API">
+    POST 创建任务，轮询直到达到终态（`completed` / `failed`）。用 `requests.RequestException` 捕获网络错误。
+  </Tab>
+  <Tab title="CLI">
+    使用 `subprocess.run()`，指定 `timeout=` 和 `capture_output=True`。从 stdout 解析 JSON，非 JSON 输出时回退到原始文本。
+  </Tab>
+</Tabs>
+
+<Note>
+完整的带错误处理的可复制模板，请在 Claude Code 中使用 `custom-agent-creator` skill。
+</Note>
+
+### 2. 注册模块
+
+在 `browseruse_bench/agents/__init__.py` 添加一行导入：
+
+```python
+from browseruse_bench.agents import my_agent  # noqa: F401
+```
+
+### 3. 注册配置
+
+在根目录 `config.yaml` 的 `agents` 下添加：
+
+```yaml
+agents:
+  my-agent:
+    active_model: default
+    models:
+      default:
+        model_id: your-model-id
+        api_key: $YOUR_API_KEY
+    defaults:
+      timeout: 300
+      max_steps: 40
+```
+
+同时在 `configs/agent_registry.yaml` 中添加元数据：
+
+```yaml
+my-agent:
+  path: browseruse_bench/agents
+  entrypoint: browseruse_bench/runner/agent_runner.py
+  venv: .venv
+  supported_benchmarks:
+    - LexBench-Browser
+```
+
+### 4. 冒烟测试
+
+```bash
+bubench run --agent my-agent --data LexBench-Browser --mode first_n --count 1
+```
+
+---
+
+## 第三方 SDK 接入常见问题
+
+这一节只覆盖大多数读者都会遇到的接入坑。更底层的实现选择，比如“应该优先包一层 SDK 的 inference engine，
+还是直接去 patch 第三方包”，会刻意保留在 `custom-agent-creator` skill 中，而不会在这里展开成单独的用户文档章节。
+
+### 1. SDK 可能自带模型白名单
+
+有些 SDK 文档上写“支持 OpenAI / Gemini”，但实际初始化时只接受少数固定模型名。  
+这时不要把这个限制直接暴露给 browseruse-bench 用户。
+
+更稳妥的做法是：
+
+- SDK 初始化时使用一个 provider 原生支持的 bootstrap 模型
+- 初始化完成后，把 SDK 内部的推理 client / engine 替换成你自己的封装
+- 真正执行推理时再使用 `config.yaml` 中配置的 `model_id` / `api_key` / `base_url`
+
+这样可以支持：
+
+- 项目实际运行时配置中的较新模型 ID，或非默认的 `model_id`
+- 自定义网关
+- OpenAI-compatible 模型
+
+### 2. 配置字段语义要保留，环境变量值可以复用
+
+如果项目里已经统一走一套内部代理，不代表 YAML 里所有 provider 都要共用同一组字段名。
+
+推荐做法：
+
+- `OPENAI` profile 继续使用 `api_key` / `base_url`
+- `OPENAI_COMPATIBLE` profile 继续使用 `openai_compatible_api_key` / `openai_compatible_api_base`
+- 但这些字段的值可以都引用同一组环境变量，例如 `$OPENAI_API_KEY` / `$OPENAI_BASE_URL`
+
+这样既保留了 provider 语义，也方便统一代理。
+
+### 3. 只从环境变量读取凭证的 SDK，要做窄范围注入
+
+有些 SDK 不接受显式传参，只会从环境变量里读取 API Key。  
+这种情况下：
+
+- 在 agent 内部临时设置环境变量
+- 只设置当前 provider 需要的那几个变量
+- 在 `finally` 里恢复原值
+
+不要把环境变量写死在模块级别，也不要把一个任务的凭证泄漏到后续任务。
+
+### 4. 第三方 SDK 往往假设运行目录已经存在
+
+很多 SDK 会直接往以下目录写文件，但不会先 `mkdir`：
+
+- `screenshots/`
+- `dom/`
+- `playwright_traces/`
+- `accessibility/`
+
+如果你的 agent 依赖 task-local workspace，建议：
+
+- 在 SDK 启动后立刻创建这些目录
+- 如果 SDK 在每一步都会生成文件，必要时在每次回调前再次确保目录存在
+
+### 5. 截图/trace 丢失时不要让整个任务直接失败
+
+有些 SDK 即使截图保存失败，也还会把不存在的文件路径继续传给后续推理流程。  
+这时如果你不做保护，就会在读取文件时直接 `FileNotFoundError`。
+
+更好的处理方式是：
+
+- 在把图片路径传入模型前先检查文件是否存在
+- 如果不存在，退化成无图/纯文本请求
+- 保留日志，让任务尽量继续执行
+
+### 6. 先检查 resolved config，再怀疑 SDK
+
+很多“模型不支持”或“provider 没接好”的报错，最终根因只是配置 typo。  
+排错顺序建议是：
+
+1. 先打印/检查最终 resolved 的 `model_type`、`model_id`、`api_key` 来源、`base_url`
+2. 再确认传到 SDK 初始化层的 bootstrap 模型是什么
+3. 最后再看真正推理层使用的模型和网关
+
+这样能很快区分：
+
+- 配置拼写错误
+- provider 路由错误
+- SDK 初始化白名单限制
+- 真实网关请求错误
+
+### 7. 模型名和 provider 路由不是一回事
+
+不要因为模型名看起来像某个 provider，就默认它一定该走那个 provider 的链路。
+
+一个很常见的坑是：
+
+- 配的模型名属于 `gemini-*` 这类 Gemini 系列命名模式
+- 用户实际想走的是内部统一的 OpenAI-compatible 网关
+- 但路由器根据模型名自动推断成了 `Vertex` 或 `Google Gemini`
+
+如果你用了 LiteLLM 或其他会按模型名猜 provider 的路由层，建议：
+
+- 把 provider 路由当成显式配置，而不是隐式推断
+- 必要时强制指定 provider，不要完全依赖自动识别
+- 如果请求本来就该走 OpenAI-compatible 网关，即使模型名像 Gemini，也要显式走 OpenAI-compatible 路径
+- 对 LiteLLM 来说，这通常意味着显式设置 `custom_llm_provider="openai"`，而不是只靠模型名推断
+
+否则很容易看到这些迷惑性报错：
+
+- 缺少 `vertexai` 之类的依赖
+- Google / Gemini API key 无效
+- 请求绕过了你本来想走的统一网关
+
+### 8. 如果日志每条都出现两遍，先检查 SDK 自己的 logger
+
+有些 SDK 会自己挂一个终端 `StreamHandler`，同时又把日志继续向 root logger 传播。
+这样同一条日志就会在 benchmark 输出里出现两遍，但实际上 agent 并没有真的执行两次。
+
+常见修法是：
+
+- 检查 SDK logger 上挂了哪些 handler
+- 视情况关闭 `propagate`
+- 去掉重复的 `StreamHandler`，但保留 file handler（如果你还想保留 SDK 自己的文件日志）
+
+这个问题很容易被误判成“点击执行了两次”或“任务重试了两次”，所以接入时最好尽早排查。
+
+### 9. provider 依赖要和真实路由路径匹配
+
+有些依赖报错是因为真正要走的 provider 路径缺了包，也有些报错是因为请求其实走的是另一条路，
+却额外装了一堆不相关的 provider 依赖。
+
+常见有两种情况：
+
+- 如果你真的走的是直连 Gemini / Vertex 的多模态路径，运行时可能需要额外安装 `Pillow`、`vertexai`
+  或其他 Google SDK 依赖
+- 如果请求本来就是走 OpenAI-compatible 网关，不要只因为模型名长得像 `gemini-*`，就额外安装
+  Gemini / Vertex 专属依赖
+
+更稳妥的原则是：
+
+- 先确认真实的 provider 路由路径
+- 只为那条实际路径安装需要的依赖
+- 如果模型实际走的是 OpenAI-compatible 网关，就显式固定到 OpenAI-compatible 路径，避免引入
+  不相关的 provider SDK 依赖
+
+这样能同时避免两类问题：
+
+- 运行时缺少 `PIL` / `vertexai` 之类的导入错误
+- 环境里塞进大量根本不会被用到的 provider 依赖
+
+---
+
+## 参考：`AgentResult`
+
+`AgentResult` 设置了 `extra="forbid"` — 任何未知字段都会抛出 `ValidationError`。必填字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `task_id` | `str` | 必须与 `task_info["task_id"]` 一致 |
+| `timestamp` | `datetime` | `datetime.now(UTC)` |
+| `env_status` | `"success"` \| `"failed"` | 环境（浏览器/服务）是否正常？ |
+| `agent_done` | `"done"` \| `"timeout"` \| `"max_steps"` \| `"error"` | Agent 如何结束的？ |
+| `metrics` | `AgentMetrics` | `AgentMetrics(end_to_end_ms=..., steps=...)` |
+
+`agent_success`（`bool | None`）记录 Agent 自报的执行结果 — 仅在 `agent_done == "done"` 时设置，否则必须为 `None`。
+
+可选但推荐：`answer`（`str`）— Agent 的最终答案字符串，评估器用此字段打分。
+
+---
+
+## 参考：输入参数与工作目录
+
+**`task_info`** 从 benchmark 数据集加载。标准字段：`task_id`、`task_text`、`url`、`prompt`（可选）。
+
+**`agent_config`** 来自根目录 `config.yaml` 中 `agents.<agent>.models[active_model]` 的配置。框架在运行时会注入 `timeout_seconds`。
+
+**`task_workspace`** 是每个任务的输出目录（`<output_dir>/tasks/<task_id>/`）。框架会在此写入 `result.json`，你可以在同目录保存截图、日志或其他产物。
+
+---
+
+## 参考：浏览器后端（SDK 和 CLI Agent）
+
+使用 `open_browser_session()` 而非硬编码 Chrome：
+
+```python
+from browseruse_bench.browsers import open_browser_session
+
+browser_id = agent_config.get("browser_id") or "Chrome-Local"
+with open_browser_session(browser_id=browser_id, agent_name=self.name, agent_config=agent_config) as ctx:
+    # ctx.cdp_url, ctx.transport, ctx.backend_id
+    ...
+```
+
+Provider 生命周期代码放在 `browseruse_bench/browsers/providers/`，不要放在 agent 模块中。cleanup 失败必须记录日志并容忍，不能覆盖任务执行的原始错误。

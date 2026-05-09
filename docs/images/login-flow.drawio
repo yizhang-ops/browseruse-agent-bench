@@ -1,0 +1,292 @@
+<mxfile host="app.diagrams.net" modified="2026-04-20T12:00:00.000Z" agent="bubench-docs" version="24.7.17">
+  <diagram id="phase1" name="1. Login Setup">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title1" value="Phase 1: One-time Login Setup&#10;`bubench login add xiaohongshu`" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="400" y="20" width="600" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="user1" value="User&#10;(terminal)" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;html=1;outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="40" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cli1" value="bubench login add&#10;(cli/login.py)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="220" y="130" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sites_yaml" value="login_sites.yaml&#10;(built-in site registry,&#10;ships with package)" style="shape=document;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="220" y="280" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sdk" value="Lexmount SDK&#10;(Python client)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="500" y="130" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cloud" value="Lexmount Cloud&#10;(api.lexmount.cn)" style="swimlane;html=1;fontStyle=1;align=center;startSize=30;rounded=0;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="760" y="100" width="280" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="contexts_api" value="contexts.create()&#10;→ base_ctx_id&#10;contexts.fork()&#10;contexts.delete()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="cloud">
+          <mxGeometry x="20" y="50" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="sessions_api" value="sessions.create(context=...)&#10;sessions.list_targets()&#10;sessions.close()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="cloud">
+          <mxGeometry x="20" y="140" width="240" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="remote_chrome" value="Remote Chrome&#10;(in cloud; persisted via&#10;base_ctx_id)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="130" width="200" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="user_browser" value="User's local browser&#10;(opens inspect_url)" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;html=1;outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="300" width="40" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="xhs_site" value="xiaohongshu.com&#10;login page" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fad7ac;strokeColor=#b46504;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="400" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="index_json" value="browser_data/&#10;login_contexts/index.json&#10;{xiaohongshu:{context_id, website, ...}}" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="60" y="580" width="240" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=classic;" edge="1" parent="1" source="user1" target="cli1">
+          <mxGeometry relative="1" as="geometry" />
+          <mxCell id="e1_lbl" value="1. add xiaohongshu" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" />
+        </mxCell>
+
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;endArrow=classic;dashed=1;" edge="1" parent="1" source="cli1" target="sites_yaml">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2_lbl" value="2. read canonical URL&#10;(https://www.xiaohongshu.com)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="130" y="220" width="200" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;endArrow=classic;" edge="1" parent="1" source="cli1" target="sdk">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3_lbl" value="3. Lexmount(api_key, ...)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="410" y="110" width="170" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;endArrow=classic;" edge="1" parent="1" source="sdk" target="contexts_api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4_lbl" value="4. contexts.create(metadata)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="665" y="105" width="190" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;endArrow=classic;" edge="1" parent="1" source="sdk" target="sessions_api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5_lbl" value="5. sessions.create(context={id, read_write})" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="665" y="235" width="240" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;endArrow=classic;" edge="1" parent="1" source="sessions_api" target="remote_chrome">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6_lbl" value="6. spawns" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1045" y="235" width="60" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=1;entryX=0;entryY=0;endArrow=classic;dashed=1;" edge="1" parent="1" source="cli1" target="remote_chrome">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7_lbl" value="7. CDP Page.navigate → remote Chrome loads xiaohongshu.com" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="410" y="75" width="620" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=1;entryX=0.5;entryY=0;endArrow=classic;" edge="1" parent="1" source="cli1" target="user_browser">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8_lbl" value="8. print inspect_url" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="560" y="290" width="120" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;endArrow=classic;" edge="1" parent="1" source="user_browser" target="xhs_site">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9_lbl" value="9. user logs in&#10;(scan QR / password)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="370" width="140" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;endArrow=classic;" edge="1" parent="1" source="user1" target="cli1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="80" y="430" />
+              <mxPoint x="430" y="430" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10_lbl" value="10. press Enter" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="180" y="400" width="140" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;endArrow=classic;" edge="1" parent="1" source="sessions_api" target="remote_chrome">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1070" y="400" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11_lbl" value="11. session.close() → Lexmount persists cookies/localStorage → base_ctx_id" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="710" y="490" width="430" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=1;entryX=0.5;entryY=0;endArrow=classic;" edge="1" parent="1" source="cli1" target="index_json">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12_lbl" value="12. upsert({xiaohongshu: base_ctx_id})" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="490" width="260" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="note1" value="Key:&#10;• Green = bubench CLI code&#10;• Purple = Lexmount SDK&#10;• Gray = Lexmount Cloud API&#10;• Yellow = file / API group&#10;• Blue actor = user touchpoint&#10;• Dashed arrow = CDP / side-effect&#10;• The base context NEVER gets written to by evals — only this one-time login step persists cookies into it." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;align=left;" vertex="1" parent="1">
+          <mxGeometry x="400" y="580" width="600" height="130" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="phase2" name="2. Eval Run">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title2" value="Phase 2: Eval Run (fork + read_write per task)&#10;`bubench run --agent deepbrowse --task-ids 2`" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="400" y="20" width="600" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="user2" value="User&#10;(terminal)" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;html=1;outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="150" width="40" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cli2" value="bubench run&#10;(cli/run.py)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="220" y="140" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tasks_jsonl" value="browseruse_bench/data/&#10;LexBench-Browser/task.jsonl&#10;(task: target_website, login_required=true)" style="shape=document;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="40" y="300" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="idx_read" value="browser_data/login_contexts/&#10;index.json&#10;{xiaohongshu:{context_id: base_ctx_id}}" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="320" y="300" width="240" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="env_var" value="subprocess env&#10;BUBENCH_LOGIN_CONTEXT_ID=base_ctx_id" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="470" y="140" width="260" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="subproc" value="subprocess: agent_runner.py&#10;+ Agent (e.g. deepbrowse)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="790" y="140" width="220" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="backend" value="LexmountBackend.open()&#10;(browsers/providers/lexmount.py)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="790" y="300" width="220" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cloud2" value="Lexmount Cloud" style="swimlane;html=1;fontStyle=1;align=center;startSize=30;rounded=0;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="270" width="280" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="fork_api" value="contexts.fork(base_ctx_id)&#10;→ forked_ctx_id" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="cloud2">
+          <mxGeometry x="20" y="50" width="240" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sess_api2" value="sessions.create(context={&#10;  id: forked_ctx_id,&#10;  mode: read_write&#10;})" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="cloud2">
+          <mxGeometry x="20" y="110" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="forked_browser" value="Forked Chrome session&#10;(has login cookies;&#10;thrown away after task)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="520" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cleanup" value="close(): sessions.delete()&#10;+ contexts.delete(forked_ctx_id)&#10;→ fork gone, base untouched" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="790" y="520" width="260" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="base_ctx" value="base context&#10;(preserved between runs;&#10;one login → N parallel forks)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="650" width="200" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;endArrow=classic;" edge="1" parent="1" source="user2" target="cli2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f1_lbl" value="1. run --task-ids 2" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="105" y="160" width="110" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.3;exitY=1;entryX=0.5;entryY=0;endArrow=classic;dashed=1;" edge="1" parent="1" source="cli2" target="tasks_jsonl">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f2_lbl" value="2. load task" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="220" y="240" width="80" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.7;exitY=1;entryX=0.5;entryY=0;endArrow=classic;dashed=1;" edge="1" parent="1" source="cli2" target="idx_read">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3_lbl" value="3. resolve site → lookup&#10;→ get base_ctx_id" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="370" y="230" width="180" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;endArrow=classic;" edge="1" parent="1" source="cli2" target="env_var">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f4_lbl" value="4. set env" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="405" y="160" width="70" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;endArrow=classic;" edge="1" parent="1" source="env_var" target="subproc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f5_lbl" value="5. spawn with env" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="730" y="160" width="120" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;endArrow=classic;" edge="1" parent="1" source="subproc" target="backend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f6_lbl" value="6. open_browser_session()" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="790" y="235" width="160" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.3;entryX=0;entryY=0.5;endArrow=classic;" edge="1" parent="1" source="backend" target="fork_api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f7_lbl" value="7. os.getenv(BUBENCH_LOGIN_CONTEXT_ID) → fork" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="290" width="260" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.7;entryX=0;entryY=0.5;endArrow=classic;" edge="1" parent="1" source="backend" target="sess_api2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f8_lbl" value="8. create session on fork" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="395" width="170" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;endArrow=classic;" edge="1" parent="1" source="sess_api2" target="forked_browser">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f9_lbl" value="9. agent controls via CDP" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="480" width="150" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;endArrow=classic;dashed=1;" edge="1" parent="1" source="cleanup" target="forked_browser">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;endArrow=none;strokeColor=#999999;" edge="1" parent="1" source="forked_browser" target="base_ctx">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f11_lbl" value="forked from, never writes back" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=9;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="615" width="180" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="note2" value="Why fork instead of mounting base directly?&#10;• Lexmount only supports read_write mode; a single session on base context would lock it, blocking parallel evals.&#10;• Fork is a cheap copy-on-create; each parallel task forks its own throwaway.&#10;• Fork is deleted in LexmountBackend.close() (also on SIGKILL via orphan_cleanup) — no storage bloat.&#10;• The base context is touched exactly once (Phase 1 login); cookies/localStorage persist indefinitely." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="650" width="700" height="140" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

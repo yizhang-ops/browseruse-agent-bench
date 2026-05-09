@@ -1,0 +1,387 @@
+---
+title: "Evaluation Only"
+description: "Evaluate custom agent results with standard evaluation pipelines"
+icon: "check-double"
+---
+
+If you already have agent execution results from other sources, you can use our standardized evaluation service to assess performance.
+
+## Overview
+
+**Use Cases**:
+- You have results from custom agent implementations
+- You want to use standardized evaluation metrics
+- You're preparing to submit to the Leaderboard
+
+**What We Provide**:
+- Standardized evaluation pipelines for each benchmark
+- Consistent scoring metrics
+- Detailed performance reports
+
+---
+
+## Universal Data Requirements
+
+### Directory Structure
+
+All benchmarks require this basic structure:
+
+```
+your_results_dir/
+├── task_1/
+│   ├── result.json                    # Required
+│   └── trajectory/                    # Required for LexBench-Browser & Online-Mind2Web
+│       ├── 0.png
+│       ├── 1.png
+│       └── ...
+├── task_2/
+│   ├── result.json
+│   └── trajectory/
+└── ...
+```
+
+### Universal result.json Format
+
+All benchmarks require these base fields:
+
+```json
+{
+  "task_id": "string",       // Required: Must match benchmark task ID
+  "task": "string",          // Required: Task description
+  "answer": "string",        // Required: Agent's final answer
+  "model_id": "string",      // Recommended: Model identifier
+  "browser_id": "string",    // Recommended: Browser identifier
+  "metrics": {               // Optional: Performance metrics
+    "steps": 5,
+    "end_to_end_ms": 12000,
+    "ttft_ms": 800
+  }
+}
+```
+
+**Field Descriptions**:
+- `task_id`: Unique task identifier matching the benchmark
+- `task`: Human-readable task description
+- `answer`: Agent's final response or answer
+- `model_id`: LLM model used (e.g., "gpt-4o", "claude-3.5")
+- `browser_id`: Browser configuration (e.g., "Chrome-Local")
+- `metrics`: Optional performance metrics
+
+---
+
+## Benchmark-Specific Requirements
+
+### LexBench-Browser
+
+**Evaluation Method**: Visual assessment using screenshot sequences  
+**Scoring**: 0-100 scale, default threshold: 60
+
+#### Additional Requirements
+
+✅ **Required**: Screenshot files in `trajectory/` directory  
+✅ **Format**: PNG or JPG images  
+✅ **Naming**: Sequential numbering (e.g., `0.png`, `1.png`, ...)
+
+#### Example result.json
+
+```json
+{
+  "task_id": "task_001",
+  "task": "Find the store location and hours of the closest Trader Joe's to zip code 90028",
+  "answer": "The closest store is Hollywood (206) at 1600 N Vine St, Los Angeles, CA 90028. Hours: Mon-Sun 8:00 AM - 9:00 PM",
+  "model_id": "gpt-4o",
+  "browser_id": "Chrome-Local",
+  "metrics": {
+    "steps": 8,
+    "end_to_end_ms": 45000,
+    "ttft_ms": 1200
+  }
+}
+```
+
+#### Required Directory Structure
+
+```
+task_001/
+├── result.json
+└── trajectory/
+    ├── 0.png                      # Initial page screenshot
+    ├── 1.png                      # After first action
+    ├── 2.png                      # After second action
+    └── ...
+```
+
+#### Evaluation Command
+
+```bash
+bubench eval \
+  --data LexBench-Browser \
+  --agent your-agent-name \
+  --model-id <your-model-id> \
+```
+
+**Note**: Place your results in the standard experiments directory:
+```
+experiments/LexBench-Browser/All/your-agent-name/{timestamp}/tasks/
+```
+
+---
+
+### Online-Mind2Web
+
+**Evaluation Method**: WebJudge multi-round evaluation  
+**Scoring**: 3-point scale, default threshold: 3
+
+#### Additional Requirements
+
+✅ **Required**: `action_history` field in result.json  
+✅ **Required**: Screenshot files in `trajectory/` directory  
+✅ **Format**: Action history as string array
+
+#### Example result.json
+
+```json
+{
+  "task_id": "b7258ee05d75e6c50673a59914db412e_110325",
+  "task": "Find the store location and hours of the closest Trader Joe's to zip code 90028 and set it as my home store",
+  "answer": "The closest store is Hollywood (206) at 1600 N Vine St, Los Angeles, CA 90028, and it has been set as your home store.",
+  "action_history": [
+    "<a href='https://www.traderjoes.com/'> -> NAVIGATE",
+    "<vision> -> VISION_CONTROL: Click on the 'Select your store' link",
+    "<vision> -> VISION_CONTROL: Type '90028' into the input field",
+    "<vision> -> VISION_CONTROL: Click on the 'SEARCH' button",
+    "<vision> -> VISION_CONTROL: Click on the 'SET AS MY STORE' button"
+  ],
+  "model_id": "gpt-4o",
+  "browser_id": "Chrome-Local",
+  "metrics": {
+    "steps": 6,
+    "end_to_end_ms": 48904,
+    "ttft_ms": 1991
+  }
+}
+```
+
+#### Required Directory Structure
+
+```
+b7258ee05d75e6c50673a59914db412e_110325/
+├── result.json                # Must include action_history
+└── trajectory/
+    ├── 0.png
+    ├── 1.png
+    └── ...
+```
+
+#### Evaluation Command
+
+```bash
+bubench eval \
+  --data Online-Mind2Web \
+  --agent your-agent-name \
+  --model-id <your-model-id> \
+```
+
+**Note**: Place your results in:
+```
+experiments/Online-Mind2Web/20251214/All/your-agent-name/{timestamp}/tasks/
+```
+
+---
+
+### BrowseComp
+
+**Evaluation Method**: Text answer accuracy comparison  
+**Scoring**: Binary (correct/incorrect)
+
+#### Additional Requirements
+
+❌ **Not Required**: Screenshots (text-only evaluation)  
+✅ **Required**: Complete `answer` field with full response
+
+#### Example result.json
+
+```json
+{
+  "task_id": "task_browse_001",
+  "task": "What is the population of Tokyo as of 2023?",
+  "answer": "Tokyo's population is approximately 14 million people in the city proper and about 37 million in the greater metropolitan area as of 2023.",
+  "model_id": "gpt-4o",
+  "browser_id": "Chrome-Local",
+  "metrics": {
+    "steps": 3,
+    "end_to_end_ms": 15000
+  }
+}
+```
+
+#### Minimal Directory Structure
+
+```
+task_browse_001/
+└── result.json                # No trajectory/ needed
+```
+
+#### Evaluation Command
+
+```bash
+bubench eval \
+  --data BrowseComp \
+  --agent your-agent-name \
+  --model-id <your-model-id> \
+```
+
+**Note**: Place your results in:
+```
+experiments/BrowseComp/All/your-agent-name/{timestamp}/tasks/
+```
+
+---
+
+## Evaluation Process
+
+### Step 1: Prepare Your Data
+
+1. **Organize Results**: Structure your data according to the requirements above
+2. **Place in Standard Location**: Copy to the appropriate experiments directory
+3. **Verify Format**: Ensure all required fields are present
+
+### Step 2: Run Evaluation
+
+Execute the evaluation command:
+
+```bash
+bubench eval \
+  --data <BENCHMARK_NAME> \
+  --agent <YOUR_AGENT_NAME> \
+  --model-id <MODEL_ID> \
+```
+
+**Optional Parameters**:
+- `--model`: Evaluation LLM (overrides `eval.model` from `config.yaml`)
+- `--score-threshold`: Custom success threshold
+- `--force-reeval`: Force re-evaluation of existing results
+
+### Step 3: Review Results
+
+Evaluation generates two output files in the `tasks_eval_result/` directory:
+
+**1. Detailed Results** (`*_eval_results.json`):
+```json
+{
+  "task_id": "task_001",
+  "task": "...",
+  "predicted_label": 1,           // 0 = failure, 1 = success
+  "evaluation_details": {
+    "score": 85,                   // Benchmark-specific score
+    "grader_response": "...",      // LLM evaluation reasoning
+    // ... benchmark-specific fields
+  },
+  "model_id": "gpt-4o",
+  "browser_id": "Chrome-Local"
+}
+```
+
+**2. Summary Statistics** (`*_summary.json`):
+```json
+{
+  "overall_statistics": {
+    "success_rate": 75.5,
+    "total_tasks": 100,
+    "successful_tasks": 75,
+    "failed_tasks": 25
+  },
+  "metrics_statistics": {
+    "steps": {
+      "mean": 8.5,
+      "median": 7,
+      "min": 2,
+      "max": 25
+    },
+    "end_to_end_ms": {
+      "mean": 45000,
+      "median": 42000
+    }
+  },
+  "evaluation_cost": {
+    "total_prompt_tokens": 125000,
+    "total_completion_tokens": 8500,
+    "costs": {
+      "total": 3.25,
+      "input": 2.50,
+      "output": 0.75
+    }
+  }
+}
+```
+
+---
+
+## Comparison Table
+
+| Feature | LexBench-Browser | Online-Mind2Web | BrowseComp |
+|---------|------------------|-----------------|------------|
+| **Screenshots Required** | ✅ Yes | ✅ Yes | ❌ No |
+| **Action History Required** | ❌ No | ✅ Yes | ❌ No |
+| **Evaluation Type** | Visual (LLM) | Multi-round (LLM) | Text comparison (LLM) |
+| **Scoring Scale** | 0-100 | 1-3 | Binary |
+| **Default Threshold** | 60 | 3 | N/A |
+
+---
+
+## Difference from Leaderboard
+
+| Feature | Evaluation Service | Leaderboard |
+|---------|-------------------|-------------|
+| **Purpose** | Evaluation tool | Results display |
+| **Function** | Process data → Generate metrics | Browse & compare results |
+| **Interaction** | Submit data for evaluation | Read-only viewing |
+| **Output** | Detailed evaluation reports | Rankings & trends |
+
+> 💡 **Tip**: After evaluation, you can submit your results to the [Leaderboard](/en/leaderboard/overview) for public comparison with other models.
+
+---
+
+## Best Practices
+
+### ✅ Do's
+
+- **Validate Format**: Double-check all required fields before evaluation
+- **Use Consistent IDs**: Ensure `task_id` matches benchmark tasks exactly
+- **Include Metrics**: Add performance metrics for richer analysis
+- **Document Model**: Specify `model_id` and `browser_id` for reproducibility
+
+### ❌ Don'ts
+
+- **Don't mix formats**: Each benchmark has specific requirements
+- **Don't skip screenshots**: LexBench-Browser and Online-Mind2Web need them
+- **Don't modify benchmark data**: Use original task definitions
+- **Don't ignore errors**: Address validation errors before proceeding
+
+---
+
+## Troubleshooting
+
+### "Task ID not found in benchmark"
+**Cause**: Your `task_id` doesn't match any benchmark task  
+**Solution**: Use exact task IDs from the benchmark's `tasks.json`
+
+### "Missing action_history field"
+**Cause**: Online-Mind2Web requires action history  
+**Solution**: Add `action_history` array to your result.json
+
+### "No screenshots found"
+**Cause**: trajectory/ directory is missing or empty  
+**Solution**: Ensure screenshots are in `task_dir/trajectory/*.png`
+
+### "Evaluation failed with API error"
+**Cause**: Evaluation LLM API issues  
+**Solution**: Check `OPENAI_API_KEY` and network connectivity
+
+---
+
+## Next Steps
+
+- **View Examples**: See [Complete Workflow](/en/examples/complete-workflow) for end-to-end guide
+- **Submit to Leaderboard**: Share results publicly ([Guide](/en/leaderboard/overview))
+- **Custom Benchmarks**: Create your own evaluation tasks ([Documentation](/en/benchmarks/custom-benchmark))

@@ -1,0 +1,181 @@
+---
+title: "eval_utils"
+description: "评估模型与打分工具"
+---
+
+# browseruse_bench.utils.eval_utils
+
+评估相关的工具函数和类。
+
+## 导入
+
+```python
+from browseruse_bench.utils import (
+    EvaluationModel,
+    load_evaluation_model,
+    encode_image,
+    extract_score_from_response,
+    calculate_success,
+    normalized_results_file,
+)
+```
+
+---
+
+## EvaluationModel
+
+用于任务评估的 OpenAI 模型封装类。
+
+```python
+class EvaluationModel:
+    def __init__(
+        self,
+        model: str = "gpt-4o",
+        api_key: str = None,
+        base_url: str = None
+    )
+```
+
+<ParamField path="model" type="str" default="gpt-4o">
+  模型名称
+</ParamField>
+
+<ParamField path="api_key" type="str" default="None">
+  API Key，默认从环境变量读取
+</ParamField>
+
+<ParamField path="base_url" type="str" default="None">
+  API Base URL，默认从环境变量读取
+</ParamField>
+
+### generate
+
+生成评估响应，带自动重试。
+
+```python
+def generate(
+    self,
+    messages: List[Dict],
+    max_tokens: int = 2048,
+    temperature: float = 0.3,
+    **kwargs
+) -> str
+```
+
+---
+
+## load_evaluation_model
+
+加载评估模型，支持环境变量回退。
+
+```python
+def load_evaluation_model(
+    model: str = None,
+    api_key: str = None,
+    base_url: str = None
+) -> EvaluationModel
+```
+
+### 配置
+
+评估模型在根目录 `config.yaml` 的 `eval:` 段配置：
+
+```yaml
+eval:
+  model: gpt-5.4
+  api_key: $OPENAI_API_KEY
+  base_url: $OPENAI_BASE_URL
+```
+
+`api_key` 与 `base_url` 支持 `$VAR` 占位符，会在运行时从 `.env` 解析。
+
+---
+
+## encode_image
+
+将 PIL 图像转换为 base64 字符串。
+
+```python
+def encode_image(
+    image: PIL.Image,
+    scale_factor: float = 1.0
+) -> str
+```
+
+<ParamField path="image" type="PIL.Image" required>
+  PIL Image 对象
+</ParamField>
+
+<ParamField path="scale_factor" type="float" default="1.0">
+  图像缩放比例（0.0 到 1.0 之间），例如 0.5 表示缩放到原尺寸的 50%
+</ParamField>
+
+---
+
+## extract_score_from_response
+
+从评估响应中提取数值分数。
+
+```python
+def extract_score_from_response(response: str) -> int
+```
+
+<ParamField path="response" type="str" required>
+  评估响应文本
+</ParamField>
+
+<ResponseField name="return" type="int">
+  提取出的分数（未找到时返回 0）
+</ResponseField>
+
+---
+
+## calculate_success
+
+根据分数阈值判断任务是否成功。
+
+```python
+def calculate_success(
+    score: int,
+    threshold: int = 60
+) -> bool
+```
+
+<ParamField path="score" type="int" required>
+  任务分数
+</ParamField>
+
+<ParamField path="threshold" type="int" default="60">
+  成功阈值
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  分数达到或超过阈值时返回 True
+</ResponseField>
+
+---
+
+## normalized_results_file
+
+上下文管理器，返回一个保证为 JSONL 格式的路径。
+
+```python
+@contextmanager
+def normalized_results_file(results_file: Path) -> Generator[Path, None, None]
+```
+
+<ParamField path="results_file" type="Path" required>
+  结果文件路径
+</ParamField>
+
+### 使用示例
+
+```python
+from browseruse_bench.utils import normalized_results_file
+
+with normalized_results_file(Path("results.json")) as jsonl_path:
+    # jsonl_path 保证为 JSONL 格式
+    with open(jsonl_path) as f:
+        for line in f:
+            record = json.loads(line)
+```
