@@ -1,0 +1,44 @@
+{
+  "benchmark": "LexBench-Browser",
+  "split": "All",
+  "benchmark_version": "1.0.0",
+  "agent": {
+    "name": "example-agent",
+    "version": "0.1.0",
+    "source": "open-source",
+    "repository": "https://github.com/example/example-agent",
+    "reproducibility_limitations": "None"
+  },
+  "model": {
+    "provider": "OpenAI",
+    "model_id": "gpt-4.1"
+  },
+  "browser": {
+    "backend": "Chrome-Local"
+  },
+  "evaluation": {
+    "judge_model": "gpt-5.4",
+    "strategy": "stepwise",
+    "threshold_policy": "per-task"
+  },
+  "commands": {
+    "run": "bubench run --agent example-agent --data LexBench-Browser --mode all",
+    "eval": "bubench eval --agent example-agent --data LexBench-Browser --model-id gpt-4.1"
+  },
+  "metrics": {
+    "success_rate": 0.0,
+    "average_steps": 0.0,
+    "average_end_to_end_seconds": 0.0,
+    "total_tasks": 210,
+    "accounted_tasks": 210
+  },
+  "artifacts": {
+    "run_directory": "experiments/LexBench-Browser/All/example-agent/gpt-4.1/20260101_120000",
+    "external_url": ""
+  },
+  "notes": {
+    "skips": "No silent task drops. List all skipped tasks here.",
+    "provider_incidents": "",
+    "browser_constraints": ""
+  }
+}

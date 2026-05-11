@@ -36,6 +36,7 @@
                                             "en/agents/agent-tars",
                                             "en/agents/skyvern",
                                             "en/agents/claude-code",
+                                            "en/agents/add-agent-10-minutes",
                                             "en/agents/custom-agent"
                                         ]
                                     },
@@ -64,6 +65,7 @@
                                         "icon": "trophy",
                                         "pages": [
                                             "en/leaderboard/overview",
+                                            "en/leaderboard/result-submissions",
                                             "en/leaderboard/visualization",
                                             "en/leaderboard/cost-accounting"
                                         ]
@@ -81,6 +83,7 @@
                                 "group": "Development",
                                 "pages": [
                                     "en/development/contributing",
+                                    "en/development/governance",
                                     "en/development/get-help"
                                 ]
                             }
@@ -135,6 +138,7 @@
                                             "zh/agents/agent-tars",
                                             "zh/agents/skyvern",
                                             "zh/agents/claude-code",
+                                            "zh/agents/add-agent-10-minutes",
                                             "zh/agents/custom-agent"
                                         ]
                                     },
@@ -163,6 +167,7 @@
                                         "icon": "trophy",
                                         "pages": [
                                             "zh/leaderboard/overview",
+                                            "zh/leaderboard/result-submissions",
                                             "zh/leaderboard/visualization",
                                             "zh/leaderboard/cost-accounting"
                                         ]
@@ -180,6 +185,7 @@
                                 "group": "开发",
                                 "pages": [
                                     "zh/development/contributing",
+                                    "zh/development/governance",
                                     "zh/development/get-help"
                                 ]
                             }

@@ -1,0 +1,56 @@
+---
+title: "Result Submissions"
+description: "How to submit reproducible leaderboard results"
+---
+
+LexBench-Browser accepts community result submissions through GitHub Issues or PRs. Closed-source
+agents can be listed, but submissions must disclose enough metadata for maintainers to review
+and rerun the result.
+
+## Policy
+
+- Closed-source agents are allowed.
+- Official leaderboard entries require maintainer review and maintainer rerun.
+- Every task in the selected split must be accounted for.
+- No API keys, cookies, account credentials, or unredacted provider logs may be submitted.
+- Judge/model changes stay in the same leaderboard family, but each result must record the
+  judge model and strategy.
+
+## Required metadata
+
+Use `community/results/example/submission.json` as the template.
+
+Required fields:
+
+- benchmark, split, and benchmark version
+- agent name, version, source status, and reproducibility limitations
+- model provider and model ID
+- browser backend
+- judge model and strategy
+- run command and eval command
+- success rate, average steps, and average end-to-end latency
+- run artifacts or external artifact URL
+- skips, retries, provider incidents, and browser constraints
+
+## Review flow
+
+1. Open a Result Submission issue or PR.
+2. Attach `submission.json` and redacted artifacts.
+3. Maintainers validate metadata and artifact coverage.
+4. Maintainers rerun the result, fully or by sample.
+5. If accepted, the result can be merged into the public leaderboard snapshot.
+
+## Example
+
+```bash
+cp community/results/example/submission.json /tmp/submission.json
+```
+
+Fill in the metadata and link the run directory:
+
+```text
+experiments/LexBench-Browser/All/<agent>/<model-id>/<timestamp>/
+```
+
+For the full policy, see the repository root `EVALUATION_PROTOCOL.md`.
+

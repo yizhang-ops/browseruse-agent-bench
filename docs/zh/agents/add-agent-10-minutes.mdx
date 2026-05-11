@@ -1,0 +1,113 @@
+---
+title: "10 分钟接入一个 Agent"
+description: "提交浏览器 Agent adapter 的最短路径"
+---
+
+这一页是从“我有一个 Agent”到“我可以开 PR”的最短路径。
+更完整的接入细节见 [自定义 Agent](/zh/agents/custom-agent)。
+
+## 你需要添加什么
+
+- 一个 `BaseAgent` 子类
+- 一个 registry import
+- 一个 config entry
+- 一次 smoke run
+
+## 1. 创建 adapter
+
+创建 `browseruse_bench/agents/my_agent.py`：
+
+```python
+from datetime import UTC, datetime
+
+from browseruse_bench.agents.base import BaseAgent
+from browseruse_bench.agents.registry import register_agent
+from browseruse_bench.schemas import AgentMetrics, AgentResult
+
+
+@register_agent
+class MyAgent(BaseAgent):
+    name = "my-agent"
+
+    def run_task(self, task_info, agent_config, task_workspace):
+        started = datetime.now(UTC)
+        task_prompt = self.build_task_prompt(task_info)
+        timeout = self.get_timeout(agent_config)
+        max_steps = self.get_max_steps(agent_config)
+        model_id = self.get_model_id(agent_config)
+
+        # 替换成你的 SDK、API 或 CLI 调用。
+        answer = f"TODO: run {self.name} on {task_prompt}"
+        steps = 0
+
+        elapsed_ms = int((datetime.now(UTC) - started).total_seconds() * 1000)
+        return AgentResult(
+            task_id=task_info["task_id"],
+            timestamp=datetime.now(UTC),
+            env_status="success",
+            agent_done="done",
+            agent_success=False,
+            answer=answer,
+            model_id=model_id or "",
+            browser_id=agent_config.get("browser_id", ""),
+            metrics=AgentMetrics(
+                end_to_end_ms=elapsed_ms,
+                steps=steps,
+            ),
+            agent_metadata={
+                "timeout": timeout,
+                "max_steps": max_steps,
+            },
+        )
+```
+
+## 2. 注册模块
+
+在 `browseruse_bench/agents/__init__.py` 添加导入：
+
+```python
+from browseruse_bench.agents import my_agent  # noqa: F401
+```
+
+## 3. 添加配置
+
+在 `config.yaml` 中添加你的 Agent：
+
+```yaml
+agents:
+  my-agent:
+    active_model: default
+    models:
+      default:
+        model_type: OPENAI
+        model_id: gpt-4.1
+        api_key: $OPENAI_API_KEY
+    browser:
+      browser_id: Chrome-Local
+    defaults:
+      timeout: 300
+      max_steps: 40
+```
+
+如果 Agent 需要可选依赖，请添加到 `pyproject.toml`；重依赖保持 lazy import，避免影响其他 Agent。
+
+## 4. 冒烟测试
+
+先跑一个真实任务：
+
+```bash
+bubench run --agent my-agent --data LexBench-Browser --mode first_n --count 1
+```
+
+提交涉及 Agent 的 PR 前，运行：
+
+```bash
+bubench run --agent my-agent --data LexBench-Browser --mode single
+```
+
+## PR checklist
+
+- 附上 smoke command 的结果摘要。
+- 说明需要的 API key 或闭源依赖。
+- 说明支持的浏览器后端。
+- 不要提交凭证、cookies 或未脱敏的 provider logs。

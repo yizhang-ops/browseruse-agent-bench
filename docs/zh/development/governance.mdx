@@ -1,0 +1,35 @@
+---
+title: "治理规则"
+description: "LexBench-Browser 如何接受任务、集成和 official result"
+---
+
+LexBench-Browser 按可复现 benchmark platform 维护。完整规则在仓库根目录
+`GOVERNANCE.md`；本页总结贡献者最常用的部分。
+
+## License
+
+- 代码：Apache-2.0。
+- 文档和网页内容：除非文件另有说明，按 CC-BY 4.0。
+- 数据集 license：在 benchmark metadata 中单独声明；不要默认继承代码 license。
+
+## 可以贡献什么
+
+- Agent adapter
+- Browser backend adapter
+- Benchmark task proposal
+- 可复现 result submission
+- Evaluation 改进
+- 文档和示例
+
+## 结果接受规则
+
+闭源 Agent 可以上榜，但必须披露 agent version、model、browser backend、benchmark version、
+judge model 和 reproducibility limitations。
+
+Official leaderboard entry 需要 maintainer review 和 maintainer rerun。
+
+## 贡献者署名
+
+仓库贡献者可以列入 `CONTRIBUTORS.md`。论文或 technical report authorship 另行决定。
+
+完整规则见 `GOVERNANCE.md` 和 `EVALUATION_PROTOCOL.md`。

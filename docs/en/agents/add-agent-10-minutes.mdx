@@ -1,0 +1,114 @@
+---
+title: "Add an Agent in 10 Minutes"
+description: "A minimal path for submitting a browser agent adapter"
+---
+
+This page is the shortest path from "I have an agent" to "I can open a PR".
+For deeper integration notes, see [Custom Agent](/en/agents/custom-agent).
+
+## What you will add
+
+- a `BaseAgent` subclass
+- one registry import
+- one config entry
+- one smoke run
+
+## 1. Create the adapter
+
+Create `browseruse_bench/agents/my_agent.py`:
+
+```python
+from datetime import UTC, datetime
+
+from browseruse_bench.agents.base import BaseAgent
+from browseruse_bench.agents.registry import register_agent
+from browseruse_bench.schemas import AgentMetrics, AgentResult
+
+
+@register_agent
+class MyAgent(BaseAgent):
+    name = "my-agent"
+
+    def run_task(self, task_info, agent_config, task_workspace):
+        started = datetime.now(UTC)
+        task_prompt = self.build_task_prompt(task_info)
+        timeout = self.get_timeout(agent_config)
+        max_steps = self.get_max_steps(agent_config)
+        model_id = self.get_model_id(agent_config)
+
+        # Replace this block with your SDK, API, or CLI call.
+        answer = f"TODO: run {self.name} on {task_prompt}"
+        steps = 0
+
+        elapsed_ms = int((datetime.now(UTC) - started).total_seconds() * 1000)
+        return AgentResult(
+            task_id=task_info["task_id"],
+            timestamp=datetime.now(UTC),
+            env_status="success",
+            agent_done="done",
+            agent_success=False,
+            answer=answer,
+            model_id=model_id or "",
+            browser_id=agent_config.get("browser_id", ""),
+            metrics=AgentMetrics(
+                end_to_end_ms=elapsed_ms,
+                steps=steps,
+            ),
+            agent_metadata={
+                "timeout": timeout,
+                "max_steps": max_steps,
+            },
+        )
+```
+
+## 2. Register it
+
+Add the module import to `browseruse_bench/agents/__init__.py`:
+
+```python
+from browseruse_bench.agents import my_agent  # noqa: F401
+```
+
+## 3. Add config
+
+Add your agent to `config.yaml`:
+
+```yaml
+agents:
+  my-agent:
+    active_model: default
+    models:
+      default:
+        model_type: OPENAI
+        model_id: gpt-4.1
+        api_key: $OPENAI_API_KEY
+    browser:
+      browser_id: Chrome-Local
+    defaults:
+      timeout: 300
+      max_steps: 40
+```
+
+If the agent needs an optional dependency, add it under `pyproject.toml` and keep imports lazy
+inside the agent module so other agents are not affected.
+
+## 4. Smoke test
+
+Run one real task:
+
+```bash
+bubench run --agent my-agent --data LexBench-Browser --mode first_n --count 1
+```
+
+Before opening a PR for agent-touching changes, run:
+
+```bash
+bubench run --agent my-agent --data LexBench-Browser --mode single
+```
+
+## PR checklist
+
+- Include the smoke command output summary.
+- Mention any required API keys or closed-source dependencies.
+- Document supported browser backends.
+- Do not commit credentials, cookies, or unredacted provider logs.

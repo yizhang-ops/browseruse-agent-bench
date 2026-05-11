@@ -21,6 +21,12 @@ contributions are the ones other teams can run, inspect, and compare.
 - **Evaluation improvements**: explain how the judge strategy changes reproducibility or failure
   attribution.
 
+## Result Submissions
+
+Closed-source agents can be submitted. Official leaderboard entries require maintainer review
+and maintainer rerun. Use `community/results/example/submission.json` as the metadata template,
+and see `EVALUATION_PROTOCOL.md` for the full policy.
+
 ## Pull Request Checklist
 
 - Keep the change focused and follow existing project structure.
@@ -43,3 +49,5 @@ bubench run --agent <agent> --data LexBench-Browser --mode single
 
 - [English contribution guide](docs/en/development/contributing.mdx)
 - [中文贡献指南](docs/zh/development/contributing.mdx)
+- [Governance](GOVERNANCE.md)
+- [Evaluation Protocol](EVALUATION_PROTOCOL.md)
