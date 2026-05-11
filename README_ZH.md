@@ -3,8 +3,9 @@
 </p>
 
 <p align="center">
-  <a href="#">论文</a> •
-  <a href="#">博客</a> •
+  <a href="https://lexmount.github.io/browseruse-agent-bench/">项目主页</a> •
+  <a href="https://github.com/lexmount/browseruse-agent-bench/issues">Issues</a> •
+  <a href="https://github.com/lexmount/browseruse-agent-bench/discussions">Discussions</a> •
   <a href="#排行榜">排行榜</a> •
   <a href="https://docs.bubench.lexmount.io/">文档</a> •
   <a href="./benchmarks">数据</a>
@@ -13,6 +14,18 @@
 <p align="center">
   <a href="./README.md">English</a> | 简体中文
 </p>
+
+## 为什么值得关注 LexBench-Browser
+
+LexBench-Browser 不只是任务数据集，而是面向浏览器 Agent 的可复现评测平台：
+让外部团队可以运行、比较、引用，并通过 PR 提交自己的 Agent、任务和结果。
+
+| 你可以做什么 | 为什么重要 |
+| ------------ | ---------- |
+| 运行 **210 个公开任务，覆盖 107 个真实网站** | 在长尾、多语言真实网页工作流上测试浏览器 Agent |
+| 比较 **Agent × Model × Browser × Eval** | 区分 Agent 能力、模型选择、浏览器后端和评测策略的影响 |
+| 查看排行榜、成本、延迟、Token 使用量和轨迹 | 不只看最终分数，也能定位失败原因 |
+| 提交 Agent、Benchmark 任务和可复现实验结果 | 让 fork 和 PR 直接变成可见的 benchmark 贡献 |
 
 ## 简介
 
@@ -247,20 +260,23 @@ bubench viz --watch-interval 5       # 轮询间隔秒数（默认 3）
 ## 引用
 
 ```bibtex
-@misc{2026browseruse-bench,
-    title={LexBench-Browser: A Comprehensive Benchmark for Evaluating Browser Agents in Real-World Scenarios},
-    author={},
-    year={2026},
-    eprint={},
-    archivePrefix={arXiv},
-    primaryClass={cs.SE},
-    url={https://arxiv.org/abs/},
+@misc{lexbench_browser_2026,
+    title        = {LexBench-Browser: A Real-World Browser Agent Benchmark with Long-Tail and Multilingual Tasks},
+    author       = {Lexmount Research and Collaborators},
+    year         = {2026},
+    howpublished = {\url{https://lexmount.github.io/browseruse-agent-bench/}},
+    note         = {Open benchmark; v1.0 reference release},
 }
 ```
 
 ## 联系我们
 
-💬 遇到问题？想说点什么？欢迎通过 GitHub Issue / Discussion 找我聊聊！
+欢迎提交问题、Benchmark 提案、Agent 集成和可复现实验结果：
+
+- Bug 和功能请求请发到 [GitHub Issues](https://github.com/lexmount/browseruse-agent-bench/issues)。
+- 问题讨论和结果交流请发到 [GitHub Discussions](https://github.com/lexmount/browseruse-agent-bench/discussions)。
+- 后续版本计划见 [Milestones](https://github.com/lexmount/browseruse-agent-bench/milestones)。
+- 提交 PR 或新增 Agent/Benchmark 前，请参考 [Contributing](./CONTRIBUTING.md)。
 
 ## 即将推出
 

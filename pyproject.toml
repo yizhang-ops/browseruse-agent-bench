@@ -75,7 +75,7 @@ openai-cua = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/lexmount/browseruse-agent-bench"
+Homepage = "https://lexmount.github.io/browseruse-agent-bench/"
 Repository = "https://github.com/lexmount/browseruse-agent-bench"
 Issues = "https://github.com/lexmount/browseruse-agent-bench/issues"
 

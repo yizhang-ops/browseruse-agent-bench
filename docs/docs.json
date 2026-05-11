@@ -12,6 +12,7 @@
         "languages": [
             {
                 "language": "en",
+                "default": true,
                 "tabs": [
                     {
                         "tab": "Guides",
@@ -111,7 +112,6 @@
             },
             {
                 "language": "zh",
-                "default": true,
                 "tabs": [
                     {
                         "tab": "指南",

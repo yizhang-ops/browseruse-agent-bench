@@ -5,6 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LexBench-Browser — A Real-World Browser Agent Benchmark</title>
 <meta name="description" content="LexBench-Browser: an open benchmark for browser agents on long-tail, multilingual web tasks. Evaluates browser-use, deepbrowse, Agent-TARS, skyvern across LexBench-Browser, Online-Mind2Web, and BrowseComp.">
+<meta name="keywords" content="LexBench-Browser, browser agents, AI agents, benchmark, web automation, browser-use, skyvern, Agent-TARS, Lexmount">
+<link rel="canonical" href="https://lexmount.github.io/browseruse-agent-bench/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="LexBench-Browser">
+<meta property="og:title" content="LexBench-Browser — Real-World Browser Agent Benchmark">
+<meta property="og:description" content="210 public browser-agent tasks across 107 real websites, with multilingual long-tail workflows, stepwise judging, and reproducible leaderboards.">
+<meta property="og:url" content="https://lexmount.github.io/browseruse-agent-bench/">
+<meta property="og:image" content="https://lexmount.github.io/browseruse-agent-bench/assets/img/hero.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="LexBench-Browser — Real-World Browser Agent Benchmark">
+<meta name="twitter:description" content="Evaluate browser agents on real multilingual web tasks with reproducible Agent × Model × Browser × Eval comparisons.">
+<meta name="twitter:image" content="https://lexmount.github.io/browseruse-agent-bench/assets/img/hero.png">
 <link rel="icon" href="../docs/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,6 +37,7 @@
       <a href="#architecture">Architecture</a>
       <a href="#evaluation">Evaluation</a>
       <a href="#agents">Agents</a>
+      <a href="#community">Community</a>
       <a href="#leaderboard">Leaderboard</a>
       <a href="#citation">Cite</a>
       <a class="topnav-cta" href="https://github.com/lexmount/browseruse-agent-bench" target="_blank" rel="noopener">GitHub →</a>
@@ -46,17 +59,17 @@
         </p>
         <div class="hero-authors">
           <span class="author-chip">Lexmount Research</span>
-          <span class="author-chip muted">+ Collaborators (TBD)</span>
+          <span class="author-chip muted">External collaborators welcome</span>
         </div>
         <div class="hero-buttons">
-          <a class="btn btn-primary" href="#" aria-disabled="true" data-placeholder="paper">
-            <span class="btn-icon">📄</span> Paper <span class="btn-tag">soon</span>
+          <a class="btn btn-primary" href="https://github.com/lexmount/browseruse-agent-bench" target="_blank" rel="noopener">
+            <span class="btn-icon">⌨</span> GitHub
           </a>
-          <a class="btn btn-secondary" href="#" aria-disabled="true" data-placeholder="arxiv">
-            <span class="btn-icon">🗂</span> arXiv <span class="btn-tag">soon</span>
+          <a class="btn btn-secondary" href="https://docs.bubench.lexmount.io/" target="_blank" rel="noopener">
+            <span class="btn-icon">📄</span> Docs
           </a>
-          <a class="btn btn-secondary" href="https://github.com/lexmount/browseruse-agent-bench/" target="_blank" rel="noopener">
-            <span class="btn-icon">⌨</span> Code
+          <a class="btn btn-secondary" href="https://github.com/lexmount/browseruse-agent-bench/issues" target="_blank" rel="noopener">
+            <span class="btn-icon">✦</span> Issues
           </a>
         </div>
       </div>
@@ -238,7 +251,7 @@
       <div class="agent-card">
         <div class="agent-name">deepbrowse</div>
         <div class="agent-desc">Long-horizon planning + execution split, optimized for multi-step navigation.</div>
-        <a class="agent-link" href="#" aria-disabled="true">repo →</a>
+        <span class="agent-link" aria-disabled="true">private preview</span>
       </div>
       <div class="agent-card">
         <div class="agent-name">Agent-TARS</div>
@@ -259,7 +272,63 @@
   </div>
 </section>
 
-<section id="leaderboard" class="section section-alt">
+<section id="community" class="section section-alt">
+  <div class="container">
+    <h2 class="section-title">Community</h2>
+    <p class="section-lede">
+      LexBench-Browser is most useful when teams can reproduce each other's results and
+      compare new agents under the same protocol. The fastest way to contribute is to add
+      a run, an integration, or a benchmark proposal that others can verify.
+    </p>
+    <div class="dim-grid">
+      <div class="dim-card">
+        <div class="dim-icon">1</div>
+        <div class="dim-name">Run a Baseline</div>
+        <div class="dim-desc">
+          Start with <code>bubench run --agent browser-use --data LexBench-Browser --mode first_n --count 3</code>
+          and share the run directory when reporting results.
+        </div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-icon">2</div>
+        <div class="dim-name">Add an Agent</div>
+        <div class="dim-desc">
+          Implement a <code>BaseAgent</code> adapter, register it once, and compare it against
+          the same browser backends and judge settings.
+        </div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-icon">3</div>
+        <div class="dim-name">Propose Tasks</div>
+        <div class="dim-desc">
+          Open an issue with target sites, expected actions, login requirements, and why the
+          task reveals a real browser-agent failure mode.
+        </div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-icon">4</div>
+        <div class="dim-name">Reproduce Results</div>
+        <div class="dim-desc">
+          Attach config, model ID, browser backend, judge settings, and task-level outputs so
+          leaderboard changes can be audited.
+        </div>
+      </div>
+    </div>
+    <div class="hero-buttons community-buttons">
+      <a class="btn btn-primary" href="https://github.com/lexmount/browseruse-agent-bench/issues/new/choose" target="_blank" rel="noopener">
+        Open an Issue
+      </a>
+      <a class="btn btn-secondary" href="https://docs.bubench.lexmount.io/en/agents/custom-agent" target="_blank" rel="noopener">
+        Add an Agent
+      </a>
+      <a class="btn btn-secondary" href="https://docs.bubench.lexmount.io/en/development/contributing" target="_blank" rel="noopener">
+        Contribute
+      </a>
+    </div>
+  </div>
+</section>
+
+<section id="leaderboard" class="section">
   <div class="container">
     <h2 class="section-title">Leaderboard</h2>
     <p class="section-lede">
@@ -460,7 +529,7 @@
       </div>
       <p class="muted small">
         An open benchmark by <a href="https://lexmount.cn" target="_blank" rel="noopener">Lexmount</a>.
-        Released under <a href="https://github.com/lexmount/browseruse-agent-bench/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>;
+        Code released under <a href="https://github.com/lexmount/browseruse-agent-bench/blob/main/LICENSE" target="_blank" rel="noopener">Apache-2.0</a>;
         site content under
         <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC-BY 4.0</a>.
       </p>

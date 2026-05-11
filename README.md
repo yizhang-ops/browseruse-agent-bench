@@ -3,8 +3,9 @@
 </p>
 
 <p align="center">
-  <a href="#">Paper</a> •
-  <a href="#">Blog</a> •
+  <a href="https://lexmount.github.io/browseruse-agent-bench/">Landing Page</a> •
+  <a href="https://github.com/lexmount/browseruse-agent-bench/issues">Issues</a> •
+  <a href="https://github.com/lexmount/browseruse-agent-bench/discussions">Discussions</a> •
   <a href="#leaderboard">Leaderboard</a> •
   <a href="https://docs.bubench.lexmount.io/">Documentation</a> •
   <a href="./benchmarks">Data</a>
@@ -13,6 +14,18 @@
 <p align="center">
   English | <a href="./README_ZH.md">简体中文</a>
 </p>
+
+## Why LexBench-Browser
+
+LexBench-Browser is a reproducible benchmark platform for browser agents, not just a task
+dump. It is built to make external results easy to run, compare, cite, and submit back.
+
+| What you can do | Why it matters |
+|-----------------|----------------|
+| Run **210 public tasks across 107 real websites** | Test browser agents on long-tail multilingual workflows beyond toy pages |
+| Compare **Agent × Model × Browser × Eval** | Separate agent quality from model choice, browser backend, and judge strategy |
+| Inspect leaderboard, cost, latency, token usage, and trajectories | Debug failures instead of only reporting a final score |
+| Submit agents, benchmark tasks, and reproducible results | Turn forks and PRs into visible benchmark contributions |
 
 ## Description
 
@@ -237,21 +250,24 @@ Some code in this project is cited and modified from [Online-Mind2Web](https://g
 
 
 ```bibtex
-@misc{2026browseruse-bench,
-    title={LexBench-Browser: A Comprehensive Benchmark for Evaluating Browser Agents in Real-World Scenarios},
-    author={},
-    year={2026},
-    eprint={},
-    archivePrefix={arXiv},
-    primaryClass={cs.SE},
-    url={https://arxiv.org/abs/},
+@misc{lexbench_browser_2026,
+    title        = {LexBench-Browser: A Real-World Browser Agent Benchmark with Long-Tail and Multilingual Tasks},
+    author       = {Lexmount Research and Collaborators},
+    year         = {2026},
+    howpublished = {\url{https://lexmount.github.io/browseruse-agent-bench/}},
+    note         = {Open benchmark; v1.0 reference release},
 }
 ```
 
 ## Contact
 
 
-💬 Questions or thoughts? Hit me up via GitHub Issue / Discussion!
+Questions, benchmark proposals, agent integrations, and result reproductions are welcome:
+
+- Report bugs or request features in [GitHub Issues](https://github.com/lexmount/browseruse-agent-bench/issues).
+- Ask questions and discuss results in [GitHub Discussions](https://github.com/lexmount/browseruse-agent-bench/discussions).
+- Track upcoming releases in [Milestones](https://github.com/lexmount/browseruse-agent-bench/milestones).
+- Use [Contributing](./CONTRIBUTING.md) when opening pull requests or adding a new agent/benchmark.
 
 ## Coming Soon
 

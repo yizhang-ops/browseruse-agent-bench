@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use LexBench-Browser in your work, please cite this benchmark release."
+title: "LexBench-Browser: A Real-World Browser Agent Benchmark with Long-Tail and Multilingual Tasks"
+type: software
+authors:
+  - name: "Lexmount Research and Collaborators"
+version: "1.0.0"
+date-released: "2026-04-30"
+url: "https://lexmount.github.io/browseruse-agent-bench/"
+repository-code: "https://github.com/lexmount/browseruse-agent-bench"
+license: "Apache-2.0"
+keywords:
+  - browser agents
+  - AI agents
+  - benchmark
+  - browser automation
+  - agent evaluation

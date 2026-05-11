@@ -1,6 +1,45 @@
 # Contributing
 
-See the full Contribution Guide:
+Thanks for helping make LexBench-Browser a reproducible benchmark platform. The most useful
+contributions are the ones other teams can run, inspect, and compare.
 
-- [English](docs/en/development/contributing.mdx)
-- [中文](docs/zh/development/contributing.mdx)
+## Good First Contributions
+
+- Add or improve docs, examples, and troubleshooting notes.
+- Propose a benchmark task with clear success criteria.
+- Submit a reproducible result with redacted config and task-level outputs.
+- Add a small agent adapter or example config for an existing integration.
+
+## High-Impact Contributions
+
+- **Agent adapters**: implement a `BaseAgent` adapter, register it, add an optional dependency
+  group if needed, and include a smoke command.
+- **Benchmark tasks**: include the target site, language/region, login requirements, expected
+  final state, and evaluation criteria.
+- **Leaderboard results**: include benchmark, split, agent, model, browser backend, judge model,
+  success rate, average steps, average latency, and artifacts.
+- **Evaluation improvements**: explain how the judge strategy changes reproducibility or failure
+  attribution.
+
+## Pull Request Checklist
+
+- Keep the change focused and follow existing project structure.
+- Use `uv`, not system Python.
+- Run focused tests when possible:
+
+```bash
+uv run pytest tests/
+```
+
+- For agent-touching changes, run a real smoke test before requesting review:
+
+```bash
+bubench run --agent <agent> --data LexBench-Browser --mode single
+```
+
+- Do not commit API keys, cookies, run secrets, or unredacted provider logs.
+
+## More Detail
+
+- [English contribution guide](docs/en/development/contributing.mdx)
+- [中文贡献指南](docs/zh/development/contributing.mdx)

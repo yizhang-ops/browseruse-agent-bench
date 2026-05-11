@@ -242,6 +242,9 @@ code, pre, .cell-mono {
   cursor: not-allowed;
   pointer-events: none;
 }
+.community-buttons {
+  margin-top: 8px;
+}
 
 .hero-art {
   position: relative;
