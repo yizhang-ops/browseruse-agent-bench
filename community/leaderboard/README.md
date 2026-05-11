@@ -8,6 +8,8 @@ and rerun.
 
 - `accepted-results.schema.json` documents the accepted result fields.
 - `accepted-results.json` stores accepted public leaderboard entries.
+- `badges.md` defines README badge formats for accepted and submitted results.
+- `result-card-template.svg` is a 1280x640 shareable result card template.
 
 The existing leaderboard server can later read this data as a read-only source. Uploads should
 continue through GitHub PRs until submission volume justifies a dedicated review UI.
@@ -19,4 +21,3 @@ continue through GitHub PRs until submission volume justifies a dedicated review
 3. Maintainers review artifacts and rerun the result.
 4. Maintainers add or update an entry in `accepted-results.json`.
 5. Static pages or the read-only server display accepted entries.
-

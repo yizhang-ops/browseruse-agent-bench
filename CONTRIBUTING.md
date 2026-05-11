@@ -6,7 +6,8 @@ contributions are the ones other teams can run, inspect, and compare.
 ## Good First Contributions
 
 - Add or improve docs, examples, and troubleshooting notes.
-- Propose a benchmark task with clear success criteria.
+- Propose a benchmark task with clear success criteria. See
+  `community/tasks/multilingual-task-proposal-examples.md` for examples.
 - Submit a reproducible result with redacted config and task-level outputs.
 - Add a small agent adapter or example config for an existing integration.
 
@@ -16,6 +17,8 @@ contributions are the ones other teams can run, inspect, and compare.
   group if needed, and include a smoke command.
 - **Benchmark tasks**: include the target site, language/region, login requirements, expected
   final state, and evaluation criteria.
+- **Browser backends**: implement the backend contract, keep provider dependencies lazy, and
+  document agent compatibility. See `docs/en/browser/custom-backend.mdx`.
 - **Leaderboard results**: include benchmark, split, agent, model, browser backend, judge model,
   success rate, average steps, average latency, and artifacts.
 - **Evaluation improvements**: explain how the judge strategy changes reproducibility or failure

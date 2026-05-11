@@ -1,0 +1,133 @@
+---
+title: "添加浏览器后端"
+description: "为本地、云端或 CDP 兼容浏览器实现自定义会话提供方"
+---
+
+浏览器后端让同一个 agent 可以运行在不同浏览器环境里：本地 Chromium、Lexmount 云浏览器、
+AgentBay、直接 CDP endpoint，或你新增的 provider。后端负责创建和清理浏览器会话，agent 只消费
+返回的 session context。
+
+## 后端接口
+
+实现 `browseruse_bench/browsers/base.py` 里的 `BrowserBackend`：
+
+```python
+from browseruse_bench.browsers.base import BrowserBackend
+from browseruse_bench.browsers.types import BrowserSessionContext
+
+
+class ExampleBackend(BrowserBackend):
+    def open(self, agent_name: str, agent_config: dict) -> BrowserSessionContext:
+        return BrowserSessionContext(
+            backend_id=self.backend_id,
+            transport="cdp",
+            cdp_url="wss://example.test/devtools/browser/session-id",
+            metadata={"provider_session_id": "session-id"},
+        )
+
+    def close(self, session_context: BrowserSessionContext) -> None:
+        ...
+```
+
+`BrowserSessionContext` 字段：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `backend_id` | 是 | 稳定的后端 id，例如 `lexmount` 或 `agentbay` |
+| `transport` | 是 | 浏览器连接方式，例如 `cdp`、`playwright`，或 provider 自定义信息 |
+| `cdp_url` | 否 | agent 通过 Chrome DevTools Protocol 连接时需要 |
+| `metadata` | 否 | provider session id、inspect URL、context id、清理所需信息 |
+
+## 注册后端
+
+在 `browseruse_bench/browsers/registry.py` 里添加 lazy factory：
+
+```python
+def _create_example_backend() -> BrowserBackend:
+    from browseruse_bench.browsers.providers.example import ExampleBackend
+
+    return ExampleBackend("example")
+```
+
+然后在 `_register_default_backends()` 里注册：
+
+```python
+register_backend("example", _create_example_backend)
+```
+
+provider import 要放在 factory 里面，避免用户运行 `local` 时也必须安装你的 provider SDK。
+
+## 配置格式
+
+后端配置放在对应 agent 的 `browser` 配置块下：
+
+```yaml
+agents:
+  browser-use:
+    browser:
+      browser_id: example
+      example_api_key: $EXAMPLE_API_KEY
+      example_project_id: $EXAMPLE_PROJECT_ID
+      example_region: us
+```
+
+建议使用明确的 provider 前缀。密钥从环境变量或已脱敏配置读取，不要把 API key、cookie、浏览器
+认证 token 写入日志。
+
+## 生命周期边界
+
+`browseruse_bench/browsers/manager.py` 里的 `open_browser_session()` 负责后端清理，并在
+`finally` 中调用 `backend.close(session_context)`。
+
+后端代码应该：
+
+- 每次 `open()` 只创建一个浏览器会话
+- 把清理需要的 provider id 放进 `metadata`
+- 在 provider 支持时让 `close()` 可重复调用
+- 使用 `logger` 记录清理失败
+- 只捕获明确的 provider 或网络异常
+
+agent 代码可以关闭自己创建的 SDK 对象，但不应该直接删除 provider 浏览器会话。
+
+## Agent 兼容性
+
+提交 PR 前，确认目标 agent 如何消费浏览器会话：
+
+| Agent | 常见路径 |
+| --- | --- |
+| `browser-use` | CDP 或 SDK browser object，取决于后端 |
+| `skyvern` | 本地启动参数或 provider session 连接 |
+| `Agent-TARS` | 偏 CLI 的启动流程；承诺兼容前需要确认 CDP 支持 |
+| `claude-code` | 委托给 Playwright MCP |
+| `openai-cua` | provider 特定的浏览器会话桥接 |
+
+如果后端只支持部分 agent，请明确 fail fast，不要静默回退到 local Chrome。
+
+## Smoke Test
+
+至少用该后端跑一个真实任务：
+
+```bash
+uv run bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+  --mode first_n --count 1
+```
+
+如果改动触及 agent 运行路径，提交前跑真实 smoke：
+
+```bash
+uv run bubench run --agent <agent> --data LexBench-Browser --mode single
+```
+
+浏览器生命周期变更不能只依赖 `--dry-run`。
+
+## PR Checklist
+
+- 后端类放在 `browseruse_bench/browsers/providers/` 下。
+- Registry 使用 lazy factory，不在模块 import 时加载 provider SDK。
+- 配置字段已文档化，并带 provider 前缀。
+- 日志和结果 artifact 不泄漏密钥。
+- 清理路径有聚焦单测或真实 smoke run。
+- PR 说明支持哪些 agent，以及暂不支持哪些。
+- 如果 provider 影响公开 leaderboard 结果，请单独提交 result metadata。

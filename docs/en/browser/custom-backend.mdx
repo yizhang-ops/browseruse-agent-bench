@@ -1,0 +1,136 @@
+---
+title: "Add a Browser Backend"
+description: "Implement a custom browser session provider for local, cloud, or CDP-compatible browsers"
+---
+
+Browser backends let the same agent run against different browser environments: local Chromium,
+Lexmount cloud browser, AgentBay, direct CDP endpoints, or a provider you add. A backend owns
+browser-session creation and cleanup; agents consume the returned session context.
+
+## Backend Contract
+
+Implement `BrowserBackend` from `browseruse_bench/browsers/base.py`:
+
+```python
+from browseruse_bench.browsers.base import BrowserBackend
+from browseruse_bench.browsers.types import BrowserSessionContext
+
+
+class ExampleBackend(BrowserBackend):
+    def open(self, agent_name: str, agent_config: dict) -> BrowserSessionContext:
+        return BrowserSessionContext(
+            backend_id=self.backend_id,
+            transport="cdp",
+            cdp_url="wss://example.test/devtools/browser/session-id",
+            metadata={"provider_session_id": "session-id"},
+        )
+
+    def close(self, session_context: BrowserSessionContext) -> None:
+        ...
+```
+
+`BrowserSessionContext` fields:
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `backend_id` | Yes | Stable backend id, for example `lexmount` or `agentbay` |
+| `transport` | Yes | Browser transport type such as `cdp`, `playwright`, or provider-specific metadata |
+| `cdp_url` | No | Required when the agent connects through Chrome DevTools Protocol |
+| `metadata` | No | Provider session ids, inspect URLs, context ids, or cleanup hints |
+
+## Register the Backend
+
+Add a lazy factory in `browseruse_bench/browsers/registry.py`:
+
+```python
+def _create_example_backend() -> BrowserBackend:
+    from browseruse_bench.browsers.providers.example import ExampleBackend
+
+    return ExampleBackend("example")
+```
+
+Then register it in `_register_default_backends()`:
+
+```python
+register_backend("example", _create_example_backend)
+```
+
+Keep provider imports inside the factory. This preserves optional dependency isolation: users
+running `local` should not need your provider SDK installed.
+
+## Configuration Shape
+
+Backend-specific config should live under the selected agent's `browser` block:
+
+```yaml
+agents:
+  browser-use:
+    browser:
+      browser_id: example
+      example_api_key: $EXAMPLE_API_KEY
+      example_project_id: $EXAMPLE_PROJECT_ID
+      example_region: us
+```
+
+Prefer explicit, provider-prefixed keys. Read secrets from environment variables or redacted
+config values; never log API keys, cookies, or browser auth tokens.
+
+## Lifecycle Ownership
+
+`open_browser_session()` in `browseruse_bench/browsers/manager.py` owns backend cleanup and calls
+`backend.close(session_context)` in a `finally` block.
+
+Backend code should:
+
+- create exactly one browser session per `open()` call
+- put provider ids needed for cleanup in `metadata`
+- make `close()` idempotent where the provider allows it
+- log cleanup failures through `logger`
+- catch only specific provider/network exceptions
+
+Agent code should close agent SDK objects it created, but should not delete the provider browser
+session directly.
+
+## Agent Compatibility
+
+Before opening a PR, check how the target agent consumes browser sessions:
+
+| Agent | Common path |
+| --- | --- |
+| `browser-use` | CDP or SDK browser object depending on backend |
+| `skyvern` | Local launch args or provider session connection |
+| `Agent-TARS` | CLI-oriented launch flow; verify CDP support before promising compatibility |
+| `claude-code` | Playwright MCP delegation |
+| `openai-cua` | Provider-specific browser session bridge |
+
+If the backend only works for some agents, fail fast with a clear error rather than silently
+falling back to local Chrome.
+
+## Smoke Test
+
+Run at least one real task with the backend selected:
+
+```bash
+uv run bubench run \
+  --agent browser-use \
+  --data LexBench-Browser \
+  --mode first_n --count 1
+```
+
+For agent-touching backend changes, run a real smoke test before commit:
+
+```bash
+uv run bubench run --agent <agent> --data LexBench-Browser --mode single
+```
+
+Do not rely on `--dry-run` alone for browser lifecycle changes.
+
+## Pull Request Checklist
+
+- Backend class lives under `browseruse_bench/browsers/providers/`.
+- Registry uses a lazy factory and does not import provider SDKs at module import time.
+- Config keys are documented and provider-prefixed.
+- Secrets are redacted from logs and result artifacts.
+- Cleanup path is covered by a focused unit test or a real smoke run.
+- The PR states which agents are supported and which are not.
+- If the provider changes public leaderboard results, submit result metadata separately.

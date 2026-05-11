@@ -57,7 +57,8 @@
                                         "icon": "window",
                                         "pages": [
                                             "en/browser/local",
-                                            "en/browser/lexmount"
+                                            "en/browser/lexmount",
+                                            "en/browser/custom-backend"
                                         ]
                                     },
                                     {
@@ -159,7 +160,8 @@
                                         "icon": "window",
                                         "pages": [
                                             "zh/browser/local",
-                                            "zh/browser/lexmount"
+                                            "zh/browser/lexmount",
+                                            "zh/browser/custom-backend"
                                         ]
                                     },
                                     {
