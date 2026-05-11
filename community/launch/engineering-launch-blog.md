@@ -124,6 +124,7 @@ Useful contributions include:
 Start with:
 
 - GitHub: https://github.com/lexmount/browseruse-agent-bench
+- Dataset: https://huggingface.co/datasets/Lexmount/LexBench-Browser
 - Docs: https://docs.bubench.lexmount.io/
 - Result policy: `EVALUATION_PROTOCOL.md`
 - Contribution guide: `CONTRIBUTING.md`

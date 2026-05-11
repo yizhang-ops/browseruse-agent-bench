@@ -32,6 +32,7 @@ Use it to:
 - GitHub: https://github.com/lexmount/browseruse-agent-bench
 - Landing page: https://lexmount.github.io/browseruse-agent-bench/
 - Docs: https://docs.bubench.lexmount.io/
+- Hugging Face dataset: https://huggingface.co/datasets/Lexmount/LexBench-Browser
 - Result submission policy: `docs/en/leaderboard/result-submissions.mdx`
 - Evaluation protocol: `EVALUATION_PROTOCOL.md`
 - Governance: `GOVERNANCE.md`
@@ -71,6 +72,7 @@ The repo includes result submission metadata, governance, and an evaluation prot
 leaderboard entries are not just screenshots or self-reported numbers.
 
 GitHub: https://github.com/lexmount/browseruse-agent-bench
+Dataset: https://huggingface.co/datasets/Lexmount/LexBench-Browser
 ```
 
 ## Reddit
@@ -102,6 +104,7 @@ The intended workflow is:
 4. Add an adapter if your agent is not supported yet.
 
 GitHub: https://github.com/lexmount/browseruse-agent-bench
+Dataset: https://huggingface.co/datasets/Lexmount/LexBench-Browser
 
 Would love feedback from people building browser agents: what result metadata would you require
 before trusting a public leaderboard?
@@ -118,6 +121,7 @@ We open-sourced LexBench-Browser for browser-agent builders.
 Run your agent, compare browser backends, inspect trajectories, and submit reproducible results.
 
 GitHub: https://github.com/lexmount/browseruse-agent-bench
+Dataset: https://huggingface.co/datasets/Lexmount/LexBench-Browser
 ```
 
 Thread:
@@ -185,6 +189,7 @@ It is meant to be a practical benchmark workflow:
 - submit reproducible results for review and rerun
 
 Repo: https://github.com/lexmount/browseruse-agent-bench
+Dataset: https://huggingface.co/datasets/Lexmount/LexBench-Browser
 
 We are especially looking for:
 - new agent adapters
@@ -212,6 +217,7 @@ The submission flow is:
 4. Accepted results are listed as official leaderboard entries with credit.
 
 Repo: https://github.com/lexmount/browseruse-agent-bench
+Dataset: https://huggingface.co/datasets/Lexmount/LexBench-Browser
 Result policy: https://github.com/lexmount/browseruse-agent-bench/blob/main/EVALUATION_PROTOCOL.md
 
 Would you be interested in submitting or reviewing an official <PROJECT> result?
@@ -224,4 +230,3 @@ Would you be interested in submitting or reviewing an official <PROJECT> result?
 - Avoid claiming state-of-the-art without a stable public leaderboard.
 - Always mention reproducibility, artifacts, and maintainer rerun.
 - Invite adapter PRs and result submissions as the main contribution path.
-

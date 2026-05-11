@@ -8,7 +8,7 @@
   <a href="https://github.com/lexmount/browseruse-agent-bench/discussions">Discussions</a> •
   <a href="#leaderboard">Leaderboard</a> •
   <a href="https://docs.bubench.lexmount.io/">Documentation</a> •
-  <a href="./benchmarks">Data</a>
+  <a href="https://huggingface.co/datasets/Lexmount/LexBench-Browser">Dataset</a>
 </p>
 
 <p align="center">
@@ -37,6 +37,7 @@ dump. It is built to make external results easy to run, compare, cite, and submi
 - [x] **LexBench-Browser** — E-commerce, social, academic, financial, 50+ mainstream Chinese/English websites (v1.0, 2026-04-30)
   - `All` (210, no login required)
   - `lexmount` (118, mainland-accessible websites) / `global` (92, international websites)
+  - Hugging Face: [Lexmount/LexBench-Browser](https://huggingface.co/datasets/Lexmount/LexBench-Browser)
 - [x] **Online-Mind2Web** — Real website interaction tasks
   - `All` (300) / `Hard` (hard subset)
 - [x] **BrowseComp** — Browser operation competition tasks, no login required

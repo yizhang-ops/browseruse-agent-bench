@@ -29,6 +29,8 @@ robustness tags.
 
 Repository: https://github.com/lexmount/browseruse-agent-bench
 
+Dataset page: https://huggingface.co/datasets/Lexmount/LexBench-Browser
+
 Docs: https://docs.bubench.lexmount.io/
 
 ## Dataset Summary
