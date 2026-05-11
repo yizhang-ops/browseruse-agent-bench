@@ -1,0 +1,69 @@
+name: Sync Hugging Face Dataset
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "browseruse_bench/data/LexBench-Browser/**"
+      - "community/huggingface/dataset-card.md"
+      - "scripts/sync_hf_dataset.py"
+      - ".github/workflows/sync-hf-dataset.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-hf-dataset-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  UV_SYNC_MAX_ATTEMPTS: "4"
+  UV_SYNC_INITIAL_BACKOFF_SECONDS: "15"
+  UV_HTTP_TIMEOUT: "120"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+          version: "0.9.28"
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          for ((attempt=1; attempt<=UV_SYNC_MAX_ATTEMPTS; attempt++)); do
+            if uv sync; then
+              exit 0
+            fi
+            if [ "$attempt" -eq "$UV_SYNC_MAX_ATTEMPTS" ]; then
+              echo "uv sync failed after ${UV_SYNC_MAX_ATTEMPTS} attempts" >&2
+              exit 1
+            fi
+            sleep_seconds=$((UV_SYNC_INITIAL_BACKOFF_SECONDS * attempt))
+            echo "uv sync failed, retrying in ${sleep_seconds}s..."
+            sleep "$sleep_seconds"
+          done
+
+      - name: Validate local dataset files
+        run: uv run python scripts/sync_hf_dataset.py
+
+      - name: Sync to Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: uv run python scripts/sync_hf_dataset.py --yes
