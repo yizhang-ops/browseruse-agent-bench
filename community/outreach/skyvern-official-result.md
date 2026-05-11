@@ -13,9 +13,10 @@ Hi Skyvern maintainers,
 We support running Skyvern in LexBench-Browser and would like to invite an official result
 submission from your team or community.
 
-LexBench-Browser is a reproducible browser-agent benchmark with 210 public no-login tasks across
-107 websites. It records success rate, task-level artifacts, steps, latency, token/cost metrics,
-model settings, and browser backend.
+browseruse-agent-bench is a reproducible browser-agent benchmark framework. LexBench-Browser is
+its default public dataset, with 210 no-login tasks across 107 websites. The framework records
+success rate, task-level artifacts, steps, latency, token/cost metrics, model settings, and
+browser backend.
 
 For Skyvern, the most useful official result would include:
 - Skyvern version or commit

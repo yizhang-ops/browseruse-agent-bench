@@ -1,12 +1,13 @@
 # Contributing
 
-Thanks for helping make LexBench-Browser a reproducible benchmark platform. The most useful
-contributions are the ones other teams can run, inspect, and compare.
+Thanks for helping make browseruse-agent-bench a reproducible evaluation framework for browser
+agents. LexBench-Browser is the built-in public dataset. The most useful contributions are the
+ones other teams can run, inspect, and compare.
 
 ## Good First Contributions
 
 - Add or improve docs, examples, and troubleshooting notes.
-- Propose a benchmark task with clear success criteria. See
+- Propose a dataset task with clear success criteria. See
   `community/tasks/multilingual-task-proposal-examples.md` for examples.
 - Submit a reproducible result with redacted config and task-level outputs.
 - Add a small agent adapter or example config for an existing integration.
@@ -15,7 +16,7 @@ contributions are the ones other teams can run, inspect, and compare.
 
 - **Agent adapters**: implement a `BaseAgent` adapter, register it, add an optional dependency
   group if needed, and include a smoke command.
-- **Benchmark tasks**: include the target site, language/region, login requirements, expected
+- **Dataset tasks**: include the target site, language/region, login requirements, expected
   final state, and evaluation criteria.
 - **Browser backends**: implement the backend contract, keep provider dependencies lazy, and
   document agent compatibility. See `docs/en/browser/custom-backend.mdx`.

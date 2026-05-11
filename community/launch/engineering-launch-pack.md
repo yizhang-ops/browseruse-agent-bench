@@ -9,15 +9,16 @@ This launch pack is intentionally practical. The goal is to make browser-agent b
 
 ## One-Liner
 
-LexBench-Browser is a reproducible browser-agent benchmark: run your agent on 210 real-web tasks
-across 107 websites, compare local/cloud browser backends, and submit reviewed leaderboard results.
+browseruse-agent-bench is a reproducible browser-agent evaluation framework. It ships with the
+LexBench-Browser dataset: 210 real-web tasks across 107 websites, local/cloud browser backend
+comparison, and reviewed leaderboard result submissions.
 
 ## Short Pitch
 
-LexBench-Browser is built for browser-agent developers who need more than a demo task. It provides
-210 public tasks across 107 real websites, supports multiple agents and browser backends, records
-cost/latency/token metrics, and defines a result submission workflow with maintainer review and
-rerun.
+browseruse-agent-bench is built for browser-agent developers who need more than a demo task. Its
+default dataset, LexBench-Browser, provides 210 public tasks across 107 real websites. The
+framework supports multiple agents and browser backends, records cost/latency/token metrics, and
+defines a result submission workflow with maintainer review and rerun.
 
 Use it to:
 
@@ -25,7 +26,7 @@ Use it to:
 - compare local Chrome, Lexmount cloud browser, AgentBay, and other backends
 - inspect trajectories and failure cases
 - submit reproducible leaderboard results
-- add new agent adapters or benchmark tasks
+- add new agent adapters or dataset tasks
 
 ## Primary Links
 
@@ -51,22 +52,23 @@ bubench run --agent browser-use --data LexBench-Browser --mode first_n --count 3
 Title:
 
 ```text
-Show HN: LexBench-Browser, a real-world benchmark for browser agents
+Show HN: browseruse-agent-bench, a real-world benchmark framework for browser agents
 ```
 
 Post:
 
 ```text
-We built LexBench-Browser as a reproducible benchmark for browser-agent builders.
+We built browseruse-agent-bench as a reproducible benchmark framework for browser-agent builders.
 
-It includes 210 public tasks across 107 real websites, supports multiple agents and browser
-backends, and records success rate, steps, latency, token usage, cost, and trajectories.
+It ships with LexBench-Browser, a dataset of 210 public tasks across 107 real websites. The
+framework supports multiple agents and browser backends, and records success rate, steps, latency,
+token usage, cost, and trajectories.
 
 The practical goal is simple:
 - run your own browser agent
 - compare browser backends such as local Chrome and cloud browsers
 - submit a result that maintainers can review and rerun
-- add an agent adapter or benchmark task through PR
+- add an agent adapter or dataset task through PR
 
 The repo includes result submission metadata, governance, and an evaluation protocol so that
 leaderboard entries are not just screenshots or self-reported numbers.
@@ -86,11 +88,11 @@ Suggested subreddits:
 Post:
 
 ```text
-We open-sourced LexBench-Browser, a benchmark for browser agents that focuses on reproducible
-engineering runs rather than one-off demos.
+We open-sourced browseruse-agent-bench, a benchmark framework for browser agents that focuses on
+reproducible engineering runs rather than one-off demos.
 
 What it gives you:
-- 210 public tasks across 107 real websites
+- LexBench-Browser dataset: 210 public tasks across 107 real websites
 - multi-agent runner: browser-use, Skyvern, Agent-TARS, etc.
 - browser backend comparison: local Chrome, Lexmount cloud browser, AgentBay, CDP
 - cost / latency / token metrics
@@ -98,7 +100,7 @@ What it gives you:
 - result submission policy with maintainer review and rerun
 
 The intended workflow is:
-1. Run your agent on LexBench-Browser.
+1. Run your agent on the LexBench-Browser dataset.
 2. Compare model + browser backend settings.
 3. Submit a reproducible result with metadata and artifacts.
 4. Add an adapter if your agent is not supported yet.
@@ -115,9 +117,9 @@ before trusting a public leaderboard?
 Single post:
 
 ```text
-We open-sourced LexBench-Browser for browser-agent builders.
+We open-sourced browseruse-agent-bench for browser-agent builders.
 
-210 tasks across 107 real websites.
+It ships with LexBench-Browser: 210 tasks across 107 real websites.
 Run your agent, compare browser backends, inspect trajectories, and submit reproducible results.
 
 GitHub: https://github.com/lexmount/browseruse-agent-bench
@@ -129,7 +131,8 @@ Thread:
 ```text
 1/ Browser-agent evals need to be runnable, comparable, and reviewable.
 
-LexBench-Browser is our attempt at that: 210 public tasks across 107 real websites, with multi-agent and multi-browser support.
+browseruse-agent-bench is our attempt at that: a multi-agent, multi-browser evaluation framework
+with LexBench-Browser, a 210-task public dataset across 107 real websites.
 
 2/ The workflow:
 
@@ -156,7 +159,7 @@ bubench run --agent browser-use --data LexBench-Browser --mode first_n --count 3
 ## LinkedIn
 
 ```text
-We open-sourced LexBench-Browser, a reproducible benchmark platform for browser-agent engineering.
+We open-sourced browseruse-agent-bench, a reproducible benchmark framework for browser-agent engineering.
 
 The project is designed around a practical workflow:
 
@@ -166,7 +169,7 @@ The project is designed around a practical workflow:
 4. Submit leaderboard results with metadata and artifacts that maintainers can review and rerun.
 
 Current snapshot:
-- 210 public tasks
+- LexBench-Browser dataset with 210 public tasks
 - 107 real websites
 - multiple agent integrations
 - local and cloud browser backends
@@ -180,7 +183,7 @@ GitHub: https://github.com/lexmount/browseruse-agent-bench
 ## Discord / Slack Communities
 
 ```text
-For anyone building browser agents: we open-sourced LexBench-Browser.
+For anyone building browser agents: we open-sourced browseruse-agent-bench.
 
 It is meant to be a practical benchmark workflow:
 - run your agent
@@ -194,7 +197,7 @@ Dataset: https://huggingface.co/datasets/Lexmount/LexBench-Browser
 We are especially looking for:
 - new agent adapters
 - official results from agent projects
-- benchmark task proposals
+- dataset task proposals
 - feedback on result metadata / rerun policy
 ```
 
@@ -203,15 +206,16 @@ We are especially looking for:
 Use this when contacting maintainers of browser-use, Skyvern, Agent-TARS, or related projects.
 
 ```text
-Hi! We added support for running <PROJECT> in LexBench-Browser and would like to invite an
+Hi! We added support for running <PROJECT> in browseruse-agent-bench on the LexBench-Browser
+dataset and would like to invite an
 official result submission from maintainers or power users.
 
-LexBench-Browser is a reproducible browser-agent benchmark with 210 public tasks across 107
-real websites. It records success rate, steps, latency, token/cost metrics, and task-level
-artifacts.
+browseruse-agent-bench is a reproducible browser-agent benchmark framework. LexBench-Browser is
+the default public dataset, with 210 tasks across 107 real websites. The framework records success
+rate, steps, latency, token/cost metrics, and task-level artifacts.
 
 The submission flow is:
-1. Run <PROJECT> on LexBench-Browser.
+1. Run <PROJECT> on the LexBench-Browser dataset.
 2. Share redacted config + evaluation output + task-level artifacts.
 3. Maintainers review and rerun the result.
 4. Accepted results are listed as official leaderboard entries with credit.

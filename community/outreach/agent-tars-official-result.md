@@ -13,9 +13,10 @@ Hi Agent-TARS maintainers,
 We support running Agent-TARS in LexBench-Browser and would like to invite an official result
 submission from your team or community.
 
-LexBench-Browser is a reproducible browser-agent benchmark with 210 public no-login tasks across
-107 websites. It is intended for engineering comparison: run your agent, submit artifacts,
-compare browser backends where supported, and inspect task-level failures.
+browseruse-agent-bench is a reproducible browser-agent benchmark framework. LexBench-Browser is
+its default public dataset, with 210 no-login tasks across 107 websites. It is intended for
+engineering comparison: run your agent, submit artifacts, compare browser backends where
+supported, and inspect task-level failures.
 
 For Agent-TARS, the most useful official result would include:
 - Agent-TARS version or commit

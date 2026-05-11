@@ -13,9 +13,10 @@ Hi browser-use maintainers,
 We support running browser-use in LexBench-Browser and would like to invite an official result
 submission from your team or community.
 
-LexBench-Browser is a reproducible browser-agent benchmark with 210 public no-login tasks across
-107 websites. It is built around an engineering workflow: run your agent, compare browser
-backends, inspect trajectories, and submit reviewed results with enough metadata for rerun.
+browseruse-agent-bench is a reproducible browser-agent benchmark framework. LexBench-Browser is
+its default public dataset, with 210 no-login tasks across 107 websites. The workflow is
+engineering-oriented: run your agent, compare browser backends, inspect trajectories, and submit
+reviewed results with enough metadata for rerun.
 
 For browser-use, the most useful official result would include:
 - browser-use version or commit

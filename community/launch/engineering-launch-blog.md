@@ -1,9 +1,9 @@
-# Launch Blog Draft: LexBench-Browser for Browser-Agent Builders
+# Launch Blog Draft: browseruse-agent-bench for Browser-Agent Builders
 
 Working title:
 
 ```text
-LexBench-Browser: Run Your Agent, Submit Results, Compare Browser Backends
+browseruse-agent-bench: Run Your Agent, Submit Results, Compare Browser Backends
 ```
 
 ## Summary
@@ -12,10 +12,10 @@ Browser agents are getting good enough that demos are no longer the hard part. T
 engineering question is whether an agent can complete real web workflows across sites, languages,
 popups, dynamic content, flaky pages, and different browser environments.
 
-LexBench-Browser is our attempt to make that question runnable. It is a public benchmark snapshot
-with 210 no-login tasks across 107 websites, a multi-agent runner, local and cloud browser backend
-support, trajectory artifacts, cost and latency accounting, and a reviewable result submission
-workflow.
+browseruse-agent-bench is our attempt to make that question runnable. It is a multi-agent browser
+evaluation framework with local and cloud browser backend support, trajectory artifacts, cost and
+latency accounting, and a reviewable result submission workflow. Its default public dataset,
+LexBench-Browser, contains 210 no-login tasks across 107 websites.
 
 ## Why We Built It
 
@@ -25,13 +25,13 @@ Most browser-agent evaluation breaks down in three places:
 2. The browser environment is underspecified, so a result is hard to reproduce.
 3. The leaderboard is just a number, without artifacts or rerun policy.
 
-LexBench-Browser treats the benchmark as an engineering workflow instead of a static score. You
-can run an agent, inspect task-level outputs, compare browser backends, and submit enough metadata
-for maintainers to review and rerun the result.
+browseruse-agent-bench treats evaluation as an engineering workflow instead of a static score. You
+can run an agent on LexBench-Browser, inspect task-level outputs, compare browser backends, and
+submit enough metadata for maintainers to review and rerun the result.
 
 ## What Is in v1.0
 
-The v1.0 public snapshot includes:
+The LexBench-Browser v1.0 public dataset snapshot includes:
 
 - 210 tasks
 - 107 distinct websites
@@ -55,7 +55,7 @@ The dataset labels practical web-agent stressors:
 - complex interaction: filtering, sorting, and data extraction
 
 These labels are not just metadata. They help contributors explain why a task belongs in the
-benchmark and help agent builders understand failure clusters.
+dataset and help agent builders understand failure clusters.
 
 ## The Workflow
 
@@ -72,7 +72,7 @@ Then scale up:
 
 1. Pick an agent adapter.
 2. Pick a browser backend: local Chrome, Lexmount, AgentBay, CDP, or another provider.
-3. Run LexBench-Browser.
+3. Run the LexBench-Browser dataset.
 4. Evaluate with the declared judge model and strategy.
 5. Inspect trajectories, failures, cost, latency, and token usage.
 6. Submit result metadata and artifacts through a GitHub PR.
@@ -82,8 +82,8 @@ Then scale up:
 A browser agent is not only the model and prompt. The browser backend affects page reachability,
 session persistence, login state, latency, stability, and provider-specific constraints.
 
-LexBench-Browser keeps browser selection explicit through `browser_id`. That makes comparisons
-more honest:
+browseruse-agent-bench keeps browser selection explicit through `browser_id`. That makes
+comparisons more honest:
 
 - local Chrome for development and low-volume runs
 - cloud browser sessions for isolated and repeatable runs
@@ -117,7 +117,7 @@ Useful contributions include:
 - adding an agent adapter
 - adding a browser backend
 - submitting official results
-- proposing benchmark tasks with evaluation criteria
+- proposing dataset tasks with evaluation criteria
 - improving docs and examples
 - sharing failure analyses from real runs
 
@@ -134,5 +134,5 @@ Start with:
 The goal is not to declare a final winner. The goal is to make browser-agent evaluation easier to
 run, inspect, compare, and improve in public.
 
-If you build browser agents, try running your agent on LexBench-Browser, compare browser backends,
-and submit a reproducible result.
+If you build browser agents, try browseruse-agent-bench with the LexBench-Browser dataset, compare
+browser backends, and submit a reproducible result.

@@ -1,14 +1,15 @@
 # Governance
 
-LexBench-Browser is maintained as a reproducible benchmark platform. The project accepts
-open-source and closed-source agents, but leaderboard entries must disclose enough information
-for maintainers and readers to understand what was run.
+browseruse-agent-bench is maintained as a reproducible evaluation framework for browser agents.
+LexBench-Browser is the built-in public dataset used by the default benchmark workflow. The
+project accepts open-source and closed-source agents, but leaderboard entries must disclose enough
+information for maintainers and readers to understand what was run.
 
 ## Scope
 
 This governance policy covers:
 
-- benchmark task proposals
+- dataset task proposals
 - agent and browser backend integrations
 - leaderboard result submissions
 - evaluation protocol changes
@@ -25,7 +26,7 @@ This governance policy covers:
 
 ## Task Acceptance
 
-Benchmark tasks should represent realistic browser-agent workflows. A task proposal should
+LexBench-Browser tasks should represent realistic browser-agent workflows. A task proposal should
 include:
 
 - target website or workflow
@@ -73,8 +74,8 @@ Silent task drops are not accepted. Skipped or failed tasks must be reported.
 
 ## Evaluation Changes
 
-LexBench-Browser v1.0 uses the declared official judge model and evaluation strategy in the
-release documentation. Later judge or model changes do not automatically create a new
+LexBench-Browser dataset v1.0 uses the declared official judge model and evaluation strategy in
+the release documentation. Later judge or model changes do not automatically create a new
 leaderboard family, but they must be recorded in release notes and result metadata.
 
 When evaluation behavior changes, maintainers should document:

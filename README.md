@@ -15,26 +15,27 @@
   English | <a href="./README_ZH.md">简体中文</a>
 </p>
 
-## Why LexBench-Browser
+## Why browseruse-agent-bench
 
-LexBench-Browser is a reproducible benchmark platform for browser agents, not just a task
-dump. It is built to make external results easy to run, compare, cite, and submit back.
+**browseruse-agent-bench** is a reproducible evaluation framework for browser agents.
+**LexBench-Browser** is the built-in public dataset used by the default benchmark workflow.
+Together they make external results easy to run, compare, cite, and submit back.
 
 | What you can do | Why it matters |
 |-----------------|----------------|
-| Run **210 public tasks across 107 real websites** | Test browser agents on long-tail multilingual workflows beyond toy pages |
+| Run **LexBench-Browser: 210 public tasks across 107 real websites** | Test browser agents on long-tail multilingual workflows beyond toy pages |
 | Compare **Agent × Model × Browser × Eval** | Separate agent quality from model choice, browser backend, and judge strategy |
 | Inspect leaderboard, cost, latency, token usage, and trajectories | Debug failures instead of only reporting a final score |
-| Submit agents, benchmark tasks, and reproducible results | Turn forks and PRs into visible benchmark contributions |
+| Submit agents, dataset tasks, and reproducible results | Turn forks and PRs into visible benchmark contributions |
 
 ## Description
 
 
-**browseruse-bench** is an all-in-one evaluation framework for AI browser agents, designed to benchmark *multiple agents across multiple benchmarks, browsers, and models* under controlled and reproducible settings. It supports both local and cloud browsers, integrates LLM-as-Judge for automated evaluation, and provides a built-in local leaderboard along with efficiency and cost metrics such as agent steps, end-to-end latency, and token usage.
+**browseruse-agent-bench** is an all-in-one evaluation framework for AI browser agents, designed to benchmark *multiple agents across multiple datasets, browser backends, and models* under controlled and reproducible settings. The Python package/CLI is published as **browseruse-bench** and `bubench`. It supports both local and cloud browsers, integrates LLM-as-Judge for automated evaluation, and provides a built-in local leaderboard along with efficiency and cost metrics such as agent steps, end-to-end latency, and token usage.
 
-**Supported Benchmarks**
+**Supported Datasets**
 
-- [x] **LexBench-Browser** — E-commerce, social, academic, financial, 50+ mainstream Chinese/English websites (v1.0, 2026-04-30)
+- [x] **LexBench-Browser** — Browser-agent dataset covering e-commerce, social, academic, financial, and other mainstream Chinese/English websites (v1.0, 2026-04-30)
   - `All` (210, no login required)
   - `lexmount` (118, mainland-accessible websites) / `global` (92, international websites)
   - Hugging Face: [Lexmount/LexBench-Browser](https://huggingface.co/datasets/Lexmount/LexBench-Browser)
@@ -59,7 +60,7 @@ dump. It is built to make external results easy to run, compare, cite, and submi
 
 ## News
 
-- **[2026.04.30]** 🎉 **browseruse-bench v1.0** — initial open-source release. LexBench-Browser v1.0 ships 210 public tasks across 107 distinct websites with a 6-category × 16-tag robustness label system; reference integrations cover browser-use, skyvern, Agent-TARS and deepbrowse.
+- **[2026.04.30]** 🎉 **browseruse-agent-bench v1.0** — initial open-source release. The LexBench-Browser dataset v1.0 ships 210 public tasks across 107 distinct websites with a 6-category × 16-tag robustness label system; reference integrations cover browser-use, skyvern, Agent-TARS and deepbrowse.
 
 ## Quickstart
 

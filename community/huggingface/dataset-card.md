@@ -20,10 +20,10 @@ tags:
 
 # LexBench-Browser
 
-LexBench-Browser is a public benchmark for evaluating browser agents on real-web workflows. The
-v1.0 snapshot contains 210 no-login tasks across 107 distinct websites, with Chinese and English
-instructions, task-level reference steps, key points, common mistakes, scoring rubrics, and
-robustness tags.
+LexBench-Browser is a public browser-agent dataset for evaluating agents on real-web workflows.
+The v1.0 snapshot contains 210 no-login tasks across 107 distinct websites, with Chinese and
+English instructions, task-level reference steps, key points, common mistakes, scoring rubrics,
+and robustness tags.
 
 Repository: https://github.com/lexmount/browseruse-agent-bench
 
@@ -33,7 +33,7 @@ Docs: https://docs.bubench.lexmount.io/
 
 ## Dataset Summary
 
-LexBench-Browser is designed for browser-agent engineering:
+LexBench-Browser is designed to support browser-agent engineering in browseruse-agent-bench:
 
 - run an agent against real websites
 - compare local and cloud browser backends
@@ -135,10 +135,10 @@ submission docs.
 
 ## Licensing
 
-The LexBench-Browser benchmark metadata and task definitions are released under CC-BY 4.0.
+The LexBench-Browser dataset metadata and task definitions are released under CC-BY 4.0.
 
 This license covers the curated task records, labels, reference steps, scoring rubrics, and
-metadata authored for the benchmark. It does not relicense third-party website content,
+metadata authored for the dataset. It does not relicense third-party website content,
 screenshots, traces, marks, page text, or other artifacts collected while running agents.
 
 Repository code is licensed separately under Apache-2.0.
