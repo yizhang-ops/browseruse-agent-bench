@@ -7,8 +7,6 @@ task_categories:
   - question-answering
   - text-generation
   - reinforcement-learning
-task_ids:
-  - web-agent-benchmark
 pretty_name: LexBench-Browser
 size_categories:
   - n<1K
