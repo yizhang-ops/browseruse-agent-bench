@@ -103,6 +103,24 @@ source .venv/bin/activate          # macOS / Linux
 .venv\Scripts\Activate.ps1         # Windows PowerShell
 ```
 
+**CLI agents: claude-code / codex / cursor / openclaw** (requires Node.js 18+; **openclaw requires Node.js 22.19+**)
+
+These agents share the main venv (`uv sync`, no extra) and drive an external
+CLI installed separately:
+
+```bash
+uv sync
+npm install -g @anthropic-ai/claude-code     # claude-code (auth: ANTHROPIC_API_KEY)
+npm install -g @openai/codex                 # codex (auth: codex login or OPENAI_API_KEY)
+curl https://cursor.com/install -fsS | bash  # cursor (auth: CURSOR_API_KEY)
+export PATH="$HOME/.local/bin:$PATH"         # cursor-agent installs to ~/.local/bin
+npm install -g openclaw                      # openclaw (no login; key via config.yaml)
+```
+
+See [docs/cli-agents-deployment.md](docs/cli-agents-deployment.md) for
+authentication details, server/headless deployment notes (incl. Docker image
+requirements), and per-agent smoke verification.
+
 > After activation, the `bubench` CLI is available on your PATH. Without activation, prefix every `bubench …` command in the following steps with `uv run` (e.g. `uv run bubench run …`).
 
 **3. Configure**
