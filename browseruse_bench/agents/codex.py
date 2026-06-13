@@ -34,6 +34,10 @@ from browseruse_bench.utils import IS_WINDOWS
 
 logger = logging.getLogger(__name__)
 
+# codex config id for the proxy model provider. Must not collide with codex's
+# reserved built-ins (openai/azure/gemini/...), which it refuses to override.
+_CODEX_PROXY_PROVIDER_ID = "bench"
+
 
 def _parse_events(stdout_lines: list[str]) -> tuple[str, list[dict[str, Any]], dict[str, int], str | None]:
     """Parse `codex exec --json` JSONL output.
@@ -183,10 +187,12 @@ class CodexAgent(CLIAgent):
         )
 
         env = {**os.environ}
+        # The model provider's env_key is OPENAI_API_KEY (see _build_command),
+        # so codex reads the key from here whether it targets the default
+        # endpoint or a configured base_url provider. OPENAI_BASE_URL is not
+        # set: codex ignores it; base_url is wired via the -c model_provider.
         if agent_config.get("api_key"):
             env["OPENAI_API_KEY"] = str(agent_config["api_key"])
-        if agent_config.get("base_url"):
-            env["OPENAI_BASE_URL"] = str(agent_config["base_url"])
 
         logger.info("Executing Codex for task %s (model=%s, timeout=%ds)", task_id, model, timeout)
         t_start = time.monotonic()
@@ -253,7 +259,7 @@ class CodexAgent(CLIAgent):
         mcp_tool_timeout = int(agent_config.get("mcp_tool_timeout", 120))
 
         exe = "codex.cmd" if IS_WINDOWS else "codex"
-        return [
+        cmd = [
             exe, "exec", full_prompt,
             "--json",
             "--model", model,
@@ -271,6 +277,24 @@ class CodexAgent(CLIAgent):
             "-c", f"mcp_servers.playwright.startup_timeout_sec={mcp_startup_timeout}",
             "-c", f"mcp_servers.playwright.tool_timeout_sec={mcp_tool_timeout}",
         ]
+        # codex ignores OPENAI_BASE_URL; to route it at a custom (proxy)
+        # endpoint, register a model provider under a fixed, non-reserved id
+        # (codex rejects overriding built-ins like "openai"/"azure", so the
+        # config's model_provider — often "openai" — is NOT used as the id).
+        # wire_api must be "responses" (codex >=0.139 dropped "chat"), so the
+        # endpoint has to serve the OpenAI Responses API. Without base_url,
+        # codex uses its default provider (api.openai.com / ChatGPT auth.json).
+        base_url = agent_config.get("base_url")
+        if base_url:
+            provider = _CODEX_PROXY_PROVIDER_ID
+            cmd += [
+                "-c", f"model_providers.{provider}.name={_toml_value(provider)}",
+                "-c", f"model_providers.{provider}.base_url={_toml_value(str(base_url))}",
+                "-c", f'model_providers.{provider}.wire_api="responses"',
+                "-c", f'model_providers.{provider}.env_key="OPENAI_API_KEY"',
+                "-c", f"model_provider={_toml_value(provider)}",
+            ]
+        return cmd
 
     def _finalize_result(
         self,

@@ -252,6 +252,40 @@ class TestCodexAgentRunTask:
         assert 'mcp_servers.playwright.command="npx"' in joined
         assert "@playwright/mcp@latest" in joined
         assert "--cdp-endpoint" not in joined
+        # No base_url => default codex provider (api.openai.com / auth.json).
+        assert "model_provider=" not in joined
+
+    def test_base_url_registers_responses_provider(self, tmp_path: Path) -> None:
+        # codex ignores OPENAI_BASE_URL; base_url must be wired via a model
+        # provider override with wire_api="responses".
+        cmd = CodexAgent._build_command(
+            full_prompt="do it",
+            model="gpt-test",
+            agent_config={"base_url": "https://proxy.example/v1"},
+            task_workspace=tmp_path,
+            last_message_file=tmp_path / "last_message.txt",
+        )
+        joined = " ".join(cmd)
+        assert 'model_providers.bench.base_url="https://proxy.example/v1"' in joined
+        assert 'model_providers.bench.wire_api="responses"' in joined
+        assert 'model_providers.bench.env_key="OPENAI_API_KEY"' in joined
+        assert 'model_provider="bench"' in joined
+
+    def test_provider_id_ignores_config_model_provider(self, tmp_path: Path) -> None:
+        # model_provider is for other agents and is commonly "openai" — a codex
+        # reserved built-in it refuses to override. The codex provider id must
+        # stay the fixed non-reserved "bench", not "openai".
+        cmd = CodexAgent._build_command(
+            full_prompt="do it",
+            model="gpt-test",
+            agent_config={"base_url": "https://proxy.example/v1", "model_provider": "openai"},
+            task_workspace=tmp_path,
+            last_message_file=tmp_path / "last_message.txt",
+        )
+        joined = " ".join(cmd)
+        assert 'model_provider="bench"' in joined
+        assert "model_providers.openai" not in joined  # never overrides a built-in
+        assert 'model_providers.bench.base_url="https://proxy.example/v1"' in joined
 
     def test_command_includes_cdp_endpoint_when_session_provided(self, tmp_path: Path) -> None:
         cmd = CodexAgent._build_command(
