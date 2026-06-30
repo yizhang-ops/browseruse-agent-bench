@@ -57,6 +57,12 @@ from browseruse_bench.utils import (
     resolve_split,
     setup_logger,
 )
+from browseruse_bench.utils.run_identity import (
+    INCLUDE_RAW_MACHINE_IDENTIFIERS_ENV_KEY,
+    MACHINE_ID_ENV_KEY,
+    MACHINE_IDENTITY_ENV_KEY,
+    collect_machine_identity,
+)
 
 CONFIG_PATH = REPO_ROOT / "config.yaml"
 
@@ -259,6 +265,55 @@ _RE_STATUS = re.compile(r"^\[(RUNNING|SUCCESS|FAILED|TIMING)\]")
 _RE_FINAL = re.compile(r"Final Result:")
 
 
+def _classify_js_code_for_log(code: str) -> str:
+    lowered = code.lower()
+    if any(token in lowered for token in ("localstorage", "sessionstorage", "document.cookie", "indexeddb")):
+        return "storage"
+    if any(token in lowered for token in ("fetch(", "xmlhttprequest", "performance.getentries")):
+        return "network"
+    if any(token in lowered for token in (
+        ".click(",
+        "dispatchevent",
+        "setattribute",
+        "appendchild",
+        "removechild",
+        "createelement",
+    )):
+        return "modify_page"
+    if any(token in lowered for token in ("location.", "document.title", "document.readystate", "window.inner")):
+        return "page_state"
+    if (
+        re.search(r"queryselectorall\(\s*['\"]a(?:[\\.\\[#:'\"]|$)", lowered)
+        or (".href" in lowered and "location.href" not in lowered)
+    ):
+        return "extract_links"
+    if (
+        re.search(r"queryselector(?:all)?\(\s*['\"][^'\"]*(?:input|textarea|select)", lowered)
+        or any(token in lowered for token in (".value", ".checked"))
+    ):
+        return "form_state"
+    if any(token in lowered for token in (
+        "queryselector",
+        "getelement",
+        "innertext",
+        "textcontent",
+        "innerhtml",
+        "document.body",
+    )):
+        return "read_dom"
+    return "custom"
+
+
+def _clarify_agent_stdout_line(line: str) -> str:
+    """Make third-party agent tool names clearer in run logs."""
+    marker = "evaluate: code:"
+    if marker not in line:
+        return line
+    prefix, _, code = line.partition(marker)
+    category = _classify_js_code_for_log(code)
+    return f"{prefix}execute_js({category}): code:{code}"
+
+
 class _TaskBriefWriter:
     """Extract key event lines from subprocess output into task_brief.log."""
 
@@ -314,12 +369,14 @@ def _write_run_manifest(
     agent_config: dict[str, Any] | None = None,
     resolved_agent_config: dict[str, Any] | None = None,
     run_context: dict[str, Any] | None = None,
+    machine_identity: dict[str, Any] | None = None,
 ) -> None:
     """Write a redacted config snapshot for reproducibility."""
     try:
         runtime_config = resolved_agent_config or agent_config or config or {}
         snapshot = {
             "run": _redact_config_secrets(run_context or {}),
+            "machine": machine_identity or collect_machine_identity(),
             "runtime_config": _redact_config_secrets(runtime_config),
         }
         config_snapshot_path = output_dir / "config_snapshot.json"
@@ -552,6 +609,23 @@ def configure_run_parser(parser: argparse.ArgumentParser, config: dict[str, Any]
         help="Number of tasks to run in parallel (default: 1 = sequential).",
     )
     parser.add_argument(
+        "--machine-id",
+        default=None,
+        help=(
+            "Optional stable label for the machine running this experiment. "
+            f"Defaults to ${MACHINE_ID_ENV_KEY} or hostname."
+        ),
+    )
+    parser.add_argument(
+        "--include-raw-machine-identifiers",
+        action="store_true",
+        help=(
+            "Include raw hardware identifiers such as MAC address in run outputs. "
+            f"By default only hashed identifiers are recorded; can also be enabled "
+            f"with ${INCLUDE_RAW_MACHINE_IDENTIFIERS_ENV_KEY}=1."
+        ),
+    )
+    parser.add_argument(
         "--write-output-dir",
         dest="write_output_dir",
         default=None,
@@ -652,6 +726,20 @@ def run_agent(agent_name: str, benchmark_name: str, config: dict[str, Any], args
 
     logger.info("Running %s on %s", agent_name, benchmark_name)
     logger.info("   Output: %s", output_dir)
+    include_raw_machine_identifiers = bool(
+        getattr(args, "include_raw_machine_identifiers", False)
+        or str(os.getenv(INCLUDE_RAW_MACHINE_IDENTIFIERS_ENV_KEY) or "").strip().lower()
+        in {"1", "true", "yes", "on"}
+    )
+    machine_identity = collect_machine_identity(
+        getattr(args, "machine_id", None),
+        include_raw_identifiers=include_raw_machine_identifiers,
+    )
+    logger.info(
+        "   Machine: %s (host=%s)",
+        machine_identity.get("machine_id"),
+        machine_identity.get("hostname"),
+    )
 
     # Load tasks
     default_task_url = config.get("default", {}).get("task_start_url")
@@ -729,6 +817,7 @@ def run_agent(agent_name: str, benchmark_name: str, config: dict[str, Any], args
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
     env["BROWSERUSE_BENCH_LOG_FORMAT"] = "plain"
+    env[MACHINE_IDENTITY_ENV_KEY] = json.dumps(machine_identity, ensure_ascii=False)
     repo_root_str = str(REPO_ROOT)
     old_pythonpath = env.get("PYTHONPATH", "")
     if old_pythonpath:
@@ -852,11 +941,12 @@ def run_agent(agent_name: str, benchmark_name: str, config: dict[str, Any], args
             if proc.stdout:
                 for line in iter(proc.stdout.readline, ""):
                     if line:
+                        display_line = _clarify_agent_stdout_line(line.rstrip("\n"))
                         # Prefix each output line with task id when concurrent.
                         if concurrency > 1:
-                            logger.info("[%s] %s", current_task_id, line.rstrip("\n"))
+                            logger.info("[%s] %s", current_task_id, display_line)
                         else:
-                            logger.info(line.rstrip("\n"))
+                            logger.info(display_line)
 
             returncode = proc.wait()
 
@@ -961,6 +1051,7 @@ def run_agent(agent_name: str, benchmark_name: str, config: dict[str, Any], args
                     "benchmark": benchmark_name,
                     "split": args.split,
                     "model_id": model_id,
+                    "machine_id": machine_identity.get("machine_id"),
                     "timestamp": timestamp,
                     "model_name_override": getattr(args, "model_name", None),
                     "browser_id_override": getattr(args, "browser_id", None),
@@ -972,6 +1063,7 @@ def run_agent(agent_name: str, benchmark_name: str, config: dict[str, Any], args
                     "concurrency": getattr(args, "concurrency", None),
                     "agent_config_path": str(getattr(args, "agent_config", None) or ""),
                 },
+                machine_identity=machine_identity,
             )
         except (OSError, KeyError, AttributeError, TypeError) as exc:
             logger.warning("Failed to finalize run manifest: %s", exc)
