@@ -830,6 +830,15 @@ class OpenClawAgent(CLIAgent):
             answer = "\n".join(
                 str(p.get("text", "")) for p in payloads if isinstance(p, dict) and p.get("text")
             ).strip()
+        if result_obj and not answer and returncode in (0, None) and execution_error is None:
+            # Aborted runs can emit the --json payload with text="" while the
+            # real final answer only exists in the session JSONL. Recover it
+            # only for clean exits: on failed runs the "[Task Failed: ...]"
+            # sentinel must survive, and a recovered answer must never flip
+            # has_result for a crashed CLI.
+            recovered = self._session_result(task_workspace, session_id)
+            if recovered:
+                answer = str(recovered["payloads"][0].get("text") or "")
 
         if execution_error and "Timeout" in execution_error:
             logger.error("OpenClaw task %s timed out", task_id)
@@ -845,7 +854,7 @@ class OpenClawAgent(CLIAgent):
         if env_status == "failed" and not answer:
             answer = f"[Task Failed: {error_message or 'No result JSON from OpenClaw'}]"
 
-        items = self._session_items(result_obj, task_workspace)
+        items = self._session_items(result_obj, task_workspace, session_id)
         # Must run before write_api_logs: it pops inline base64 blobs off the
         # items so they never reach the api_logs artifacts.
         saved_screenshots = _collect_media_screenshots(items, trajectory_dir)
@@ -885,7 +894,9 @@ class OpenClawAgent(CLIAgent):
             model_id=model,
             agent_metadata=agent_metadata,
             metrics=AgentMetrics(
-                end_to_end_ms=duration_ms, steps=steps, usage=self._usage_from(result_obj)
+                end_to_end_ms=duration_ms,
+                steps=steps,
+                usage=self._usage_from(result_obj, task_workspace, session_id),
             ),
         )
 
@@ -969,19 +980,42 @@ class OpenClawAgent(CLIAgent):
         return Path(str(session_file)) if session_file else None
 
     @staticmethod
-    def _session_items(result_obj: dict[str, Any], task_workspace: Path) -> list[dict[str, Any]]:
-        session_file = OpenClawAgent._session_file_from(result_obj)
-        if session_file is not None:
-            return _normalize_session_items(session_file)
-        agent_meta = OpenClawAgent._agent_meta(result_obj)
-        session_id = agent_meta.get("sessionId") if agent_meta else None
-        if not session_id:
-            return []
-        return _normalize_session_items(_session_file_path(task_workspace, str(session_id)))
+    def _resolve_session_file(
+        result_obj: dict[str, Any], task_workspace: Path, session_id: str
+    ) -> Path | None:
+        """Locate the session JSONL for a result.
+
+        Prefer the paths the CLI attested in agentMeta, then fall back to the
+        deterministic per-task layout (timed-out runs killed mid tool-loop
+        leave no result_obj at all). Candidates that do not exist on disk are
+        skipped rather than short-circuiting the fallback chain.
+        """
+        agent_meta = OpenClawAgent._agent_meta(result_obj) or {}
+        candidates: list[Path] = []
+        if agent_meta.get("sessionFile"):
+            candidates.append(Path(str(agent_meta["sessionFile"])))
+        if agent_meta.get("sessionId"):
+            candidates.append(_session_file_path(task_workspace, str(agent_meta["sessionId"])))
+        if session_id:
+            candidates.append(_session_file_path(task_workspace, session_id))
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate
+        return None
 
     @staticmethod
-    def _usage_from(result_obj: dict[str, Any]) -> AgentUsage | None:
-        totals = _collect_session_usage(OpenClawAgent._session_file_from(result_obj))
+    def _session_items(
+        result_obj: dict[str, Any], task_workspace: Path, session_id: str
+    ) -> list[dict[str, Any]]:
+        session_file = OpenClawAgent._resolve_session_file(result_obj, task_workspace, session_id)
+        return _normalize_session_items(session_file) if session_file else []
+
+    @staticmethod
+    def _usage_from(
+        result_obj: dict[str, Any], task_workspace: Path, session_id: str
+    ) -> AgentUsage | None:
+        session_file = OpenClawAgent._resolve_session_file(result_obj, task_workspace, session_id)
+        totals = _collect_session_usage(session_file)
         last_call: Any = None
         if not totals["entries"]:
             # lastCallUsage covers only the final LLM call; use it only when
