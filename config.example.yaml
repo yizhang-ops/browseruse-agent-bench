@@ -281,12 +281,28 @@ agents:
     browser_control: hybrid
     timeout: 300
     max_turns: 50
+# Site-skills prompt injection (agent-agnostic). When enabled, `bubench run`
+# matches each task's declared target site against the per-site skill library
+# and appends the matched markdown files to the task prompt. Override per run
+# with `--site-skills on|off`. Matching mirrors browser-harness domain-skills
+# (hostname / dotted suffix / single label, `.-_` ignored, `hosts` aliases).
+site_skills:
+  enabled: false
+  # Skill library root; relative paths resolve against the repo root. The
+  # default is the vendored, versioned copy (see its VERSION.md) so runs
+  # depend on a static skill snapshot rather than a live external checkout.
+  dir: browseruse_bench/agents/site_skills/domain-skills
+  # Budget for the injected section per task, in characters.
+  max_chars: 30000
+  # Cap on matched skill files injected per task.
+  max_files: 10
 eval:
   model: gpt-5.4
   api_key: $OPENAI_API_KEY
   base_url: $OPENAI_BASE_URL
   temperature: 1.0
   max_tries: 5
+  # Max images per judge request; 0 = text-only judge (LexBench eval omits screenshots).
   api_max_images: 50
   detail: high
   max_tokens: 4096
