@@ -44,9 +44,9 @@ Together they make external results easy to run, compare, cite, and submit back.
 - [x] **BrowseComp** — Open-web short-answer QA tasks, no login required
   - `All` (1266)
 - [x] **LiveBrowseComp** — Live open-web short-answer QA tasks
-  - `Sample` (local smoke sample) / `All` (via Hugging Face; no repo-local full task file)
+  - `Sample` (local smoke sample) / `All` (local encrypted full split; Hugging Face source available)
 - [x] **BrowseComp-ZH** — Chinese open-web short-answer QA tasks
-  - `Sample` (local smoke sample) / `All` (via GitHub encrypted xlsx conversion; no repo-local full task file)
+  - `Sample` (local smoke sample) / `All` (local encrypted full split; GitHub encrypted xlsx source available)
 - [ ] More benchmarks
 
 > Details: [Benchmarks overview](https://docs.bubench.lexmount.io/en/benchmarks/overview).
@@ -248,8 +248,9 @@ Use `--data-source` to control where benchmark data is loaded from:
 | `github` | Downloads configured GitHub source files to `.cache/datasets/`, converting official source formats when needed | `--data-source github` |
 | `huggingface` + `--force-download` | Forces re-download, refreshes HF cache | `--data-source huggingface --force-download` |
 
-`LiveBrowseComp` stores only a local `Sample`; run the full `All` split with `--data-source huggingface`.
-`BrowseComp-ZH` stores only a local encrypted `Sample`; run the full `All` split with `--data-source github` so the official encrypted xlsx is downloaded and converted in cache.
+`LiveBrowseComp` and `BrowseComp-ZH` store local encrypted `All` splits in
+`task.jsonl`, matching `BrowseComp`: run/eval decrypts questions and reference
+answers at runtime, while plaintext full answers are not committed.
 
 > **Speed up in China**: Set `HF_ENDPOINT=https://hf-mirror.com` in `.env`.
 > **Private datasets**: Set `HF_TOKEN=hf_your_token_here` in `.env`.

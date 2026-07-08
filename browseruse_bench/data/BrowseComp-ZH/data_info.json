@@ -1,5 +1,5 @@
 {
-    "default_split": "Sample",
+    "default_split": "All",
     "split": {
         "Sample": "task_sample.jsonl",
         "All": "task.jsonl"
@@ -31,14 +31,15 @@
     },
     "browsecomp_family": {
         "official_total": 289,
-        "encrypted": "official_all_xlsx",
-        "decrypted_json_fields": [
+        "encrypted": true,
+        "repo_local_full_split": "task.jsonl",
+        "encrypted_json_fields": [
             "Topic",
             "Question",
             "Answer",
             "canary"
         ],
-        "decrypt_columns": [
+        "runtime_decrypt_columns": [
             "Topic",
             "Question",
             "Answer"
@@ -57,10 +58,10 @@
         "BrowseComp-ZH": {
             "total_tasks": 289,
             "description": "Chinese open-web short-answer QA benchmark with official encrypted xlsx source.",
-            "default_run_data_source": "github",
-            "full_split_policy": "All is loaded from GitHub encrypted xlsx and converted in cache; decrypted full answers are not committed as a repo-local full task file.",
+            "default_run_data_source": "local",
+            "full_split_policy": "All is stored as repo-local encrypted task.jsonl converted from the official encrypted xlsx; plaintext full questions and answers are decrypted only at run/eval time and are not committed.",
             "local_sample_tasks": 1,
-            "last_verified": "2026-07-07"
+            "last_verified": "2026-07-08"
         }
     }
 }

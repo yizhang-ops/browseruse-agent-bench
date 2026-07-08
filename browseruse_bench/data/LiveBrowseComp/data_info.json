@@ -1,8 +1,8 @@
 {
-    "default_split": "Sample",
+    "default_split": "All",
     "split": {
         "Sample": "task_sample.jsonl",
-        "All": "LiveBrowseComp.jsonl"
+        "All": "task.jsonl"
     },
     "source": {
         "paper": "https://arxiv.org/abs/2605.28721",
@@ -35,10 +35,10 @@
         "LiveBrowseComp": {
             "total_tasks": 335,
             "description": "Live open-web short-answer QA benchmark with BrowseComp-style encrypted question/answer fields.",
-            "default_run_data_source": "huggingface",
-            "full_split_policy": "All is loaded from Hugging Face and is not committed as a repo-local full task file.",
+            "default_run_data_source": "local",
+            "full_split_policy": "All is stored as repo-local encrypted task.jsonl converted from Hugging Face; plaintext full questions and answers are decrypted only at run/eval time and are not committed.",
             "local_sample_tasks": 1,
-            "last_verified": "2026-07-07"
+            "last_verified": "2026-07-08"
         }
     }
 }

@@ -5,8 +5,6 @@ import base64
 import json
 from datetime import UTC, datetime
 
-import pytest
-
 import browseruse_bench.utils.data_loader as data_loader_module
 from browseruse_bench.eval.base import EvaluatorArgs
 from browseruse_bench.utils.browsecomp_core import derive_key
@@ -161,19 +159,22 @@ def test_browsecomp_zh_sample_decrypts_and_uses_zh_region():
     assert "Use only" not in tasks[0]["prompt"]
 
 
-def test_browsecomp_zh_official_excel_converter_decrypts_to_jsonl(monkeypatch, tmp_path):
+def test_browsecomp_zh_official_excel_converter_preserves_encrypted_jsonl(monkeypatch, tmp_path):
     import browseruse_bench.utils.data_loader as data_loader_module
 
     canary = "BrowseComp-ZH"
+    encrypted_topic = _encrypt_browsecomp_value("体育", canary)
+    encrypted_question = _encrypt_browsecomp_value("问题？", canary)
+    encrypted_answer = _encrypt_browsecomp_value("答案", canary)
     excel_path = tmp_path / "browsecomp-zh-encrypted.xlsx"
     jsonl_path = tmp_path / "task.jsonl"
     excel_path.touch()
     df = data_loader_module.pd.DataFrame(
         [
             {
-                "Topic": _encrypt_browsecomp_value("体育", canary),
-                "Question": _encrypt_browsecomp_value("问题？", canary),
-                "Answer": _encrypt_browsecomp_value("答案", canary),
+                "Topic": encrypted_topic,
+                "Question": encrypted_question,
+                "Answer": encrypted_answer,
                 "canary": canary,
             }
         ]
@@ -183,12 +184,23 @@ def test_browsecomp_zh_official_excel_converter_decrypts_to_jsonl(monkeypatch, t
     assert data_loader_module._convert_browsecomp_zh_excel_to_jsonl(excel_path, jsonl_path) is True
 
     row = json.loads(jsonl_path.read_text(encoding="utf-8").strip())
-    assert row["Topic"] == "体育"
-    assert row["Question"] == "问题？"
-    assert row["Answer"] == "答案"
+    assert row["Topic"] == encrypted_topic
+    assert row["Question"] == encrypted_question
+    assert row["Answer"] == encrypted_answer
     assert row["canary"] == canary
-    assert row["encrypted"] is False
+    assert row["encrypted"] is True
     assert row["website_region"] == "zh"
+
+    from browseruse_bench.utils.browsecomp_core import (
+        get_browsecomp_family_config,
+        normalize_browsecomp_family_record,
+    )
+
+    config = get_browsecomp_family_config("BrowseComp-ZH")
+    assert config is not None
+    task = normalize_browsecomp_family_record(row, config, index=0)
+    assert task["task_text"] == "问题？"
+    assert task["correct_answer"] == "答案"
 
 
 def test_browsecomp_zh_github_source_converts_official_sample_json(monkeypatch, tmp_path):
@@ -244,55 +256,40 @@ def test_browsecomp_zh_github_source_converts_official_sample_json(monkeypatch, 
     assert rows[0]["website_region"] == "zh"
 
 
-def test_livebrowsecomp_local_all_missing_points_to_huggingface(tmp_path):
-    data_info = {
-        "huggingface": {
-            "repo_id": "Forival/LiveBrowseComp",
-            "splits": {"All": {"filename": "LiveBrowseComp.jsonl"}},
-        }
-    }
+def test_livebrowsecomp_local_all_is_repo_local_encrypted_full_split():
+    from browseruse_bench.utils import REPO_ROOT, load_tasks_with_benchmark_support
 
-    with pytest.raises(SystemExit) as exc_info:
-        load_dataset_file(
-            local_path=tmp_path / "LiveBrowseComp.jsonl",
-            data_info=data_info,
-            data_source=DataSource.LOCAL,
-            split="All",
-            benchmark_name="LiveBrowseComp",
-        )
+    path = REPO_ROOT / "browseruse_bench/data/LiveBrowseComp/task.jsonl"
+    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
 
-    message = str(exc_info.value)
-    assert "Local file not found" in message
-    assert "--data-source huggingface" in message
-    assert "--data-source github" not in message
+    assert len(rows) == 335
+    assert rows[0]["encrypted"] is True
+    assert "correct_answer" not in rows[0]
+    assert rows[0]["problem"] != "In the television industry, what was the name of the magazine published by Cecil Madden?"
+
+    tasks = load_tasks_with_benchmark_support(path)
+    assert len(tasks) == 335
+    assert tasks[0]["task_text"].startswith("In the television industry")
+    assert tasks[0]["correct_answer"] == "Time Flies"
+    assert tasks[0]["website_region"] == "en"
 
 
-def test_browsecomp_zh_local_all_missing_points_to_github(tmp_path):
-    data_info = {
-        "github": {
-            "splits": {
-                "All": {
-                    "url": "https://raw.githubusercontent.com/PALIN2018/BrowseComp-ZH/main/data/browsecomp-zh-encrypted.xlsx",
-                    "filename": "browsecomp-zh-encrypted.xlsx",
-                    "format": "encrypted_xlsx",
-                }
-            }
-        }
-    }
+def test_browsecomp_zh_local_all_is_repo_local_encrypted_full_split():
+    from browseruse_bench.utils import REPO_ROOT, load_tasks_with_benchmark_support
 
-    with pytest.raises(SystemExit) as exc_info:
-        load_dataset_file(
-            local_path=tmp_path / "task.jsonl",
-            data_info=data_info,
-            data_source=DataSource.LOCAL,
-            split="All",
-            benchmark_name="BrowseComp-ZH",
-        )
+    path = REPO_ROOT / "browseruse_bench/data/BrowseComp-ZH/task.jsonl"
+    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
 
-    message = str(exc_info.value)
-    assert "Local file not found" in message
-    assert "--data-source github" in message
-    assert "--data-source huggingface" not in message
+    assert len(rows) == 289
+    assert rows[0]["encrypted"] is True
+    assert "correct_answer" not in rows[0]
+    assert "葡萄酒产区" not in rows[0]["Question"]
+
+    tasks = load_tasks_with_benchmark_support(path)
+    assert len(tasks) == 289
+    assert "葡萄酒产区" in tasks[0]["task_text"]
+    assert tasks[0]["correct_answer"] == "1轮"
+    assert tasks[0]["website_region"] == "zh"
 
 
 def test_livebrowsecomp_evaluator_loads_sample_and_grades_with_official_style(monkeypatch, tmp_path):

@@ -72,11 +72,25 @@ class TestBenchmarkLoading:
         tasks = load_task_file(tasks_file)
         assert len(tasks) == 1
 
+    def test_livebrowsecomp_all_tasks_exist(self):
+        """Test LiveBrowseComp full encrypted task file exists locally."""
+        tasks_file = _resolve_tasks_file("LiveBrowseComp", "All")
+        tasks = load_task_file(tasks_file)
+        assert len(tasks) == 335
+        assert tasks[0]["encrypted"] is True
+
     def test_browsecomp_zh_sample_tasks_exist(self):
         """Test BrowseComp-ZH sample task file exists and is valid JSONL."""
         tasks_file = _resolve_tasks_file("BrowseComp-ZH", "Sample")
         tasks = load_task_file(tasks_file)
         assert len(tasks) == 1
+
+    def test_browsecomp_zh_all_tasks_exist(self):
+        """Test BrowseComp-ZH full encrypted task file exists locally."""
+        tasks_file = _resolve_tasks_file("BrowseComp-ZH", "All")
+        tasks = load_task_file(tasks_file)
+        assert len(tasks) == 289
+        assert tasks[0]["encrypted"] is True
 
     def test_odysseys_tasks_exist(self):
         """Test Odysseys tasks file exists and is valid JSONL."""

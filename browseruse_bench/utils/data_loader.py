@@ -315,11 +315,11 @@ def _convert_json_array_to_jsonl(json_path: Path, jsonl_path: Path) -> bool:
 
 
 def _convert_browsecomp_zh_excel_to_jsonl(excel_path: Path, jsonl_path: Path) -> bool:
-    """Convert the official BrowseComp-ZH encrypted Excel file to JSONL.
+    """Convert the official BrowseComp-ZH encrypted Excel file to encrypted JSONL.
 
-    The official repository decrypts Topic, Question, and Answer with the row's
-    canary token before writing JSON. We mirror that contract and mark rows as
-    decrypted so the benchmark normalizer does not decrypt them a second time.
+    The repo-local task contract mirrors BrowseComp: commit encrypted questions
+    and answers, then decrypt only at run/eval time. We decrypt transiently here
+    only to validate that each encrypted cell is readable with its canary.
     """
     if pd is None:
         logger.error("[ERROR] pandas is not installed. Install it with: pip install pandas")
@@ -355,11 +355,11 @@ def _convert_browsecomp_zh_excel_to_jsonl(excel_path: Path, jsonl_path: Path) ->
             task_obj = dict(row)
             decrypt_failed = False
             for column in ("Topic", "Question", "Answer"):
-                value = task_obj.get(column)
+                value = row.get(column)
                 if value is None or str(value).strip() == "":
                     continue
                 try:
-                    task_obj[column] = decrypt(str(value), canary)
+                    decrypt(str(value), canary)
                 except (UnicodeDecodeError, ValueError, TypeError, OSError) as exc:
                     logger.warning(
                         "[WARNING] Failed to decrypt BrowseComp-ZH row %d column %s: %s",
@@ -373,7 +373,7 @@ def _convert_browsecomp_zh_excel_to_jsonl(excel_path: Path, jsonl_path: Path) ->
                 continue
 
             task_obj.setdefault("task_id", f"browsecomp_zh_{index:03d}")
-            task_obj["encrypted"] = False
+            task_obj["encrypted"] = True
             task_obj.setdefault("website_region", "zh")
             fh.write(json.dumps(task_obj, ensure_ascii=False) + "\n")
             written += 1
@@ -517,11 +517,10 @@ def _load_dataset_file_from_github(
 
     file_format = str(github_config.get("format") or downloaded_path.suffix.lstrip(".")).lower()
     jsonl_path = _cached_remote_path(local_path, benchmark_name, split, local_path.name)
-    if jsonl_path.exists() and not force_download:
-        logger.info("[INFO] Using cached converted dataset: %s", jsonl_path)
-        return jsonl_path
-
     if file_format in {"json", "json_array"}:
+        if jsonl_path.exists() and not force_download:
+            logger.info("[INFO] Using cached converted dataset: %s", jsonl_path)
+            return jsonl_path
         if not _convert_json_array_to_jsonl(downloaded_path, jsonl_path):
             raise SystemExit("[ERROR] Failed to convert GitHub JSON dataset to JSONL")
         return jsonl_path
