@@ -30,6 +30,7 @@ from browser_use.browser import session as browser_use_session_module
 from browser_use.browser.profile import ProxySettings as BrowserUseProxySettings
 from browser_use.llm.exceptions import ModelError as BrowserUseModelError
 from browser_use.llm.schema import SchemaOptimizer
+from browser_use.tools.service import Tools as BrowserUseSDKTools
 from pydantic import BaseModel as _PydanticBaseModel
 
 from browseruse_bench.agents.base import BaseAgent
@@ -44,6 +45,7 @@ ChatAnthropic: type[Any] = BrowserUseSDKChatAnthropic
 ChatGoogle: type[Any] = BrowserUseSDKChatGoogle
 ChatAzureOpenAI: type[Any] = BrowserUseSDKChatAzureOpenAI
 ChatOpenAI: type[Any] = BrowserUseSDKChatOpenAI
+Tools: type[Any] = BrowserUseSDKTools
 
 logger = logging.getLogger(__name__)
 
@@ -349,6 +351,82 @@ def _get_config_value(agent_config: dict[str, Any], *keys: str, default: Any = N
     return default
 
 
+def _get_configured_value(agent_config: dict[str, Any], *keys: str) -> tuple[bool, Any]:
+    for key in keys:
+        if key in agent_config:
+            return True, agent_config[key]
+    return False, None
+
+
+def _coerce_action_names(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        raw_items = value.split(",")
+    elif isinstance(value, (list, tuple, set)):
+        raw_items = list(value)
+    else:
+        logger.warning("Ignoring invalid browser-use exclude actions value: %r", value)
+        return []
+
+    actions: list[str] = []
+    for item in raw_items:
+        if item is None:
+            continue
+        action = str(item).strip()
+        if action:
+            actions.append(action)
+    return actions
+
+
+def _dedupe_preserving_order(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for item in items:
+        if item in seen:
+            continue
+        seen.add(item)
+        result.append(item)
+    return result
+
+
+def _should_disable_builtin_search(task_info: dict[str, Any]) -> bool:
+    """Return whether browser-use's SDK search action is a poor fit for this task."""
+    return (
+        task_info.get("benchmark_family") == "browsecomp"
+        and task_info.get("website_region") == "zh"
+    )
+
+
+def _resolve_browser_use_exclude_actions(
+    task_info: dict[str, Any],
+    agent_config: dict[str, Any],
+    use_vision: Any,
+) -> list[str] | None:
+    """Build a Tools(exclude_actions=...) list, or None to use SDK defaults.
+
+    browser-use's SDK default Tools exclude ``screenshot`` when ``use_vision`` is
+    not ``"auto"``. If this adapter creates Tools for benchmark-specific reasons,
+    it must preserve that default.
+    """
+    sdk_default_actions = ["screenshot"] if use_vision != "auto" else []
+    has_configured_actions, configured_value = _get_configured_value(
+        agent_config,
+        "browser_use_exclude_actions",
+        "BROWSER_USE_EXCLUDE_ACTIONS",
+    )
+
+    if has_configured_actions:
+        configured_actions = _coerce_action_names(configured_value)
+        actions = _dedupe_preserving_order(sdk_default_actions + configured_actions)
+        return actions if actions != sdk_default_actions else None
+
+    if _should_disable_builtin_search(task_info):
+        return _dedupe_preserving_order(sdk_default_actions + ["search"])
+
+    return None
+
+
 @contextmanager
 def _browser_use_cdp_connect_timeout(timeout_seconds: float) -> Iterator[None]:
     """Override browser-use SDK's hard-coded 15s CDP connect guard."""
@@ -562,6 +640,13 @@ class BrowserUseAgent(BaseAgent):
             "max_steps": max_steps,
             "save_api_logs": save_api_logs,
         }
+        exclude_actions = _resolve_browser_use_exclude_actions(
+            task_info=task_info,
+            agent_config=agent_config,
+            use_vision=use_vision,
+        )
+        if exclude_actions:
+            config_info["browser_use_exclude_actions"] = exclude_actions
 
         # Initialize LLM based on model type, this is a BU specific implementation, and different
         # models have different SDK preferences for utilizing the inference feature in agent scene.
@@ -578,15 +663,23 @@ class BrowserUseAgent(BaseAgent):
         error_msg = None
 
         try:
-            agent = Agent(
-                browser=browser,
-                task=task_prompt,
-                llm=llm,
-                calculate_cost=True,
-                flash_mode=flash_mode,
-                use_vision=use_vision,
-                use_judge=_get_config_value(agent_config, "use_judge", "USE_JUDGE", default=False),
-            )
+            agent_kwargs = {
+                "browser": browser,
+                "task": task_prompt,
+                "llm": llm,
+                "calculate_cost": True,
+                "flash_mode": flash_mode,
+                "use_vision": use_vision,
+                "use_judge": _get_config_value(
+                    agent_config,
+                    "use_judge",
+                    "USE_JUDGE",
+                    default=False,
+                ),
+            }
+            if exclude_actions:
+                agent_kwargs["tools"] = Tools(exclude_actions=exclude_actions)
+            agent = Agent(**agent_kwargs)
             _patch_agent_output_json_parsers(agent)
 
             history = await asyncio.wait_for(agent.run(max_steps=max_steps), timeout=timeout)

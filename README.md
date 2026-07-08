@@ -41,8 +41,12 @@ Together they make external results easy to run, compare, cite, and submit back.
   - Hugging Face: [Lexmount/LexBench-Browser](https://huggingface.co/datasets/Lexmount/LexBench-Browser)
 - [x] **Online-Mind2Web** — Real website interaction tasks
   - `All` (300) / `Hard` (hard subset)
-- [x] **BrowseComp** — Browser operation competition tasks, no login required
+- [x] **BrowseComp** — Open-web short-answer QA tasks, no login required
   - `All` (1266)
+- [x] **LiveBrowseComp** — Live open-web short-answer QA tasks
+  - `Sample` (local smoke sample) / `All` (via Hugging Face; no repo-local full task file)
+- [x] **BrowseComp-ZH** — Chinese open-web short-answer QA tasks
+  - `Sample` (local smoke sample) / `All` (via GitHub encrypted xlsx conversion; no repo-local full task file)
 - [ ] More benchmarks
 
 > Details: [Benchmarks overview](https://docs.bubench.lexmount.io/en/benchmarks/overview).
@@ -239,9 +243,13 @@ Use `--data-source` to control where benchmark data is loaded from:
 
 | Mode | Description | Example |
 |------|-------------|---------|
-| `local` (default) | Uses local files under `benchmarks/{benchmark}/data/`, errors if missing | `--data-source local` |
+| `local` (default) | Uses local files under `browseruse_bench/data/{benchmark}/`, errors if missing | `--data-source local` |
 | `huggingface` | Downloads to HF cache (`~/.cache/huggingface`), does not write back to repo | `--data-source huggingface` |
+| `github` | Downloads configured GitHub source files to `.cache/datasets/`, converting official source formats when needed | `--data-source github` |
 | `huggingface` + `--force-download` | Forces re-download, refreshes HF cache | `--data-source huggingface --force-download` |
+
+`LiveBrowseComp` stores only a local `Sample`; run the full `All` split with `--data-source huggingface`.
+`BrowseComp-ZH` stores only a local encrypted `Sample`; run the full `All` split with `--data-source github` so the official encrypted xlsx is downloaded and converted in cache.
 
 > **Speed up in China**: Set `HF_ENDPOINT=https://hf-mirror.com` in `.env`.
 > **Private datasets**: Set `HF_TOKEN=hf_your_token_here` in `.env`.

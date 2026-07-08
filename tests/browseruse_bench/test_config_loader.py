@@ -208,10 +208,10 @@ def test_resolve_agent_inline_config_no_passthrough_for_provider_agents() -> Non
 def test_resolve_agent_inline_config_uses_explicit_model_override(tmp_path: Path) -> None:
     config = load_config_file(_write_runtime_root_config(tmp_path))
 
-    inline = resolve_agent_inline_config("browser-use", config, "qwen-plus")
+    inline = resolve_agent_inline_config("browser-use", config, "qwen3.7-max")
 
     assert inline is not None
-    assert inline.get("model_id") == "qwen3.5-plus"
+    assert inline.get("model_id") == "qwen3.7-max"
     assert inline.get("browser_id") == "lexmount"
 
 
@@ -329,6 +329,8 @@ class TestCaseInsensitiveNormalization:
     def test_normalize_benchmark_name_matches_directory(self) -> None:
         assert normalize_benchmark_name("lexbench-browser") == "LexBench-Browser"
         assert normalize_benchmark_name("ONLINE-MIND2WEB") == "Online-Mind2Web"
+        assert normalize_benchmark_name("livebrowsecomp") == "LiveBrowseComp"
+        assert normalize_benchmark_name("browsecomp-zh") == "BrowseComp-ZH"
         assert normalize_benchmark_name("LexBench-Browser") == "LexBench-Browser"
 
     def test_normalize_benchmark_name_unknown_passthrough(self) -> None:
@@ -365,6 +367,15 @@ class TestCaseInsensitiveNormalization:
     def test_normalize_agent_name_unknown_passthrough(self) -> None:
         assert normalize_agent_name("no-such-agent", {"agents": {}}) == "no-such-agent"
         assert normalize_agent_name("no-such-agent", {}) == "no-such-agent"
+
+    def test_agent_registry_supports_browsecomp_family(self) -> None:
+        registry = yaml.safe_load(
+            (REPO_ROOT / "configs/agent_registry.yaml").read_text(encoding="utf-8")
+        )
+        for agent_name, entry in registry.items():
+            supported = set(entry.get("supported_benchmarks", []))
+            assert "LiveBrowseComp" in supported, agent_name
+            assert "BrowseComp-ZH" in supported, agent_name
 
     def test_normalize_split_name_matches_split_key(self) -> None:
         data_info = {"split": {"All": "tasks.json", "L1": "l1.json"}}

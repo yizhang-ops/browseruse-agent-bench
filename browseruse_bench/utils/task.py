@@ -9,7 +9,11 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
-from browseruse_bench.utils.browsecomp_core import QUERY_TEMPLATE, decrypt
+from browseruse_bench.utils.browsecomp_core import (
+    get_browsecomp_family_config,
+    identify_browsecomp_family,
+    normalize_browsecomp_family_record,
+)
 from browseruse_bench.utils.json_io import load_task_file
 
 logger = logging.getLogger(__name__)
@@ -76,34 +80,29 @@ def resolve_default_task_url(default_url: Optional[str] = None) -> str:
 
 
 def is_browsecomp_benchmark(tasks_json_path: Path) -> bool:
-    """Check if this is BrowseComp benchmark"""
-    return 'BrowseComp' in str(tasks_json_path)
+    """Check if this is a BrowseComp-style benchmark."""
+    return identify_browsecomp_family(str(tasks_json_path)) is not None
 
 
 def _load_browsecomp_tasks(tasks_json_path: Path, default_url: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Load BrowseComp tasks and decrypt for agents"""
-    # Ensure tasks_json_path is a Path object
+    """Load BrowseComp-style tasks and decrypt/format them for agents."""
     if isinstance(tasks_json_path, str):
         tasks_json_path = Path(tasks_json_path)
 
-    # Load tasks using unified loader
+    benchmark = identify_browsecomp_family(str(tasks_json_path)) or "BrowseComp"
+    config = get_browsecomp_family_config(benchmark)
+    if config is None:
+        raise ValueError(f"Unsupported BrowseComp-style benchmark: {benchmark}")
+
     task_list = load_task_file(tasks_json_path)
-    default_task_url = resolve_default_task_url(default_url)
 
     tasks = []
-    for task_data in task_list:
-        question = decrypt(task_data["encrypted_question"], task_data["canary"])
-        prompt = QUERY_TEMPLATE.format(Question=question)
-
-        tasks.append({
-            "task_id": task_data["task_id"],
-            "task_text": question,
-            "url": default_task_url,
-            "prompt": prompt,
-            "encrypted_question": task_data["encrypted_question"],
-            "encrypted_answer": task_data["encrypted_answer"],
-            "canary": task_data["canary"],
-        })
+    for index, task_data in enumerate(task_list):
+        normalized = normalize_browsecomp_family_record(task_data, config, index=index)
+        if default_url:
+            normalized["url"] = resolve_default_task_url(default_url)
+            normalized["urls"] = [normalized["url"]]
+        tasks.append(normalized)
     return tasks
 
 
@@ -128,7 +127,8 @@ def load_tasks_with_benchmark_support(
         List of task dictionaries
     """
     if is_browsecomp_benchmark(tasks_json_path):
-        logger.info("[INFO] BrowseComp benchmark detected")
+        benchmark = identify_browsecomp_family(str(tasks_json_path)) or "BrowseComp"
+        logger.info("[INFO] %s benchmark detected", benchmark)
         return _load_browsecomp_tasks(tasks_json_path, default_url=default_url)
     else:
         return load_tasks(

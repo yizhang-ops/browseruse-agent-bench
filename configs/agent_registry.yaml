@@ -5,6 +5,8 @@ browser-use:
   supported_benchmarks:
     - Online-Mind2Web
     - BrowseComp
+    - LiveBrowseComp
+    - BrowseComp-ZH
     - LexBench-Browser
     - LexBench-Browser2.0
     - WebVoyager
@@ -17,6 +19,8 @@ skyvern:
   supported_benchmarks:
     - Online-Mind2Web
     - BrowseComp
+    - LiveBrowseComp
+    - BrowseComp-ZH
     - LexBench-Browser
     - WebVoyager
     - Odysseys
@@ -28,6 +32,8 @@ Agent-TARS:
   supported_benchmarks:
     - Online-Mind2Web
     - BrowseComp
+    - LiveBrowseComp
+    - BrowseComp-ZH
     - LexBench-Browser
     - WebVoyager
     - Odysseys
@@ -39,6 +45,8 @@ claude-code:
   supported_benchmarks:
     - Online-Mind2Web
     - BrowseComp
+    - LiveBrowseComp
+    - BrowseComp-ZH
     - LexBench-Browser
     - WebVoyager
     - Odysseys
@@ -50,6 +58,8 @@ codex:
   supported_benchmarks:
     - Online-Mind2Web
     - BrowseComp
+    - LiveBrowseComp
+    - BrowseComp-ZH
     - LexBench-Browser
     - WebVoyager
     - Odysseys
@@ -61,6 +71,8 @@ cursor:
   supported_benchmarks:
     - Online-Mind2Web
     - BrowseComp
+    - LiveBrowseComp
+    - BrowseComp-ZH
     - LexBench-Browser
     - WebVoyager
     - Odysseys
@@ -72,6 +84,8 @@ openclaw:
   supported_benchmarks:
     - Online-Mind2Web
     - BrowseComp
+    - LiveBrowseComp
+    - BrowseComp-ZH
     - LexBench-Browser
     - WebVoyager
     - Odysseys
@@ -88,6 +102,8 @@ deepbrowse:
   supported_benchmarks:
     - Online-Mind2Web
     - BrowseComp
+    - LiveBrowseComp
+    - BrowseComp-ZH
     - LexBench-Browser
     - WebVoyager
     - Odysseys
@@ -99,6 +115,8 @@ openai-cua:
   supported_benchmarks:
     - Online-Mind2Web
     - BrowseComp
+    - LiveBrowseComp
+    - BrowseComp-ZH
     - LexBench-Browser
     - WebVoyager
     - Odysseys
@@ -110,6 +128,8 @@ webwright:
   supported_benchmarks:
     - Online-Mind2Web
     - BrowseComp
+    - LiveBrowseComp
+    - BrowseComp-ZH
     - LexBench-Browser
     - WebVoyager
     - Odysseys

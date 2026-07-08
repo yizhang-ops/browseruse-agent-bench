@@ -40,5 +40,11 @@ def test_unknown_raises():
 def test_builtin_names_registered():
     """Default factories should be bound (calling them may ImportError until subpackages exist)."""
     names = list_evaluators()
-    for n in ("Online-Mind2Web", "BrowseComp", "LexBench-Browser"):
+    for n in (
+        "Online-Mind2Web",
+        "BrowseComp",
+        "LiveBrowseComp",
+        "BrowseComp-ZH",
+        "LexBench-Browser",
+    ):
         assert n in names

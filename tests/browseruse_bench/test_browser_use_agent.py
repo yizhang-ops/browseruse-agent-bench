@@ -311,6 +311,129 @@ def test_enable_claude_thinking_injects_reasoning_params() -> None:
     }
 
 
+def test_resolve_browser_use_exclude_actions_disables_search_for_zh_browsecomp() -> None:
+    actions = browser_use_module._resolve_browser_use_exclude_actions(
+        task_info={
+            "benchmark_family": "browsecomp",
+            "website_region": "zh",
+        },
+        agent_config={},
+        use_vision=False,
+    )
+
+    assert actions == ["screenshot", "search"]
+
+
+def test_resolve_browser_use_exclude_actions_leaves_en_browsecomp_on_sdk_defaults() -> None:
+    actions = browser_use_module._resolve_browser_use_exclude_actions(
+        task_info={
+            "benchmark_family": "browsecomp",
+            "website_region": "en",
+        },
+        agent_config={},
+        use_vision=False,
+    )
+
+    assert actions is None
+
+
+def test_resolve_browser_use_exclude_actions_respects_explicit_empty_override() -> None:
+    actions = browser_use_module._resolve_browser_use_exclude_actions(
+        task_info={
+            "benchmark_family": "browsecomp",
+            "website_region": "zh",
+        },
+        agent_config={"browser_use_exclude_actions": []},
+        use_vision=False,
+    )
+
+    assert actions is None
+
+
+def test_run_task_async_passes_tools_without_builtin_search_for_zh_browsecomp(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    class FakeTools:
+        def __init__(self, exclude_actions: list[str]) -> None:
+            captured["exclude_actions"] = exclude_actions
+
+    class FakeHistory:
+        history: list[Any] = []
+
+        def extracted_content(self) -> list[str]:
+            return ["done"]
+
+        def number_of_steps(self) -> int:
+            return 1
+
+        def screenshots(self) -> list[str]:
+            return []
+
+        def errors(self) -> list[str | None]:
+            return []
+
+        def is_done(self) -> bool:
+            return True
+
+        def final_result(self) -> str:
+            return "Exact Answer: 1轮"
+
+        def is_successful(self) -> bool:
+            return True
+
+    class FakeAgent:
+        def __init__(self, **kwargs: Any) -> None:
+            captured["agent_kwargs"] = kwargs
+            self.history = FakeHistory()
+
+        async def run(self, max_steps: int) -> FakeHistory:
+            assert max_steps == 40
+            return self.history
+
+    class FakeBrowser:
+        async def stop(self) -> None:
+            return None
+
+    monkeypatch.setattr(browser_use_module, "Tools", FakeTools)
+    monkeypatch.setattr(browser_use_module, "Agent", FakeAgent)
+    monkeypatch.setattr(
+        BrowserUseAgent,
+        "_create_browser_instance",
+        staticmethod(lambda session_context: (FakeBrowser(), None)),
+    )
+    monkeypatch.setattr(
+        BrowserUseAgent,
+        "_create_llm",
+        lambda self, model_type, model_id, agent_config, config_info: _StubLLM(),
+    )
+
+    result = asyncio.run(
+        BrowserUseAgent()._run_task_async(
+            task_info={
+                "task_id": "browsecomp-zh",
+                "prompt": "Start at https://www.baidu.com. Answer the question.",
+                "url": "https://www.baidu.com",
+                "benchmark_family": "browsecomp",
+                "website_region": "zh",
+            },
+            task_workspace=tmp_path,
+            timeout=600,
+            flash_mode=False,
+            agent_config={"MODEL_TYPE": "OPENAI", "MODEL_ID": "gpt-test", "SAVE_API_LOGS": False},
+            session_context=BrowserSessionContext(backend_id="Chrome-Local", transport="local"),
+        )
+    )
+
+    assert captured["exclude_actions"] == ["screenshot", "search"]
+    assert isinstance(captured["agent_kwargs"]["tools"], FakeTools)
+    assert result.agent_done.value == "done"
+    assert result.answer == "Exact Answer: 1轮"
+    assert result.config["browser_use_exclude_actions"] == ["screenshot", "search"]
+
+
 def test_create_llm_enables_claude_schema_and_thinking(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

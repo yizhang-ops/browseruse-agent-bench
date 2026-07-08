@@ -5,6 +5,8 @@ import json
 import logging
 import os
 import re
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -28,7 +30,9 @@ try:
 except ImportError:
     pd = None
 
-from browseruse_bench.utils.json_io import load_jsonl, load_task_file
+from browseruse_bench.utils.browsecomp_core import decrypt
+from browseruse_bench.utils.json_io import load_task_file
+from browseruse_bench.utils.repo_root import REPO_ROOT
 
 HF_DOWNLOAD_EXCEPTIONS: Tuple[type[BaseException], ...] = (OSError, ValueError) + tuple(
     exc
@@ -48,10 +52,11 @@ class DataSource:
     """Data source types."""
     LOCAL = "local"
     HUGGINGFACE = "huggingface"
+    GITHUB = "github"
 
     @classmethod
     def tolist(cls) -> List[str]:
-        return [cls.LOCAL, cls.HUGGINGFACE]
+        return [cls.LOCAL, cls.HUGGINGFACE, cls.GITHUB]
 
 
 def _check_hf_token(private: bool) -> Optional[str]:
@@ -145,6 +150,23 @@ def _download_from_huggingface(
     except HF_DOWNLOAD_EXCEPTIONS:
         logger.exception("[ERROR] Failed to download from HuggingFace")
         return None
+
+
+def _download_url_to_path(url: str, destination: Path, force_download: bool = False) -> Optional[Path]:
+    """Download a URL to a local cache path."""
+    if destination.exists() and not force_download:
+        logger.info("[INFO] Using cached download: %s", destination)
+        return destination
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    logger.info("[INFO] Downloading: %s", url)
+    try:
+        urllib.request.urlretrieve(url, destination)
+    except (urllib.error.HTTPError, urllib.error.URLError, OSError, ValueError) as exc:
+        logger.error("[ERROR] Failed to download %s: %s", url, exc)
+        return None
+    logger.info("[SUCCESS] Downloaded to cache: %s", destination)
+    return destination
 
 
 def _extract_first_present(row: Dict[str, Any], keys: Iterable[str]) -> Optional[str]:
@@ -272,6 +294,98 @@ def _convert_browsecomp_parquet_to_jsonl(parquet_path: Path, jsonl_path: Path) -
     return True
 
 
+def _convert_json_array_to_jsonl(json_path: Path, jsonl_path: Path) -> bool:
+    """Convert an official JSON list file to JSONL."""
+    try:
+        records = load_task_file(json_path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        logger.error("[ERROR] Failed to read JSON dataset %s: %s", json_path, exc)
+        return False
+
+    jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+    with jsonl_path.open("w", encoding="utf-8") as fh:
+        for index, record in enumerate(records):
+            row = dict(record)
+            row.setdefault("task_id", f"browsecomp_zh_{index:03d}")
+            row.setdefault("encrypted", False)
+            row.setdefault("website_region", "zh")
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    logger.info("[SUCCESS] Converted JSON dataset to JSONL: %s", jsonl_path)
+    return True
+
+
+def _convert_browsecomp_zh_excel_to_jsonl(excel_path: Path, jsonl_path: Path) -> bool:
+    """Convert the official BrowseComp-ZH encrypted Excel file to JSONL.
+
+    The official repository decrypts Topic, Question, and Answer with the row's
+    canary token before writing JSON. We mirror that contract and mark rows as
+    decrypted so the benchmark normalizer does not decrypt them a second time.
+    """
+    if pd is None:
+        logger.error("[ERROR] pandas is not installed. Install it with: pip install pandas")
+        return False
+
+    if not excel_path.exists():
+        logger.error("[ERROR] BrowseComp-ZH Excel file not found: %s", excel_path)
+        return False
+
+    try:
+        df = pd.read_excel(excel_path)
+    except (OSError, ValueError, TypeError) as exc:
+        logger.error("[ERROR] Failed to read BrowseComp-ZH Excel: %s", exc)
+        return False
+
+    required_columns = {"Topic", "Question", "Answer", "canary"}
+    missing_columns = sorted(required_columns - set(df.columns))
+    if missing_columns:
+        logger.error("[ERROR] BrowseComp-ZH Excel missing columns: %s", ", ".join(missing_columns))
+        return False
+
+    df = df.fillna("")
+    jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+
+    written = 0
+    with jsonl_path.open("w", encoding="utf-8") as fh:
+        for index, row in enumerate(df.to_dict(orient="records")):
+            canary = str(row.get("canary") or "").strip()
+            if not canary:
+                logger.warning("[WARNING] Skipping BrowseComp-ZH row %d without canary", index)
+                continue
+
+            task_obj = dict(row)
+            decrypt_failed = False
+            for column in ("Topic", "Question", "Answer"):
+                value = task_obj.get(column)
+                if value is None or str(value).strip() == "":
+                    continue
+                try:
+                    task_obj[column] = decrypt(str(value), canary)
+                except (UnicodeDecodeError, ValueError, TypeError, OSError) as exc:
+                    logger.warning(
+                        "[WARNING] Failed to decrypt BrowseComp-ZH row %d column %s: %s",
+                        index,
+                        column,
+                        exc,
+                    )
+                    decrypt_failed = True
+                    break
+            if decrypt_failed:
+                continue
+
+            task_obj.setdefault("task_id", f"browsecomp_zh_{index:03d}")
+            task_obj["encrypted"] = False
+            task_obj.setdefault("website_region", "zh")
+            fh.write(json.dumps(task_obj, ensure_ascii=False) + "\n")
+            written += 1
+
+    if written == 0:
+        logger.error("[ERROR] No valid BrowseComp-ZH rows written from Excel")
+        return False
+
+    logger.info("[SUCCESS] Converted BrowseComp-ZH Excel to JSONL: %s", jsonl_path)
+    return True
+
+
 def _resolve_hf_config(hf_config: Dict[str, Any], split: Optional[str] = None, benchmark_name: Optional[str] = None) -> Dict[str, Any]:
     """Resolve HuggingFace config for a specific split.
 
@@ -312,6 +426,119 @@ def _resolve_hf_config(hf_config: Dict[str, Any], split: Optional[str] = None, b
     return base_config
 
 
+def _resolve_remote_split_config(
+    remote_config: Dict[str, Any],
+    split: Optional[str] = None,
+    benchmark_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Resolve a generic remote config with optional benchmark and split maps."""
+    if benchmark_name and benchmark_name in remote_config:
+        remote_config = remote_config[benchmark_name]
+
+    base_config = {k: v for k, v in remote_config.items() if k not in ["splits", "default"]}
+    if "default" in remote_config:
+        base_config.update(remote_config["default"])
+
+    if not split or "splits" not in remote_config:
+        return base_config
+
+    split_config = remote_config["splits"].get(split)
+    if isinstance(split_config, dict):
+        base_config.update(split_config)
+    return base_config
+
+
+def _cached_remote_path(
+    local_path: Path,
+    benchmark_name: Optional[str],
+    split: Optional[str],
+    filename: str,
+) -> Path:
+    benchmark = benchmark_name or local_path.parent.name
+    split_name = split or "default"
+    return REPO_ROOT / ".cache" / "datasets" / benchmark / split_name / filename
+
+
+def _remote_source_hint(
+    data_info: Dict[str, Any],
+    split: Optional[str],
+) -> str:
+    """Return a concise hint for locally-missing files backed by a remote source."""
+    sources: list[str] = []
+    if "browsecomp" in data_info or "huggingface" in data_info:
+        hf_config = data_info.get("huggingface")
+        if not isinstance(hf_config, dict):
+            sources.append(DataSource.HUGGINGFACE)
+        elif not split or "splits" not in hf_config or split in hf_config.get("splits", {}):
+            sources.append(DataSource.HUGGINGFACE)
+
+    github_config = data_info.get("github")
+    if isinstance(github_config, dict):
+        if not split or "splits" not in github_config or split in github_config.get("splits", {}):
+            sources.append(DataSource.GITHUB)
+
+    if not sources:
+        return ""
+
+    commands = ", ".join(f"--data-source {source}" for source in sources)
+    return (
+        "\nThis split is not stored as a repo-local full dataset; it is configured "
+        f"for remote/cache loading. Retry with {commands}."
+    )
+
+
+def _load_dataset_file_from_github(
+    local_path: Path,
+    data_info: Dict[str, Any],
+    force_download: bool = False,
+    split: Optional[str] = None,
+    benchmark_name: Optional[str] = None,
+) -> Path:
+    github_config_raw = data_info.get("github")
+    if not isinstance(github_config_raw, dict):
+        raise SystemExit(
+            "[ERROR] No GitHub config found in data_info.json.\n"
+            "Cannot download without github.splits configuration."
+        )
+
+    github_config = _resolve_remote_split_config(github_config_raw, split, benchmark_name)
+    url = github_config.get("url")
+    if not isinstance(url, str) or not url:
+        raise SystemExit("[ERROR] GitHub config missing URL for requested split")
+
+    filename = github_config.get("filename") or Path(url).name or local_path.name
+    downloaded_path = _download_url_to_path(
+        url=url,
+        destination=_cached_remote_path(local_path, benchmark_name, split, str(filename)),
+        force_download=force_download,
+    )
+    if downloaded_path is None:
+        raise SystemExit("[ERROR] Failed to download GitHub dataset")
+
+    file_format = str(github_config.get("format") or downloaded_path.suffix.lstrip(".")).lower()
+    jsonl_path = _cached_remote_path(local_path, benchmark_name, split, local_path.name)
+    if jsonl_path.exists() and not force_download:
+        logger.info("[INFO] Using cached converted dataset: %s", jsonl_path)
+        return jsonl_path
+
+    if file_format in {"json", "json_array"}:
+        if not _convert_json_array_to_jsonl(downloaded_path, jsonl_path):
+            raise SystemExit("[ERROR] Failed to convert GitHub JSON dataset to JSONL")
+        return jsonl_path
+
+    if file_format in {"encrypted_xlsx", "browsecomp_zh_encrypted_xlsx", "xlsx"}:
+        if benchmark_name != "BrowseComp-ZH" and local_path.parent.name != "BrowseComp-ZH":
+            raise SystemExit("[ERROR] Encrypted xlsx GitHub source is only supported for BrowseComp-ZH")
+        if not _convert_browsecomp_zh_excel_to_jsonl(downloaded_path, jsonl_path):
+            raise SystemExit("[ERROR] Failed to convert BrowseComp-ZH encrypted Excel")
+        return jsonl_path
+
+    if downloaded_path.suffix in {".jsonl", ".json"}:
+        return downloaded_path
+
+    raise SystemExit(f"[ERROR] Unsupported GitHub dataset format: {file_format}")
+
+
 def load_dataset_file(
     local_path: Path,
     data_info: Dict[str, Any],
@@ -340,7 +567,10 @@ def load_dataset_file(
         if force_download:
             logger.warning("[WARNING] --force-download is ignored in local mode")
         if not local_path.exists():
-            raise SystemExit(f"[ERROR] Local file not found: {local_path}")
+            raise SystemExit(
+                f"[ERROR] Local file not found: {local_path}"
+                f"{_remote_source_hint(data_info, split)}"
+            )
         logger.info(f"[INFO] Using local dataset: {local_path}")
         return local_path
 
@@ -396,7 +626,7 @@ def load_dataset_file(
 
         downloaded_path = _download_from_huggingface(
             repo_id=hf_config["repo_id"],
-            filename=local_path.name,
+            filename=hf_config.get("filename") or local_path.name,
             private=hf_config.get("private", False),
             revision=hf_config.get("revision"),
             path_prefix=hf_config.get("path_prefix"),
@@ -405,5 +635,14 @@ def load_dataset_file(
         if downloaded_path is None:
             raise SystemExit("[ERROR] Failed to download dataset")
         return downloaded_path
+
+    if data_source == DataSource.GITHUB:
+        return _load_dataset_file_from_github(
+            local_path=local_path,
+            data_info=data_info,
+            force_download=force_download,
+            split=split,
+            benchmark_name=benchmark_name,
+        )
 
     raise ValueError(f"Unknown data_source: {data_source}")

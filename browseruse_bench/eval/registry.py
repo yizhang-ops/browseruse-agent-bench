@@ -56,6 +56,16 @@ def _register_defaults() -> None:
         from browseruse_bench.eval.browse_comp.evaluator import BrowseCompEvaluator
         return BrowseCompEvaluator
 
+    @register_evaluator("LiveBrowseComp")
+    def _live_browse_comp():
+        from browseruse_bench.eval.browse_comp.evaluator import LiveBrowseCompEvaluator
+        return LiveBrowseCompEvaluator
+
+    @register_evaluator("BrowseComp-ZH")
+    def _browse_comp_zh():
+        from browseruse_bench.eval.browse_comp.evaluator import BrowseCompZHEvaluator
+        return BrowseCompZHEvaluator
+
     @register_evaluator("LexBench-Browser")
     def _lexbench():
         from browseruse_bench.eval.lexbench_browser.evaluator import LexBenchBrowserEvaluator

@@ -37,7 +37,23 @@ class TestBuildTaskPrompt:
     def test_prompt_key_fallback(self):
         task_info = {"prompt": "Alt key task", "url": "https://x.com"}
         prompt = AGENT.build_task_prompt(task_info)
-        assert "Alt key task" in prompt
+        assert prompt == "Alt key task"
+        assert "Use only" not in prompt
+
+    def test_explicit_prompt_is_respected_for_open_web_tasks(self):
+        task_info = {
+            "task_text": "Find the answer",
+            "prompt": (
+                "Question: Find the answer.\n\n"
+                "Start at https://www.google.com. "
+                "This starting URL is only an initial navigation page, not a site restriction."
+            ),
+            "url": "https://www.google.com",
+        }
+        prompt = AGENT.build_task_prompt(task_info)
+        assert "Start at https://www.google.com" in prompt
+        assert "not a site restriction" in prompt
+        assert "Use only" not in prompt
 
     def test_prebuilt_prompt_wins_over_rebuild(self):
         """A prompt pre-formatted by cli/run.py (constraints + optional

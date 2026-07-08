@@ -682,7 +682,7 @@ def configure_run_parser(parser: argparse.ArgumentParser, config: dict[str, Any]
         "--data-source",
         default=DataSource.LOCAL,
         choices=DataSource.tolist(),
-        help="Data source: local (default) or huggingface (download to HF cache)",
+        help="Data source: local (default), huggingface, or github (download to cache)",
     )
     parser.add_argument(
         "--timestamp",
@@ -716,7 +716,7 @@ def configure_run_parser(parser: argparse.ArgumentParser, config: dict[str, Any]
     parser.add_argument(
         "--force-download",
         action="store_true",
-        help="Force re-download from HuggingFace cache (only applies to huggingface mode)",
+        help="Force re-download from remote cache (huggingface/github modes)",
     )
     parser.add_argument(
         "--group-by-site",

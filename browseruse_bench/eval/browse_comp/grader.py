@@ -79,7 +79,9 @@ def grade_response(question: str, correct_answer: str, agent_response: str, grad
 
     return {
         "is_correct": (match_result == "yes"),
+        "response": grading_response,
         "grader_response": grading_response,
+        "reasoning": grading_response,
         "match_result": match_result,
         "usage": getattr(grader_fn, "last_usage", None),
         "user_prompt": user_prompt_snapshot,

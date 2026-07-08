@@ -66,6 +66,18 @@ class TestBenchmarkLoading:
         tasks = load_task_file(tasks_file)
         assert len(tasks) > 0
 
+    def test_livebrowsecomp_sample_tasks_exist(self):
+        """Test LiveBrowseComp sample task file exists and is valid JSONL."""
+        tasks_file = _resolve_tasks_file("LiveBrowseComp", "Sample")
+        tasks = load_task_file(tasks_file)
+        assert len(tasks) == 1
+
+    def test_browsecomp_zh_sample_tasks_exist(self):
+        """Test BrowseComp-ZH sample task file exists and is valid JSONL."""
+        tasks_file = _resolve_tasks_file("BrowseComp-ZH", "Sample")
+        tasks = load_task_file(tasks_file)
+        assert len(tasks) == 1
+
     def test_odysseys_tasks_exist(self):
         """Test Odysseys tasks file exists and is valid JSONL."""
         tasks_file = _resolve_tasks_file("Odysseys")
